@@ -1,0 +1,16 @@
+{
+ "name": "worker",
+ "version": "1.0.0",
+ "description": "",
+ "main": "core.js",
+ "scripts": {
+  "dev": "node dev-server.js"
+ },
+ "keywords": [],
+ "author": "",
+ "license": "ISC",
+ "dependencies": {
+  "ws": "^8.22.0"
+ },
+ "type": "module"
+}
