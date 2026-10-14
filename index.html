@@ -5045,7 +5045,7 @@ const Auth = {
     return data.session ? data.session.access_token : null;
   },
   async loadProfile() {
-    if (CFG.DEV || !this.session || this.anon) return (this.profile = null);
+    if (CFG.DEV || !this.session) return (this.profile = null);
     const { data } = await this.sb.from('profiles').select('username,rating,wins,losses').eq('id', this.session.user.id).maybeSingle();
     this.profile = data;
     return data;
@@ -5055,90 +5055,78 @@ const Auth = {
     this.session = null;
     this.profile = null;
   },
+  apiUrl(path) {
+    return CFG.RELAY_URL.replace(/^ws/, 'http').replace(/\/$/, '') + path;
+  },
+  async call(path, body) {
+    let r;
+    try {
+      r = await fetch(this.apiUrl(path), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) {
+      throw new Error('Serveur injoignable');
+    }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.msg || 'Erreur ' + r.status);
+    return d;
+  },
+  emailOf(pseudo) {
+    return pseudo.toLowerCase() + '@brawl-players.app';
+  },
   async setUsername(name) {
     if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) throw new Error('3 à 16 caractères : lettres, chiffres, _');
-    const { error } = await this.sb.from('profiles').update({ username: name }).eq('id', this.session.user.id);
-    if (error) throw new Error(error.code === '23505' ? 'Ce pseudo est déjà pris' : 'Pseudo refusé');
+    await this.call('/api/rename', { token: await this.token(), pseudo: name });
     await this.loadProfile();
+    if (!this.profile) this.profile = { username: name, rating: 1000, wins: 0, losses: 0 };
+    else this.profile.username = name;
   },
-  // Ouvre la fenêtre de connexion si besoin. Retourne true si on est connecté (et avec pseudo si exigé).
-  async ensure(needAccount) {
+  async login(pseudo, pw) {
+    const { error } = await this.sb.auth.signInWithPassword({ email: this.emailOf(pseudo), password: pw });
+    if (error) throw new Error(/invalid|credentials/i.test(error.message) ? 'Pseudo ou mot de passe incorrect' : error.message);
+    const { data } = await this.sb.auth.getSession();
+    this.session = data.session;
+    await this.loadProfile();
+    // profil absent (compte créé avant la base) : on le recrée avec le pseudo saisi
+    if (!this.profile || !this.profile.username) await this.setUsername(pseudo);
+  },
+  // Ouvre la fenêtre de connexion si besoin. Retourne true si on est connecté.
+  async ensure() {
     if (CFG.DEV) return true;
-    if (!this.session || (needAccount && this.anon)) {
-      const r = await domModal(
-        'CONNEXION',
-        [
-          { name: 'email', label: 'E-mail', type: 'email', ac: 'email' },
-          { name: 'pw', label: 'Mot de passe (6 caractères min.)', type: 'password', ac: 'current-password' },
-        ],
-        [
-          {
-            label: 'Se connecter',
-            primary: true,
-            run: async (v, err) => {
-              if (!v.email || v.pw.length < 6) return err('E-mail et mot de passe (6+) requis'), false;
-              const { error } = await this.sb.auth.signInWithPassword({ email: v.email, password: v.pw });
-              if (error) return err(error.message.includes('Invalid') ? 'E-mail ou mot de passe incorrect' : error.message), false;
-              return true;
-            },
+    if (this.session) return true;
+    const check = (v, err) => {
+      if (!/^[A-Za-z0-9_]{3,16}$/.test(v.pseudo)) return err('Pseudo : 3 à 16 caractères (lettres, chiffres, _)'), false;
+      if (v.pw.length < 6) return err('Mot de passe : 6 caractères minimum'), false;
+      return true;
+    };
+    const r = await domModal(
+      'CONNEXION',
+      [
+        { name: 'pseudo', label: 'Pseudo', max: 16, ac: 'username' },
+        { name: 'pw', label: 'Mot de passe (6 caractères min.)', type: 'password', ac: 'current-password' },
+      ],
+      [
+        {
+          label: 'Se connecter',
+          primary: true,
+          run: async (v, err) => {
+            if (!check(v, err)) return false;
+            await this.login(v.pseudo, v.pw);
+            return true;
           },
-          {
-            label: 'Créer un compte',
-            run: async (v, err) => {
-              if (!v.email || v.pw.length < 6) return err('E-mail et mot de passe (6+) requis'), false;
-              const { data, error } = await this.sb.auth.signUp({ email: v.email, password: v.pw });
-              if (error) return err(error.message), false;
-              if (!data.session) return err('Compte créé : clique sur le lien reçu par e-mail, puis reviens te connecter.'), false;
-              return true;
-            },
+        },
+        {
+          label: 'Créer mon compte',
+          run: async (v, err) => {
+            if (!check(v, err)) return false;
+            await this.call('/api/signup', { pseudo: v.pseudo, password: v.pw });
+            await this.login(v.pseudo, v.pw);
+            return true;
           },
-          ...(needAccount
-            ? []
-            : [
-                {
-                  label: 'Jouer en invité',
-                  run: async (v, err) => {
-                    const { error } = await this.sb.auth.signInAnonymously();
-                    if (error) return err("Mode invité indisponible : " + error.message), false;
-                    return true;
-                  },
-                },
-              ]),
-          { label: 'Annuler', cancel: true },
-        ],
-        needAccount ? 'Un compte est nécessaire pour le classement.' : ''
-      );
-      if (!r) return false;
-      const { data } = await this.sb.auth.getSession();
-      this.session = data.session;
-      if (!this.session) return false;
-      await this.loadProfile();
-    }
-    if (this.session && !this.anon) {
-      if (!this.profile) await this.loadProfile();
-      if (this.profile && !this.profile.username) {
-        const r = await domModal(
-          'CHOISIS TON PSEUDO',
-          [{ name: 'u', label: 'Pseudo (3 à 16 : lettres, chiffres, _)', max: 16 }],
-          [
-            {
-              label: 'Valider',
-              primary: true,
-              run: async (v, err) => {
-                try {
-                  await this.setUsername(v.u);
-                  return true;
-                } catch (e) {
-                  return err(e.message), false;
-                }
-              },
-            },
-          ]
-        );
-        if (!r) return false;
-      }
-    }
-    return true;
+        },
+        { label: 'Annuler', cancel: true },
+      ],
+      'Pas besoin d\'e-mail : choisis un pseudo et un mot de passe.'
+    );
+    return !!(r && this.session);
   },
   async leaderboard(n) {
     if (CFG.DEV) return [];
@@ -5213,7 +5201,7 @@ Object.assign(GameScene.prototype, {
       pendingRoom = null;
       this.showOnlineMenu();
       Auth.ready.then(async () => {
-        if (await Auth.ensure(false)) this.joinRoom(code, false);
+        if (await Auth.ensure()) this.joinRoom(code, false);
       });
       return;
     }
@@ -5231,7 +5219,7 @@ Object.assign(GameScene.prototype, {
   async showOnlineMenu() {
     this.menuBase('EN LIGNE');
     this.uiBtns = [];
-    const who = Auth.session ? (Auth.anon ? 'INVITE' : (Auth.profile && Auth.profile.username) || 'CONNECTE') : 'NON CONNECTE';
+    const who = Auth.session ? (Auth.profile && Auth.profile.username) || 'CONNECTE' : 'NON CONNECTE';
     const rt = Auth.profile ? ` - ${Auth.profile.rating} PTS` : '';
     this.ui.push(this.add.text(this.W / 2, 150, who + rt, { fontFamily: FONT, fontSize: '16px', color: '#ffe9a8', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(101));
     const list = [
@@ -5257,7 +5245,7 @@ Object.assign(GameScene.prototype, {
 
   async goProfile() {
     if (!Auth.session) {
-      if (await Auth.ensure(false)) this.showOnlineMenu();
+      if (await Auth.ensure()) this.showOnlineMenu();
       return;
     }
     const p = Auth.profile;
@@ -5269,10 +5257,10 @@ Object.assign(GameScene.prototype, {
         { label: 'Se déconnecter', run: async () => true },
         { label: 'Fermer', cancel: true },
       ],
-      Auth.anon ? 'Compte invité (sans classement).' : p ? `${p.username || '?'} — ${p.rating} pts — ${p.wins} V / ${p.losses} D` : ''
+      p ? `${p.username || '?'} — ${p.rating} pts — ${p.wins} V / ${p.losses} D` : ''
     );
     if (r && r.button === 'Se déconnecter') await Auth.signOut();
-    if (r && r.button === 'Changer de pseudo' && !Auth.anon) {
+    if (r && r.button === 'Changer de pseudo') {
       await domModal('NOUVEAU PSEUDO', [{ name: 'u', label: 'Pseudo', max: 16 }], [
         { label: 'Valider', primary: true, run: async (v, err) => { try { await Auth.setUsername(v.u); return true; } catch (e) { return err(e.message), false; } } },
         { label: 'Annuler', cancel: true },
@@ -5298,8 +5286,7 @@ Object.assign(GameScene.prototype, {
 
   // ----- Duel classé -----------------------------------------------------------
   async goRanked() {
-    if (!(await Auth.ensure(true))) return this.showOnlineMenu();
-    if (CFG.DEV && Auth.anon) return this.onlineMsg('COMPTE REQUIS');
+    if (!(await Auth.ensure())) return this.showOnlineMenu();
     this.onlineMsg('RECHERCHE...', "ADVERSAIRE DE TON NIVEAU");
     let q;
     const cancel = () => {
@@ -5333,12 +5320,12 @@ Object.assign(GameScene.prototype, {
 
   // ----- Salles privées ---------------------------------------------------------
   async goCreate() {
-    if (!(await Auth.ensure(false))) return this.showOnlineMenu();
+    if (!(await Auth.ensure())) return this.showOnlineMenu();
     const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
     this.joinRoom(code, false);
   },
   async goJoinPrompt() {
-    if (!(await Auth.ensure(false))) return this.showOnlineMenu();
+    if (!(await Auth.ensure())) return this.showOnlineMenu();
     const r = await domModal('REJOINDRE', [{ name: 'c', label: 'Code de la salle', max: 8, upper: true }], [
       { label: 'Rejoindre', primary: true, run: async (v, err) => (v.c.length >= 3 ? true : (err('Code trop court'), false)) },
       { label: 'Annuler', cancel: true },
