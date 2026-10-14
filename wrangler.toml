@@ -1,6 +1,7 @@
 name = "brawl-wallah"
 main = "relay.js"
 compatibility_date = "2025-01-01"
+keep_vars = true
 
 [assets]
 directory = "./"
@@ -15,6 +16,14 @@ class_name = "Room"
 name = "QUEUE"
 class_name = "Queue"
 
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room", "Queue"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Lobby"]

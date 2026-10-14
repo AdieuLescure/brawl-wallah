@@ -1253,6 +1253,9 @@ class GameScene extends Phaser.Scene {
     } else if (goSelect) {
       this.state = 'select';
       this.showSelect();
+    } else if (sessionReady) {
+      this.state = 'menu';
+      this.showMenu();
     } else {
       this.state = 'title';
       this.showTitle();
@@ -1671,6 +1674,10 @@ class GameScene extends Phaser.Scene {
     this.ui.forEach((o) => o.destroy());
     this.ui = [];
     if (this.cardTimer) this.cardTimer.remove();
+    if (this.roomPoll) {
+      this.roomPoll.remove();
+      this.roomPoll = null;
+    }
   }
 
   showTitle() {
@@ -1819,8 +1826,15 @@ class GameScene extends Phaser.Scene {
         return;
       }
       if (this.state === 'title') {
-        this.showMenu();
         enterFullscreen();
+        this.state = 'gate';
+        const gate = typeof ONLINE_OK !== 'undefined' && ONLINE_OK ? Promise.resolve(Auth.ready).then(() => Auth.gate()) : Promise.resolve(true);
+        gate.then((ok) => {
+          if (ok) {
+            sessionReady = true;
+            this.showMenu();
+          } else this.state = 'title';
+        });
         return;
       }
       if (this.state === 'select') {
@@ -3069,6 +3083,7 @@ function toggleFullscreen() {
   } catch (e) {}
 }
 
+let sessionReady = false; // connecté ou invité : on saute l'écran titre
 let canonLayout = false; // jeu en ligne : géométrie identique sur tous les téléphones
 function computeLayout() {
   if (canonLayout) return { W: 1280, H: 720, portrait: false, mainW: 760, baseY: 490 };
@@ -4371,13 +4386,30 @@ Object.assign(GameScene.prototype, {
     });
   },
 
-  menuBase(title) {
+  menuBase(title, opts) {
+    opts = opts || {};
     this.clearUi();
     this.state = 'menu';
+    this.barBtn = null;
+    const small = !!opts.small;
     this.ui.push(
       this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.88).setDepth(100),
-      this.add.text(this.W / 2, this.H * (L.portrait ? 0.14 : 0.17), title, { fontFamily: FONT, fontSize: L.portrait ? '44px' : '48px', color: '#ffffff', stroke: '#f72585', strokeThickness: 10, align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(101)
+      this.add.text(this.W / 2, small ? 100 : this.H * (L.portrait ? 0.14 : 0.21), title, { fontFamily: FONT, fontSize: small ? '36px' : L.portrait ? '44px' : '48px', color: '#ffffff', stroke: '#f72585', strokeThickness: small ? 8 : 10, align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(101)
     );
+    if (typeof ONLINE_OK !== 'undefined' && ONLINE_OK && !opts.noBar && Auth.name) this.drawBar();
+  },
+
+  // encart pseudo en haut : un toucher ouvre le profil
+  drawBar() {
+    const p = Auth.profile;
+    let txt = Auth.name.toUpperCase().slice(0, 16);
+    txt += Auth.session ? (p ? `  -  ${p.rating} PTS` : '') : '  (INVITE)';
+    const w = Math.min(Math.max(300, txt.length * 20 + 80), this.W - 40), h = 46, x = this.W / 2, y = 32;
+    this.ui.push(
+      this.add.rectangle(x, y, w, h, 0x1a1d33, 1).setStrokeStyle(3, 0xffe9a8).setDepth(130),
+      this.add.text(x, y, txt + '  >', { fontFamily: FONT, fontSize: '15px', color: '#ffe9a8', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(131)
+    );
+    this.barBtn = { x, y, w, h, fn: () => this.showProfile() };
   },
 
   showMenu() {
@@ -4385,24 +4417,21 @@ Object.assign(GameScene.prototype, {
     const y0 = this.H * (L.portrait ? 0.38 : 0.5);
     this.menuButtons(
       [
-        { label: 'CAMPAGNE', fn: () => this.showCampMenu() },
-        { label: 'COMBAT RAPIDE', col: 0x4cc9f0, fn: () => { campPick = false; camp = null; this.showSelect(); } },
-        ...(typeof ONLINE_OK !== 'undefined' && ONLINE_OK ? [{ label: 'EN LIGNE', col: 0xffb703, fn: () => setTimeout(goOnline, 0) }] : []),
+        { label: 'JOUER', fn: () => this.showPlayMenu() },
+        { label: 'CAMPAGNE', col: 0x4cc9f0, fn: () => this.showCampMenu() },
         { label: 'COMMENT JOUER', col: 0x6ee7b7, fn: () => this.showHelp() },
       ],
       y0
     );
   },
 
-  showHelp() {
-    this.menuBase('COMMENT\nJOUER');
-    this.ui.push(
-      this.add
-        .text(this.W / 2, this.H * 0.5, "JOYSTICK A GAUCHE\n\nBOUTON ROSE = COUPS\nSELON LA DIRECTION DU JOYSTICK\n\nBOUTON BLEU = SAUT (x2)\nBOUTON VERT = GARDE\n(GARDE + DIRECTION = ESQUIVE)\n\nDERNIERE VIE + COUP MORTEL\n= SUPER COUP FINAL !", { fontFamily: FONT, fontSize: L.portrait ? '19px' : '15px', color: '#cfd3ff', align: 'center', lineSpacing: 8 })
-        .setOrigin(0.5)
-        .setDepth(101)
-    );
-    this.menuButtons([{ label: 'RETOUR', col: 0x888888, fn: () => this.showMenu() }], this.H * (L.portrait ? 0.84 : 0.88));
+  showPlayMenu() {
+    this.menuBase('JOUER');
+    const list = [{ label: 'VS BOT', fn: () => { campPick = false; camp = null; this.showSelect(); } }];
+    if (typeof ONLINE_OK !== 'undefined' && ONLINE_OK)
+      list.push({ label: 'EN LIGNE', col: 0xffb703, fn: async () => { if (await Auth.ensure()) setTimeout(goOnline, 0); } });
+    list.push({ label: 'RETOUR', col: 0x888888, fn: () => this.showMenu() });
+    this.menuButtons(list, this.H * (L.portrait ? 0.38 : 0.5));
   },
 
   showCampMenu() {
@@ -4427,6 +4456,11 @@ Object.assign(GameScene.prototype, {
   uiTap(p) {
     if (this.state === 'story' && this.storyTap) {
       this.storyTap();
+      return;
+    }
+    const bb = this.barBtn;
+    if (bb && Math.abs(p.x - bb.x) <= bb.w / 2 && Math.abs(p.y - bb.y) <= bb.h / 2) {
+      bb.fn();
       return;
     }
     for (const b of this.uiBtns || []) {
@@ -5054,6 +5088,7 @@ const Auth = {
     if (this.sb) await this.sb.auth.signOut();
     this.session = null;
     this.profile = null;
+    this.setGuest('');
   },
   apiUrl(path) {
     return CFG.RELAY_URL.replace(/^ws/, 'http').replace(/\/$/, '') + path;
@@ -5088,45 +5123,96 @@ const Auth = {
     // profil absent (compte créé avant la base) : on le recrée avec le pseudo saisi
     if (!this.profile || !this.profile.username) await this.setUsername(pseudo);
   },
-  // Ouvre la fenêtre de connexion si besoin. Retourne true si on est connecté.
-  async ensure() {
-    if (CFG.DEV) return true;
-    if (this.session) return true;
+  // ----- invité (pseudo local, pas de compte) -----
+  guestName: (() => {
+    try {
+      return localStorage.getItem('brawl_guest') || '';
+    } catch (e) {
+      return '';
+    }
+  })(),
+  setGuest(n) {
+    this.guestName = n;
+    try {
+      n ? localStorage.setItem('brawl_guest', n) : localStorage.removeItem('brawl_guest');
+    } catch (e) {}
+  },
+  get isGuest() {
+    return !this.session && !!this.guestName;
+  },
+  get name() {
+    if (this.session) return (this.profile && this.profile.username) || 'JOUEUR';
+    return this.guestName || '';
+  },
+  async loginModal(allowGuest, note) {
     const check = (v, err) => {
       if (!/^[A-Za-z0-9_]{3,16}$/.test(v.pseudo)) return err('Pseudo : 3 à 16 caractères (lettres, chiffres, _)'), false;
       if (v.pw.length < 6) return err('Mot de passe : 6 caractères minimum'), false;
       return true;
     };
-    const r = await domModal(
-      'CONNEXION',
-      [
-        { name: 'pseudo', label: 'Pseudo', max: 16, ac: 'username' },
-        { name: 'pw', label: 'Mot de passe (6 caractères min.)', type: 'password', ac: 'current-password' },
-      ],
-      [
-        {
-          label: 'Se connecter',
-          primary: true,
-          run: async (v, err) => {
-            if (!check(v, err)) return false;
-            await this.login(v.pseudo, v.pw);
-            return true;
+    for (;;) {
+      const r = await domModal(
+        allowGuest ? 'BIENVENUE' : 'CONNEXION',
+        [
+          { name: 'pseudo', label: 'Pseudo', max: 16, ac: 'username' },
+          { name: 'pw', label: 'Mot de passe (6 caractères min.)', type: 'password', ac: 'current-password' },
+        ],
+        [
+          {
+            label: 'Se connecter',
+            primary: true,
+            run: async (v, err) => {
+              if (!check(v, err)) return false;
+              await this.login(v.pseudo, v.pw);
+              return true;
+            },
           },
-        },
-        {
-          label: 'Créer mon compte',
-          run: async (v, err) => {
-            if (!check(v, err)) return false;
-            await this.call('/api/signup', { pseudo: v.pseudo, password: v.pw });
-            await this.login(v.pseudo, v.pw);
-            return true;
+          {
+            label: 'Créer mon compte',
+            run: async (v, err) => {
+              if (!check(v, err)) return false;
+              await this.call('/api/signup', { pseudo: v.pseudo, password: v.pw });
+              await this.login(v.pseudo, v.pw);
+              return true;
+            },
           },
-        },
-        { label: 'Annuler', cancel: true },
-      ],
-      'Pas besoin d\'e-mail : choisis un pseudo et un mot de passe.'
-    );
-    return !!(r && this.session);
+          ...(allowGuest ? [{ label: 'Jouer en invité', guest: true, run: async () => true }] : [{ label: 'Annuler', cancel: true }]),
+        ],
+        note || "Pas besoin d'e-mail : choisis un pseudo et un mot de passe."
+      );
+      if (!r) return false;
+      if (r.button === 'Jouer en invité') {
+        const g = await domModal(
+          'MODE INVITE',
+          [{ name: 'pseudo', label: 'Ton pseudo (3 à 16 : lettres, chiffres, _)', max: 16 }],
+          [
+            {
+              label: 'Jouer',
+              primary: true,
+              run: async (v, err) => (/^[A-Za-z0-9_]{3,16}$/.test(v.pseudo) ? (this.setGuest(v.pseudo), true) : (err('Pseudo : 3 à 16 caractères (lettres, chiffres, _)'), false)),
+            },
+            { label: 'Retour', cancel: true },
+          ],
+          "L'invité joue contre le bot. Pour jouer en ligne, il faut un compte."
+        );
+        if (!g) continue;
+        return true;
+      }
+      if (this.session) {
+        this.setGuest('');
+        return true;
+      }
+    }
+  },
+  // à l'arrivée sur le jeu : session gardée, invité mémorisé, sinon on demande
+  async gate() {
+    if (CFG.DEV || this.session || this.guestName) return true;
+    return this.loginModal(true);
+  },
+  // action en ligne : un vrai compte est nécessaire
+  async ensure() {
+    if (CFG.DEV || this.session) return true;
+    return this.loginModal(false, this.guestName ? 'Il faut un compte pour jouer en ligne.' : '');
   },
   async leaderboard(n) {
     if (CFG.DEV) return [];
@@ -5216,71 +5302,127 @@ Object.assign(GameScene.prototype, {
       this.ui.push(this.add.text(this.W / 2, this.H * 0.45, sub, { fontFamily: FONT, fontSize: '18px', color: '#cfd3ff', align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(101));
   },
 
-  async showOnlineMenu() {
-    this.menuBase('EN LIGNE');
+  // ----- Page EN LIGNE : salons publics + code + duel classé -----
+  showOnlineMenu() {
+    this.menuBase('EN LIGNE', { small: true });
     this.uiBtns = [];
-    const who = Auth.session ? (Auth.profile && Auth.profile.username) || 'CONNECTE' : 'NON CONNECTE';
-    const rt = Auth.profile ? ` - ${Auth.profile.rating} PTS` : '';
-    this.ui.push(this.add.text(this.W / 2, 150, who + rt, { fontFamily: FONT, fontSize: '16px', color: '#ffe9a8', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(101));
+    const D = 120;
+    // panneau des salons publics
+    this.ui.push(this.add.rectangle(400, 380, 680, 440, 0x14172b, 1).setStrokeStyle(4, 0x4cc9f0).setDepth(D));
+    this.ui.push(this.add.text(400, 180, 'SALONS PUBLICS', { fontFamily: FONT, fontSize: '18px', color: '#4cc9f0', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1));
+    this.roomObjs = [];
+    this.roomMsgTxt = this.add.text(400, 380, 'CHARGEMENT...', { fontFamily: FONT, fontSize: '16px', color: '#9aa0d0', align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(D + 1);
+    this.ui.push(this.roomMsgTxt);
+    // colonne de droite
     const list = [
-      { label: 'DUEL CLASSE', fn: () => this.goRanked() },
-      { label: 'CREER UNE SALLE', col: 0x4cc9f0, fn: () => this.goCreate() },
-      { label: 'REJOINDRE (CODE)', col: 0x4cc9f0, fn: () => this.goJoinPrompt() },
-      { label: 'CLASSEMENT', col: 0xffb703, fn: () => this.showLeaderboard() },
-      { label: Auth.session ? 'PROFIL / DECONNEXION' : 'SE CONNECTER', col: 0x6ee7b7, fn: () => this.goProfile() },
+      { label: 'DUEL CLASSE', col: 0xf72585, fn: () => this.goRanked() },
+      { label: 'CREER UN SALON', col: 0x4cc9f0, fn: () => this.goCreate(true) },
+      { label: 'SALON PRIVE', col: 0x6ee7b7, fn: () => this.goCreate(false) },
+      { label: 'ENTRER UN CODE', col: 0xffb703, fn: () => this.goJoinPrompt() },
       { label: 'RETOUR', col: 0x888888, fn: () => leaveOnline() },
     ];
-    // deux colonnes pour tenir à l'écran
-    const D = 120, bw = 380, bh = 62;
+    const bw = 400, bh = 66;
     list.forEach((b, i) => {
-      const col = i % 2, row = Math.floor(i / 2);
-      const x = this.W / 2 + (col ? 1 : -1) * (bw / 2 + 12), y = 250 + row * (bh + 18);
-      const r = this.add.rectangle(x, y, bw, bh, 0x1a1d33, 1).setStrokeStyle(4, b.col || 0xf72585).setDepth(D);
-      const t = this.add.text(x, y, b.label, { fontFamily: FONT, fontSize: '16px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
-      this.ui.push(r, t);
+      const x = 1010, y = 215 + i * (bh + 16);
+      this.ui.push(this.add.rectangle(x, y, bw, bh, 0x1a1d33, 1).setStrokeStyle(4, b.col).setDepth(D));
+      this.ui.push(this.add.text(x, y, b.label, { fontFamily: FONT, fontSize: '17px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1));
       this.uiBtns.push({ x, y, w: bw, h: bh, fn: b.fn });
     });
-    if (!Auth.session && !CFG.DEV) this.ui.push(this.add.text(this.W / 2, this.H - 50, 'COMPTE REQUIS POUR JOUER EN LIGNE', { fontFamily: FONT, fontSize: '12px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(101));
+    this.baseBtns = this.uiBtns.slice();
+    this.refreshRooms();
+    if (this.roomPoll) this.roomPoll.remove();
+    this.roomPoll = this.time.addEvent({ delay: 4000, loop: true, callback: () => this.refreshRooms() });
   },
 
-  async goProfile() {
-    if (!Auth.session) {
-      if (await Auth.ensure()) this.showOnlineMenu();
-      return;
-    }
+  async refreshRooms() {
+    let rooms = null;
+    try {
+      const r = await fetch(Auth.apiUrl('/api/rooms'));
+      if (r.ok) rooms = await r.json();
+    } catch (e) {}
+    if (!this.roomMsgTxt || !this.roomMsgTxt.active || this.state !== 'menu') return;
+    this.roomObjs.forEach((o) => o.destroy());
+    this.roomObjs = [];
+    this.uiBtns = this.baseBtns.slice();
+    if (rooms === null) return this.roomMsgTxt.setText('SALONS INDISPONIBLES\nUTILISE UN CODE').setVisible(true);
+    if (!rooms.length) return this.roomMsgTxt.setText('AUCUN SALON PUBLIC\nCREES-EN UN !').setVisible(true);
+    this.roomMsgTxt.setVisible(false);
+    const D = 121;
+    rooms.slice(0, 5).forEach((r, i) => {
+      const y = 232 + i * 76;
+      const bg = this.add.rectangle(400, y, 640, 64, 0x1a1d33, 1).setStrokeStyle(3, 0x6ee7b7).setDepth(D);
+      const t1 = this.add.text(100, y, String(r.host || '?').toUpperCase().slice(0, 14), { fontFamily: FONT, fontSize: '17px', color: '#ffe9a8', stroke: '#000', strokeThickness: 4 }).setOrigin(0, 0.5).setDepth(D + 1);
+      const t2 = this.add.text(560, y, '1/2', { fontFamily: FONT, fontSize: '15px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(D + 1);
+      const t3 = this.add.text(690, y, 'JOUER', { fontFamily: FONT, fontSize: '15px', color: '#6ee7b7', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
+      this.roomObjs.push(bg, t1, t2, t3);
+      this.uiBtns.push({ x: 400, y, w: 640, h: 64, fn: () => this.joinPublic(r.code) });
+    });
+  },
+
+  async joinPublic(code) {
+    if (!(await Auth.ensure())) return;
+    this.joinRoom(code, false);
+  },
+
+  // ----- Profil (encart pseudo) -----
+  async showProfile() {
+    await Auth.loadProfile().catch(() => {});
+    this.menuBase('PROFIL', { noBar: true });
     const p = Auth.profile;
-    const r = await domModal(
-      'PROFIL',
-      [],
-      [
-        { label: 'Changer de pseudo', run: async () => true },
-        { label: 'Se déconnecter', run: async () => true },
-        { label: 'Fermer', cancel: true },
-      ],
-      p ? `${p.username || '?'} — ${p.rating} pts — ${p.wins} V / ${p.losses} D` : ''
+    const lines = Auth.session
+      ? [Auth.name.toUpperCase(), p ? `${p.rating} POINTS` : '', p ? `${p.wins || 0} VICTOIRES - ${p.losses || 0} DEFAITES` : '']
+      : [Auth.name.toUpperCase(), 'INVITE (SANS COMPTE)', 'JOUE CONTRE LE BOT'];
+    this.ui.push(
+      this.add.text(this.W / 2, this.H * (L.portrait ? 0.3 : 0.36), lines.join('\n'), { fontFamily: FONT, fontSize: L.portrait ? '20px' : '18px', color: '#ffe9a8', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 12 }).setOrigin(0.5).setDepth(101)
     );
-    if (r && r.button === 'Se déconnecter') await Auth.signOut();
-    if (r && r.button === 'Changer de pseudo') {
-      await domModal('NOUVEAU PSEUDO', [{ name: 'u', label: 'Pseudo', max: 16 }], [
-        { label: 'Valider', primary: true, run: async (v, err) => { try { await Auth.setUsername(v.u); return true; } catch (e) { return err(e.message), false; } } },
+    const list = [];
+    list.push({ label: 'CHANGER DE PSEUDO', col: 0x4cc9f0, fn: () => this.renameFlow() });
+    list.push({ label: 'CLASSEMENT', col: 0xffb703, fn: () => this.showLeaderboard() });
+    list.push(Auth.session ? { label: 'DECONNEXION', col: 0xf72585, fn: () => this.logoutFlow() } : { label: 'CREER UN COMPTE', col: 0x6ee7b7, fn: () => this.logoutFlow() });
+    list.push({ label: 'RETOUR', col: 0x888888, fn: () => (onlineStage ? this.showOnlineMenu() : this.showMenu()) });
+    this.menuButtons(list, this.H * (L.portrait ? 0.4 : 0.5));
+  },
+
+  async renameFlow() {
+    const r = await domModal(
+      'NOUVEAU PSEUDO',
+      [{ name: 'u', label: 'Pseudo (3 à 16 : lettres, chiffres, _)', max: 16 }],
+      [
+        {
+          label: 'Valider',
+          primary: true,
+          run: async (v, err) => {
+            if (!/^[A-Za-z0-9_]{3,16}$/.test(v.u)) return err('Pseudo : 3 à 16 caractères (lettres, chiffres, _)'), false;
+            if (Auth.session) await Auth.setUsername(v.u);
+            else Auth.setGuest(v.u);
+            return true;
+          },
+        },
         { label: 'Annuler', cancel: true },
-      ]);
-    }
-    this.showOnlineMenu();
+      ]
+    );
+    this.showProfile();
+  },
+
+  async logoutFlow() {
+    await Auth.signOut();
+    sessionReady = false;
+    if (onlineStage) leaveOnline();
+    else this.scene.restart();
   },
 
   async showLeaderboard() {
-    this.menuBase('CLASSEMENT');
-    const t = this.add.text(this.W / 2, this.H * 0.5, 'CHARGEMENT...', { fontFamily: FONT, fontSize: '18px', color: '#cfd3ff', align: 'center' }).setOrigin(0.5).setDepth(101);
+    this.menuBase('CLASSEMENT', { noBar: true });
+    const t = this.add.text(this.W / 2, this.H * 0.47, 'CHARGEMENT...', { fontFamily: FONT, fontSize: '18px', color: '#cfd3ff', align: 'center' }).setOrigin(0.5).setDepth(101);
     this.ui.push(t);
-    this.menuButtons([{ label: 'RETOUR', col: 0x888888, fn: () => this.showOnlineMenu() }], this.H - 60);
+    this.menuButtons([{ label: 'RETOUR', col: 0x888888, fn: () => this.showProfile() }], this.H - 60);
     let rows = [];
     try {
       rows = await Auth.leaderboard(10);
     } catch (e) {}
     if (!t.active) return;
     const me = Auth.profile && Auth.profile.username;
-    t.setText(rows.length ? rows.map((r, i) => `${String(i + 1).padStart(2)}. ${r.username.padEnd(16)} ${String(r.rating).padStart(4)}  ${r.wins}V/${r.losses}D${r.username === me ? '  <' : ''}`).join('\n') : 'PERSONNE POUR L\'INSTANT')
+    t.setText(rows.length ? rows.map((r, i) => `${String(i + 1).padStart(2)}. ${r.username.padEnd(16)} ${String(r.rating).padStart(4)}  ${r.wins}V/${r.losses}D${r.username === me ? '  <' : ''}`).join('\n') : "PERSONNE POUR L'INSTANT")
       .setFontSize('15px').setLineSpacing(10).setAlign('left').setOrigin(0.5, 0.5).setPosition(this.W / 2, this.H * 0.47);
   },
 
@@ -5319,10 +5461,10 @@ Object.assign(GameScene.prototype, {
   },
 
   // ----- Salles privées ---------------------------------------------------------
-  async goCreate() {
+  async goCreate(pub) {
     if (!(await Auth.ensure())) return this.showOnlineMenu();
     const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-    this.joinRoom(code, false);
+    this.joinRoom(code, false, '', !!pub);
   },
   async goJoinPrompt() {
     if (!(await Auth.ensure())) return this.showOnlineMenu();
@@ -5334,7 +5476,7 @@ Object.assign(GameScene.prototype, {
     else this.showOnlineMenu();
   },
 
-  async joinRoom(code, ranked, vs) {
+  async joinRoom(code, ranked, vs, pub) {
     this.onlineMsg('CONNEXION...', 'SALLE ' + code);
     Online.code = code;
     Online.ranked = ranked;
@@ -5342,7 +5484,7 @@ Object.assign(GameScene.prototype, {
     Online.rematchAsked = false;
     Online.picked = null;
     try {
-      Online.conn = await netOpen('/ws/room/' + code, (m) => this.roomMsg(m), () => this.roomClosed());
+      Online.conn = await netOpen('/ws/room/' + code + (pub ? '?pub=1' : ''), (m) => this.roomMsg(m), () => this.roomClosed());
     } catch (e) {
       return this.onlineMsg('ERREUR', 'SERVEUR INJOIGNABLE');
     }
