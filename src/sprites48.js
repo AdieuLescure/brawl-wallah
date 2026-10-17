@@ -148,6 +148,10 @@ var SPR48 = (function () {
   POSES.ringT = { oy: 0, ox: 0, only: 'nini', bA: [11, 10, 10, 14, 2], fA: [14, 10, 19, 5, 2], bL: [11, 14, 9, 18], fL: [14, 14, 16, 18] };
   POSES.purr = { oy: 1, ox: 0, only: 'nini', purr: 1, bA: [11, 11, 13, 13, 2], fA: [14, 11, 16, 13, 2], bL: [11, 15, 9, 18], fL: [14, 15, 16, 18] };
   POSES.float = { oy: 0, ox: 0, only: 'nini', bA: [11, 10, 8, 13, 2], fA: [14, 10, 16, 3, 2], bL: [11, 14, 10, 17], fL: [14, 14, 15, 17] };
+  // Scarlett a sauté des épaules : Nini tend le bras vers elle (le chat est dessiné à part)
+  POSES.pounce = { oy: 0, ox: 0, only: 'nini', noCat: 1, bA: [11, 10, 9, 13, 2], fA: [14, 10, 20, 9, 2], bL: [11, 14, 8, 18], fL: [14, 14, 17, 18] };
+  // valise lâchée sous ses pieds
+  POSES.drop = { oy: 0, ox: 0, only: 'nini', bA: [11, 10, 9, 15, 2], fA: [14, 10, 16, 17, 2], bL: [11, 14, 9, 16], fL: [14, 14, 16, 16] };
   Object.keys(POSES).forEach((k) => (POSES[k].__n = k));
   const CH = {};
 

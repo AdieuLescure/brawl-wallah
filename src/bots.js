@@ -62,12 +62,13 @@ const BOT_MOVES = {
   ],
   nini: [
     { d: 'neutral', air: false, dx: [0, 95], dy: [-60, 50], w: 4 },
-    { d: 'forward', air: false, dx: [40, 650], dy: [-30, 60], w: 2.5 },
-    { d: 'down', air: false, dx: [120, 560], dy: [-40, 60], w: 1.2, tgtGround: true },
-    { d: 'up', air: false, dx: [0, 80], dy: [-180, -20], w: 2 },
-    { d: 'back', air: false, dx: [320, 900], dy: [-300, 300], w: 1, heal: true },
-    { d: 'neutral', air: true, dx: [0, 90], dy: [-70, 70], w: 3 },
+    { d: 'forward', air: false, dx: [50, 170], dy: [-50, 50], w: 2.5 },
+    { d: 'up', air: false, dx: [0, 90], dy: [-200, -20], w: 2 },
+    { d: 'down', air: false, dx: [160, 600], dy: [-40, 60], w: 1.2, tgtGround: true },
+    { d: 'back', air: false, dx: [160, 520], dy: [-50, 50], w: 1.2, tgtGround: true },
+    { d: 'neutral', air: true, dx: [0, 95], dy: [-70, 70], w: 3 },
     { d: 'forward', air: true, dx: [30, 130], dy: [-60, 60], w: 2 },
+    { d: 'down', air: true, dx: [0, 80], dy: [40, 260], w: 1.5 },
   ],
 };
 const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 80, denodoom: 160, nini: 90 };

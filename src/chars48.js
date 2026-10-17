@@ -480,6 +480,7 @@
   // chat sur les épaules : corps et queue derrière le cou (pre), tête posée sur l'épaule avant (post)
   function catBack(c) {
     const { g, ox, oy, pose, rage } = c;
+    if (pose.noCat) return;
     const k = rage ? 1.3 : 1;
     const sw = /run/.test(pose.__n) ? 2 : /jump|float/.test(pose.__n) ? -2 : /idle1/.test(pose.__n) ? 1 : 0;
     // queue en panache qui pend dans le dos, bout sombre
@@ -494,6 +495,7 @@
   }
   function catFront(c) {
     const { g, ox, oy, pose, rage } = c;
+    if (pose.noCat) return;
     const k = rage ? 1.28 : 1;
     const claw = !!pose.claw;
     const hx = 35 + ox + (claw ? 1.5 : 0), hy = 18.4 + oy;
@@ -557,7 +559,7 @@
   // =====================================================================
   // Accessoires de NINI (textures 48x40 : corgi qui court, alliance, coeur, parapluie)
   // =====================================================================
-  S.extras = ['corgi0', 'corgi1', 'wring', 'heart', 'umbrella'];
+  S.extras = ['corgi0', 'corgi1', 'wring', 'heart', 'umbrella', 'scarlett', 'scarlett_r', 'peony', 'suitcase'];
   S.drawExtra = function (name) {
     const g = S.makeGfx();
     const O = ramp('#e0963a'), Wh = ramp('#f6efe2');
@@ -596,6 +598,78 @@
         if (v > 0) return null;
         return X < -0.1 && Y > 0.3 ? hex('#ffd0e0') : Y < -0.5 ? hex('#c2255c') : hex('#ff5f8f');
       }));
+    } else if (name === 'scarlett' || name === 'scarlett_r') {
+      // SCARLETT en plein bond (tournée vers la droite), queue en panache, pattes tendues
+      const rage = name === 'scarlett_r';
+      g.commit(g.capsule(10, 18, 5, 11, 1.7, ramp('#b3ab9f')));
+      g.commit(g.capsule(5, 11, 4, 7, 1.9, ramp('#46434c')));
+      g.commit(g.capsule(13, 22, 5, 27, 1.8, ramp('#a9a195')));
+      g.commit(g.capsule(15, 22, 8, 29, 1.8, ramp('#b3ab9f')));
+      g.commit(g.capsule(8, 29, 6, 30, 1.6, ramp('#f6f3ec')));
+      g.commit(g.capsule(11, 19, 30, 17, 4.3, ramp('#b3ab9f')));
+      [[15, 14], [19, 13], [23, 13], [27, 13.5]].forEach(([x, y]) => g.rect(x, y, 2, 1, CAT.d));
+      g.commit(g.capsule(25, 20.5, 31, 20, 2, ramp('#f6f3ec')), false);
+      g.commit(g.capsule(30, 20, 40, 23, 1.8, ramp('#b3ab9f')));
+      g.commit(g.capsule(40, 23, 42, 23, 2.1, ramp('#f6f3ec')));
+      [-2, 0, 2].forEach((d) => g.line(43.6, 23 + d, 45.6, 23 + d * 1.5, hex('#ffffff')));
+      const hx = 35, hy = 13, k = 1;
+      const ear = (x0, up) => g.commit(g.poly([[x0, hy - 2.4], [x0 + 1.2, hy - 7.6 - up], [x0 + 4.2, hy - 3]], (x, y) => (y < hy - 4 && x > x0 + 0.9 ? CAT.n : CAT.g)));
+      ear(hx - 4.6, 0);
+      ear(hx + 0.6, 0.4);
+      g.commit(g.poly(circ(hx, hy, 4.7), (x, y) => {
+        const dx = x + 0.5 - hx, dy = y + 0.5 - hy;
+        if (dy > 2.1) return CAT.w;
+        if (Math.abs(dx) < 2.6 && dy < 1.8) return dy < -1.4 && Math.abs(dx) < 0.6 ? CAT.D : CAT.d;
+        return dx < -2.2 ? CAT.g : CAT.G;
+      }));
+      const ec = rage ? CAT.E : CAT.e;
+      g.rect(hx - 3, hy - 1, 2, 2, ec);
+      g.rect(hx + 1, hy - 1, 2, 2, ec);
+      g.dot(hx - 2, hy - 1, CAT.o);
+      g.dot(hx + 2, hy - 1, CAT.o);
+      if (rage) { g.line(hx - 3.6, hy - 2.6, hx - 1, hy - 1.6, CAT.o); g.line(hx + 2.6, hy - 2.6, hx + 0.4, hy - 1.6, CAT.o); }
+      g.dot(hx, hy + 1.4, CAT.n);
+      g.line(hx - 1.4, hy + 2.8, hx + 1.4, hy + 2.8, CAT.o);
+      g.dot(hx - 1, hy + 3.6, CAT.w);
+      g.dot(hx + 1, hy + 3.6, CAT.w);
+    } else if (name === 'peony') {
+      // PIVOINE : feuilles, pétales en couronnes, coeur doré
+      g.commit(g.poly([[6, 30], [14, 24], [22, 27], [13, 33]], (x, y) => (y < 28 ? hex('#6fbf5a') : hex('#3f8a3a'))));
+      g.commit(g.poly([[42, 30], [34, 24], [26, 27], [35, 33]], (x, y) => (y < 28 ? hex('#6fbf5a') : hex('#3f8a3a'))));
+      const layer = (rad, rr, n, c0, c1, c2, off, outline) => {
+        const m = new Map();
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * 6.2832 + off;
+          const cx = 24 + Math.cos(a) * rad, cy = 19 + Math.sin(a) * rad * 0.8;
+          g.poly(circ(cx, cy, rr), (x, y) => {
+            const t = ((x + 0.5 - cx) * -0.6 + (y + 0.5 - cy) * -0.8) / rr;
+            return t > 0.35 ? hex(c0) : t < -0.35 ? hex(c2) : hex(c1);
+          }).forEach((v, kk) => m.set(kk, v));
+        }
+        g.commit(m, outline);
+      };
+      layer(10, 6, 9, '#ff8fb3', '#e8578a', '#b8325f', 0, true);
+      layer(6.5, 5, 7, '#ffb3cc', '#ff7aa8', '#d9497c', 0.4, false);
+      layer(3.2, 3.8, 5, '#ffe0ec', '#ffb3cc', '#ff7aa8', 0.9, false);
+      [[23, 18], [25, 19], [24, 20], [22, 20], [26, 17]].forEach(([x, y]) => g.dot(x, y, hex('#ffd166')));
+    } else if (name === 'suitcase') {
+      // VALISE de voyage : cuir rouge-brun, sangles, boucles dorées, étiquettes
+      g.commit(g.capsule(19, 11, 29, 11, 1.4, ramp('#5a3420')));
+      g.rect(18, 12, 2, 3, hex('#5a3420'));
+      g.rect(28, 12, 2, 3, hex('#5a3420'));
+      g.commit(g.poly([[9, 15], [39, 15], [40, 16], [40, 33], [39, 34], [9, 34], [8, 33], [8, 16]], (x, y) => (y < 17 ? hex('#c9654a') : y > 31 ? hex('#6e2a1b') : x > 36 ? hex('#8a3524') : hex('#a8452f'))));
+      [15, 31].forEach((sx) => {
+        g.rect(sx, 15, 2, 19, hex('#5a3420'));
+        g.rect(sx - 1, 22, 4, 3, hex('#ffd166'));
+        g.dot(sx, 23, hex('#8a6a1a'));
+      });
+      g.rect(19, 18, 8, 6, hex('#6fc3df'));
+      g.rect(20, 19, 6, 1, hex('#ffffff'));
+      g.rect(20, 21, 4, 1, hex('#ffffff'));
+      g.rect(20, 27, 7, 4, hex('#ffe08a'));
+      g.rect(21, 28, 5, 1, hex('#e8578a'));
+      g.rect(34, 18, 3, 3, hex('#ffffff'));
+      [[9, 16], [38, 16], [9, 32], [38, 32]].forEach(([x, y]) => g.rect(x, y, 2, 2, hex('#d9d4c9')));
     } else if (name === 'umbrella') {
       const cols = ['#ff8fb3', '#ffe08a'];
       g.commit(g.poly([[3, 22], [6, 14], [14, 8], [24, 5], [34, 8], [42, 14], [45, 22], [39, 19.5], [33, 22], [28, 19.5], [24, 22], [20, 19.5], [15, 22], [9, 19.5]], (x) => cols[Math.floor((x - 3) / 7) % 2] ? hex(cols[Math.floor((x - 3) / 7) % 2]) : null));

@@ -41,7 +41,7 @@ const PISTOLS = { type: 'proj', pose: 'shoot', startup: 80, total: 340, double: 
   proj: { kind: 'bullet', tex: 'bullet', s: 3, vx: 1500, life: 175, w: 26, h: 16, ox: 46, oy: -10, dmg: 5, kb: 190, ks: 3.5, ang: -0.2, stun: 110, small: true } };
 const SABER = { type: 'melee', pose: 'saber', startup: 100, active: 110, total: 390, w: 92, h: 60, ox: 58, oy: -6, dmg: 7, kb: 270, ks: 6, ang: -0.45, stun: 170, lunge: 220,
   fx: { cres: 'cres_steel', s: 3.6, ang: -8, ghosts: 2 } };
-const NINI_C2 = { type: 'melee', pose: 'claw', startup: 60, active: 110, total: 340, w: 80, h: 58, ox: 56, oy: -8, dmg: 7, kb: 260, ks: 6, ang: -0.5, stun: 180, fx: { cres: 'cres_pink', s: 3.2, ang: -30 } };
+const NINI_C2 = { type: 'melee', pose: 'claw', startup: 60, active: 110, total: 340, w: 80, h: 58, ox: 56, oy: -8, dmg: 6, kb: 260, ks: 6, ang: -0.5, stun: 180, fx: { cres: 'cres_pink', s: 3.2, ang: -30 } };
 const TORO_J2 = { type: 'melee', pose: 'jab', startup: 50, active: 80, total: 230, w: 66, h: 48, ox: 52, oy: -4, dmg: 3, kb: 110, ks: 1.2, ang: -0.15, stun: 150, fx: { cres: 'cres_white', s: 2.4, ang: 0 } };
 const TORO_J3 = { type: 'melee', pose: 'heavy', startup: 70, active: 110, total: 420, w: 80, h: 60, ox: 56, oy: -8, dmg: 4, kb: 300, ks: 5.5, ang: -0.6, stun: 200, lunge: 120, fx: { cres: 'cres_fire', s: 3.6, ang: -20, flames: 5 } };
 
@@ -153,26 +153,37 @@ const CHARS = {
   },
   nini: {
     id: 'nini', name: 'NINI', role: 'CHAT + CORGI', roleCol: '#ffa8cf', cardCol: '#ff7eb6',
-    speed: 330, jump: 650, weight: 1.0, jumps: 2,
+    speed: 320, jump: 650, weight: 1.0, jumps: 2,
     pal: { main: '#f4f0e8', dark: '#6f93c9', skin: '#d9a077', skin2: '#b57c55', hair: '#3a2216', accent: '#6b7a2e', glove: '#d9a077' },
     fx: { main: 0xff7eb6, alt: 0xffd1e6, core: 0xffffff, cres: 'cres_pink' },
-    help: ['NEUTRE  GRIFFE', 'AVANT   CORGI', 'HAUT    BALLONS', 'BAS     CHARME', 'ARRIERE RONRON', 'AIR     PARASOL', 'PASSIF  RAS-LE-BOL'],
+    help: ['NEUTRE  GRIFFES', 'AVANT   BOND DU CHAT', 'HAUT    PIVOINE', 'BAS     CORGI', 'ARRIERE COUP DE FOUDRE', 'AIR     VENT / VALISE', 'PASSIF  COLERE'],
+    // Nini ne frappe jamais elle-même : c'est Scarlett (le chat sur ses épaules), le corgi, l'amour, les fleurs, le vent
     moves: {
+      // GRIFFES : Scarlett griffe deux fois depuis l'épaule
       neutral: { type: 'melee', pose: 'claw', startup: 60, active: 90, total: 240, w: 76, h: 54, ox: 54, oy: -6, dmg: 4, kb: 120, ks: 1.5, ang: -0.2, stun: 150, chain: [NINI_C2], fx: { cres: 'cres_pink', s: 2.4, ang: 0 } },
-      forward: { type: 'proj', pose: 'call', startup: 140, total: 600, max: 1, fx: {},
-        proj: { kind: 'corgi', tex: 'corgi0', s: 4, vx: 900, life: 5000, w: 70, h: 44, ox: 50, oy: 0, dmg: 9, kb: 300, ks: 7, ang: -0.55, stun: 200 } },
-      up: { type: 'melee', pose: 'castUp', startup: 80, active: 220, total: 520, w: 80, h: 96, ox: 10, oy: -50, dmg: 8, kb: 300, ks: 7.5, ang: -1.4, stun: 200, rise: 600, fx: { hearts: true } },
-      upAir: { type: 'melee', pose: 'castUp', startup: 70, active: 220, total: 520, w: 80, h: 96, ox: 10, oy: -50, dmg: 7, kb: 280, ks: 7, ang: -1.4, stun: 190, rise: 820, riseX: 60, helpless: true, fx: { hearts: true } },
-      down: { type: 'proj', pose: 'ringT', startup: 140, total: 560, cd: 5000, cdKey: 'charm', fx: {},
-        proj: { kind: 'ring', tex: 'wring', s: 4, vx: 640, life: 1100, w: 40, h: 40, ox: 44, oy: -10, dmg: 0, spin: 14, charm: 800, slow: 500, small: true } },
-      downAir: { type: 'proj', pose: 'ringT', startup: 120, total: 520, cd: 5000, cdKey: 'charm', fx: {},
-        proj: { kind: 'ring', tex: 'wring', s: 4, vx: 640, life: 1100, w: 40, h: 40, ox: 44, oy: -10, dmg: 0, spin: 14, charm: 800, slow: 500, small: true } },
-      back: { type: 'heal', pose: 'purr', startup: 140, total: 900, heal: 6, cooldown: 12000, fx: {} },
-      bAir: { type: 'float', pose: 'float', startup: 40, total: 1000, onceAir: 'float', fx: {} },
-      nAir: { type: 'melee', pose: 'claw', startup: 60, active: 140, total: 380, w: 104, h: 90, ox: 0, oy: 0, dmg: 6, kb: 220, ks: 5, ang: -0.7, stun: 160, fx: { cres: 'cres_pink', s: 2.8, ang: -40 } },
+      // BOND DU CHAT : Scarlett saute des épaules et retombe sur l'adversaire (gros coup)
+      forward: { type: 'melee', pose: 'pounce', cat: true, startup: 180, active: 120, total: 680, w: 84, h: 64, ox: 78, oy: -12, dmg: 9, kb: 320, ks: 7.6, ang: -0.55, stun: 230, fx: { cres: 'cres_pink', s: 4.2, ang: -20 } },
+      // PIVOINE : une pivoine éclot au-dessus de sa tête
+      up: { type: 'melee', pose: 'castUp', startup: 130, active: 140, total: 500, w: 110, h: 100, ox: 6, oy: -84, dmg: 9, kb: 320, ks: 8.4, ang: -1.45, stun: 220, fx: { peony: true } },
+      // AUTANT EN EMPORTE LE VENT : une bourrasque l'emporte vers le haut (coup de retour)
+      upAir: { type: 'melee', pose: 'float', startup: 60, active: 260, total: 560, w: 90, h: 100, ox: 6, oy: -40, dmg: 6, kb: 260, ks: 6, ang: -1.4, stun: 180, rise: 860, riseX: 160, helpless: true, fx: { wind: 'up' } },
+      // CORGI : le corgi déboule de derrière elle et fonce au sol (recharge 4 s)
+      down: { type: 'proj', pose: 'call', startup: 160, total: 520, max: 1, cd: 4000, cdKey: 'corgi', fx: {},
+        proj: { kind: 'corgi', tex: 'corgi0', s: 4, vx: 860, life: 5000, w: 70, h: 44, ox: -30, oy: 0, dmg: 10, kb: 310, ks: 7.5, ang: -0.6, stun: 210 } },
+      // VALISE (le voyage) : elle lâche sa valise, qui tombe lourdement ; Nini rebondit un peu
+      downAir: { type: 'proj', pose: 'drop', startup: 110, total: 500, hop: 300, cd: 3000, cdKey: 'valise', fx: {},
+        proj: { kind: 'suitcase', tex: 'suitcase', s: 3.4, vx: 60, vy: 420, grav: 1600, life: 1500, w: 64, h: 46, ox: 6, oy: 50, dmg: 9, kb: 300, ks: 7, ang: 1.2, stun: 230 } },
+      // COUP DE FOUDRE (l'amour) : elle recule et envoie un baiser en coeur qui charme (recharge 5 s)
+      back: { type: 'proj', pose: 'ringT', startup: 120, total: 520, retreat: 170, cd: 5000, cdKey: 'charm', fx: {},
+        proj: { kind: 'kiss', tex: 'heart', s: 3.6, vx: 560, life: 1200, w: 44, h: 40, ox: 40, oy: -16, dmg: 0, charm: 800, slow: 500, small: true } },
+      // BOURRASQUE : le vent repousse l'adversaire pendant qu'elle recule
+      bAir: { type: 'melee', pose: 'float', startup: 90, active: 120, total: 440, retreat: 200, w: 130, h: 84, ox: 70, oy: -6, dmg: 4, kb: 540, ks: 3.5, ang: -0.15, stun: 140, fx: { wind: 'side' } },
+      // PETALES : un tourbillon de pétales de pivoine autour d'elle
+      nAir: { type: 'melee', pose: 'castUp', startup: 60, active: 150, total: 400, w: 108, h: 96, ox: 0, oy: -4, dmg: 6, kb: 220, ks: 5, ang: -0.7, stun: 160, fx: { petals: true } },
       fwdAir: { type: 'melee', pose: 'claw', startup: 80, active: 110, total: 420, w: 80, h: 60, ox: 52, oy: -4, dmg: 8, kb: 270, ks: 6.5, ang: -0.4, stun: 190, fx: { cres: 'cres_pink', s: 3.2, ang: 0 } },
     },
   },
+
 };
 const ORDER = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini'];
 const RAGE_MAX = 60, RAGE_MS = 8000;
@@ -729,8 +740,7 @@ class GameScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup();
     const main = this.platforms.create(this.W / 2, L.baseY + 28, 'main').setScale(PX).refreshBody();
     main.setDepth(5);
-    main.body.checkCollision.left = false;
-    main.body.checkCollision.right = false;
+    // tout le bloc (herbe + terre) est solide : on ne traverse plus la terre par les côtés ni par dessous
     const sx = mw * 0.3;
     [
       [this.W / 2 - sx, L.baseY - 170],
@@ -1432,6 +1442,24 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // BOND DU CHAT : Scarlett quitte les épaules, bondit devant Nini puis revient (simple visuel)
+    if (pl.atk && pl.atk.m.cat && !this.resim) {
+      const a = pl.atk, m = a.m;
+      const t = now - a.start;
+      const far = m.startup + (m.active || 0) * 0.5;
+      const k = t < far ? t / far : Math.max(0, 1 - (t - far) / Math.max(m.total - far, 1));
+      const e = 1 - (1 - k) * (1 - k);
+      const bc = b.center;
+      const x0 = bc.x + pl.facing * 12, y0 = bc.y - 30;
+      const x1 = bc.x + pl.facing * (m.ox + 6), y1 = bc.y + (m.oy || 0) - 4;
+      const cxp = x0 + (x1 - x0) * e, cyp = y0 + (y1 - y0) * e - Math.sin(e * Math.PI) * 34;
+      if (!pl.catImg) pl.catImg = this.add.image(cxp, cyp, 'scarlett').setScale(PX).setDepth(12);
+      pl.catImg.setTexture(raging ? 'scarlett_r' : 'scarlett').setPosition(cxp, cyp).setFlipX(pl.facing < 0).setAngle(pl.facing * (t < far ? -12 : 10));
+    } else if (pl.catImg) {
+      pl.catImg.destroy();
+      pl.catImg = null;
+    }
+
     // Parasol de Nini : chute ralentie
     if (pl.atk && pl.atk.m.type === 'float') {
       if (b.velocity.y > 90) s.setVelocityY(90);
@@ -1505,7 +1533,12 @@ class GameScene extends Phaser.Scene {
     }
 
     // Rebord : on s'y accroche automatiquement en tombant près du coin du terrain
-    if (!pl.ledgeSide && !grounded && !stunned && now >= pl.ledgeCdUntil && b.velocity.y >= -60 && (!pl.atk || pl.helpless) && !rolling) this.tryLedge(pl, other, now);
+    // (en tombant, ou en montant sous le niveau du bord : saut, coup de retour)
+    if (!pl.ledgeSide && !grounded && !stunned && now >= pl.ledgeCdUntil && !rolling) {
+      const underLip = b.top > L.baseY - 10;
+      const recovering = pl.atk && pl.atk.m.helpless && now >= pl.atk.hitAt;
+      if ((b.velocity.y >= -60 && (!pl.atk || pl.helpless)) || (underLip && (!pl.atk || recovering || pl.helpless))) this.tryLedge(pl, other, now);
+    }
 
     // Animation
     let name;
@@ -1649,7 +1682,7 @@ class GameScene extends Phaser.Scene {
     vic.rageUntil = now + RAGE_MS;
     vic.rageOn = true;
     const b = vic.sprite.body.center;
-    this.popup(b.x, b.y - 100, 'RAS-LE-BOL !', '#ff4d4d');
+    this.popup(b.x, b.y - 100, 'SCARLETT SE FACHE !', '#ff4d4d');
     this.shockwave(b.x, b.y + 20, { main: 0xff2b2b, alt: 0xffa23b });
     this.cameras.main.shake(260, 0.012);
     this.hitstop(120);
@@ -1690,6 +1723,9 @@ class GameScene extends Phaser.Scene {
       }
       if (fx.notes) for (let i = 0; i < 3; i++) this.noteFx(b.x + f * (40 + i * 14), b.y - 10 + i * 8, f, i);
       if (fx.hearts) for (let i = 0; i < 6; i++) this.time.delayedCall(i * 50, () => this.heartFx(b.x + (Math.random() - 0.5) * 50, b.y + 20 - i * 12, 1.6));
+      if (fx.peony) this.peonyFx(b.x + f * (m.ox || 0), b.y + (m.oy || 0), pl);
+      if (fx.petals) this.petalRing(b.x, b.y + (m.oy || 0), m.active || 150);
+      if (fx.wind) this.windFx(pl, fx.wind, m);
       if (fx.burst) this.runeFx(b.x, b.y, col, 2.2);
       if (fx.dust) this.dust(b.x + f * 40, b.y + 30, f, 5, col);
       if (fx.shock) this.shockwave(b.x, b.y + 28, col);
@@ -1698,6 +1734,45 @@ class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: g, scale: 3.4, alpha: 0, duration: 260, onComplete: () => g.destroy() });
       }
     });
+  }
+
+  // ---- NINI : pivoine, pétales, vent ------------------------------------------
+  petal(x, y, tx, ty, dur, delay) {
+    const cols = [0xff8fb3, 0xe8578a, 0xffb3cc, 0xffffff];
+    const q = this.add.rectangle(x, y, 7, 5, cols[Math.floor(Math.random() * cols.length)]).setDepth(26).setAngle(Math.random() * 90);
+    this.tweens.add({ targets: q, x: tx, y: ty, angle: q.angle + 200, alpha: 0, duration: dur, delay: delay || 0, ease: 'Sine.easeOut', onComplete: () => q.destroy() });
+  }
+
+  peonyFx(x, y, pl) {
+    const img = this.add.image(x, y + 10, 'peony').setScale(0.8).setDepth(25);
+    this.tweens.add({ targets: img, scale: PX * 1.4, y, duration: 120, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: img, alpha: 0, scale: PX * 1.6, delay: 220, duration: 160, onComplete: () => img.destroy() });
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      this.petal(x, y, x + Math.cos(a) * (70 + Math.random() * 40), y + Math.sin(a) * 50 + 30, 520, 90);
+    }
+  }
+
+  petalRing(x, y, ms) {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const r = 46;
+      this.petal(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.85, x + Math.cos(a + 1.6) * (r + 24), y + Math.sin(a + 1.6) * (r + 20), ms + 220);
+    }
+  }
+
+  windFx(pl, kind, m) {
+    const b = pl.sprite.body.center;
+    const f = pl.facing;
+    for (let i = 0; i < 9; i++) {
+      const up = kind === 'up';
+      const x = up ? b.x + (Math.random() - 0.5) * 60 : b.x + f * (20 + Math.random() * 30);
+      const y = up ? b.y + 30 + Math.random() * 30 : b.y - 30 + Math.random() * 60;
+      const w = up ? 4 : 26 + Math.random() * 20, h = up ? 22 + Math.random() * 18 : 4;
+      const q = this.add.rectangle(x, y, w, h, i % 3 ? 0xeef4ff : 0xbfd8ff, 0.85).setDepth(26);
+      this.tweens.add({ targets: q, x: up ? x : x + f * (110 + Math.random() * 60), y: up ? y - 120 - Math.random() * 60 : y, alpha: 0, duration: 300 + Math.random() * 120, delay: i * 18, onComplete: () => q.destroy() });
+      if (i % 3 === 0) this.petal(x, y, up ? x + (Math.random() - 0.5) * 60 : x + f * 160, up ? y - 150 : y - 20, 520, i * 18);
+    }
   }
 
   noteFx(x, y, dir, i) {
@@ -2105,6 +2180,17 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // vêtements qui volent quand la valise s'ouvre
+  clothesFx(x, y) {
+    const cols = [0xffffff, 0x6f93c9, 0xff8fb3, 0xffe08a, 0x6fbf5a];
+    for (let i = 0; i < 8; i++) {
+      const q = this.add.rectangle(x, y, 10, 8, cols[i % cols.length]).setDepth(27);
+      const dx = (Math.random() - 0.5) * 220;
+      this.tweens.add({ targets: q, x: x + dx, y: y - 60 - Math.random() * 70, angle: dx, duration: 260, ease: 'Quad.easeOut' });
+      this.tweens.add({ targets: q, y: y + 20, alpha: 0, delay: 260, duration: 300, ease: 'Quad.easeIn', onComplete: () => q.destroy() });
+    }
+  }
+
   killProj(p, boom) {
     p.dead = true;
     if (p.carry) {
@@ -2260,6 +2346,16 @@ class GameScene extends Phaser.Scene {
         continue;
       }
       if (sp.kind === 'ring' && (p.y > L.baseY + 500 || p.y < L.baseY - 900)) { this.killProj(p, false); continue; }
+      if (sp.kind === 'kiss') p.sprite.setScale((sp.s || 2) * (1 + 0.12 * Math.sin((now - p.born) / 70)));
+      // VALISE : elle s'ouvre en touchant le sol
+      if (sp.kind === 'suitcase' && p.vy > 0 && p.y > L.baseY - 22 && Math.abs(p.x - this.W / 2) < L.mainW / 2 + 16) {
+        this.dust(p.x, L.baseY, -1, 5, p.owner.def.fx);
+        this.dust(p.x, L.baseY, 1, 5, p.owner.def.fx);
+        this.clothesFx(p.x, L.baseY - 20);
+        this.cameras.main.shake(110, 0.005);
+        this.killProj(p, false);
+        continue;
+      }
       if (sp.kind === 'hermine' && now - p.born > sp.act) p.spent = true;
 
       if (sp.kind === 'book' && p.y > L.baseY - 30 && Math.abs(p.x - this.W / 2) < L.mainW / 2 + 20) {
@@ -2284,7 +2380,7 @@ class GameScene extends Phaser.Scene {
       const hit = p.x + sp.w / 2 > vb.x && p.x - sp.w / 2 < vb.right && pcy + sp.h / 2 > vb.y && pcy - sp.h / 2 < vb.bottom;
       if (!hit) continue;
 
-      if (sp.kind === 'ring') {
+      if (sp.kind === 'ring' || sp.kind === 'kiss') {
         const vb3 = v.sprite.body;
         if (v.grab) this.releaseGrab(v);
         if ((vb3.blocked.down || vb3.touching.down) && !v.ledgeSide) {
@@ -2399,8 +2495,12 @@ class GameScene extends Phaser.Scene {
     for (const side of [-1, 1]) {
       const edgeX = cx + side * half;
       const out = (b.center.x - edgeX) * side; // > 0 : dehors
-      if (out < -8 || out > b.halfWidth + 46) continue;
-      if (b.top < L.baseY - 50 || b.top > L.baseY + 40) continue;
+      // sous le niveau du bord (contre le mur de terre ou juste dessous), la zone d'accroche est plus large
+      // et si on se cogne sous le terrain près du coin, on attrape quand même le bord
+      const ceiling = b.blocked.up || b.touching.up;
+      const inner = ceiling ? b.halfWidth + 130 : b.top > L.baseY - 6 ? b.halfWidth + 36 : 8;
+      if (out < -inner || out > b.halfWidth + 46) continue;
+      if (b.top < L.baseY - 50 || b.top > L.baseY + 70) continue;
       if (other.ledgeSide === side) continue; // déjà pris par l'adversaire
       this.grabLedge(pl, side, now);
       return true;
@@ -2435,8 +2535,17 @@ class GameScene extends Phaser.Scene {
     const dx = s.x - b.center.x, dy = s.y - b.center.y;
     const x = edgeX + side * (b.halfWidth + 2) + dx;
     const y = L.baseY - 6 + b.halfHeight + dy;
+    this.putAt(s, x, y);
+  }
+
+  // déplace un perso d'un coup (le corps physique suit tout de suite, décalage compris)
+  putAt(s, x, y) {
+    const b = s.body;
     s.setPosition(x, y);
     b.reset(x, y);
+    b.updateFromGameObject();
+    b.prev.copy(b.position);
+    b.prevFrame.copy(b.position);
   }
 
   ledgeStep(pl, other, now, inp) {
@@ -2480,8 +2589,7 @@ class GameScene extends Phaser.Scene {
     const dx = s.x - b.center.x, dy = s.y - b.center.y;
     const x = edgeX - side * (b.halfWidth + 10) + dx;
     const y = L.baseY - b.halfHeight - 1 + dy;
-    s.setPosition(x, y);
-    b.reset(x, y);
+    this.putAt(s, x, y);
     s.setVelocity(0, 0);
     pl.facing = -side;
     if (how === 'climb') {

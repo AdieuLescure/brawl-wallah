@@ -37,5 +37,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   Tout état de jeu d'un joueur doit être un champ simple (nombre, booléen, texte) pour être sauvegardé par `snapshot()`.
 - Défense façon Brawlhalla : pas de garde, esquives (sur place, roulade, aérienne une fois par saut, recharge 1 s au sol).
 - Coup de retour = HAUT en l'air, une fois, puis chute impuissante. Rebord automatique. Être touché rend un saut.
+- Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
+  et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
+  (sinon le corps physique garde un décalage d'une image).
+- Nini ne frappe jamais elle-même : Scarlett (le chat), le corgi, l'amour, la pivoine, le voyage (valise) et le vent
+  (Autant en emporte le vent). Le corgi est sur BAS avec une recharge, pas sur un coup de base.
 - Chrono de 3 min puis mort subite (premier coup gagne). 3 vies.
 - Tester avec Playwright (Chromium déjà installé) en pilotant `game.step()` image par image.
