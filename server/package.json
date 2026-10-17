@@ -1,0 +1,7 @@
+{
+ "name": "brawl-server-dev",
+ "private": true,
+ "type": "module",
+ "scripts": { "dev": "node dev-server.js" },
+ "dependencies": { "ws": "^8.22.0" }
+}

@@ -1,0 +1,37 @@
+<title>Brawl Proto</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  :root { --bg: #0b0d1f; --fg: #ffffff; color-scheme: dark; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    overflow: hidden; overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  #game { position: fixed; inset: 0; }
+  #dm { position: fixed; inset: 0; background: rgba(5,6,16,.82); display: flex; align-items: center; justify-content: center; z-index: 50; touch-action: auto; -webkit-user-select: text; user-select: text; font-family: "Press Start 2P", monospace; }
+  #dm form { background: #1a1d33; border: 4px solid #f72585; padding: 20px; width: min(420px, 88vw); max-height: 92vh; overflow: auto; }
+  #dm h2 { margin: 0 0 12px; font-size: 16px; text-align: center; }
+  #dm .n { font-size: 10px; line-height: 1.6; color: #cfd3ff; margin: 0 0 10px; }
+  #dm label { display: block; font-size: 10px; margin: 10px 0 4px; color: #ffe9a8; }
+  #dm input { width: 100%; box-sizing: border-box; padding: 12px; font: 16px monospace; background: #0b0d1f; color: #fff; border: 2px solid #4cc9f0; }
+  #dm .e { color: #ff8fa3; font-size: 10px; line-height: 1.5; min-height: 14px; }
+  #dm .b { display: flex; flex-direction: column; gap: 8px; }
+  #dm button { padding: 14px; font: 11px "Press Start 2P", monospace; background: #0b0d1f; color: #fff; border: 3px solid #888; }
+  #dm button.p { border-color: #6ee7b7; }
+  #rot { position: fixed; inset: 0; z-index: 40; background: #0b0d1f; color: #fff; font: 14px/1.8 "Press Start 2P", monospace; align-items: center; justify-content: center; text-align: center; padding: 30px; display: none; }
+  #game canvas { image-rendering: pixelated; }
+</style>
+<div id="game"></div>
+<!--ONLINE-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<!--/ONLINE-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+<script>

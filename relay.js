@@ -1,9 +1,8 @@
+// FICHIER GÉNÉRÉ par tools/build.py depuis server/core.js + server/worker.js : ne pas modifier à la main
 import { DurableObject } from 'cloudflare:workers';
 // ===========================================================================
 // Logique serveur (salles + file d'attente), indépendante de la plateforme.
-// Utilisée par Cloudflare (Durable Objects) ET par le serveur de test local.
-// io = { verify(token) -> {id,name,anon}, getProfile(id) -> {rating}, recordMatch(a,b,winnerId) -> infos,
-//        createRoom(code, ids, ranked), now() }
+// Utilisée par Cloudflare (relay.js) ET par le serveur de test local (dev-server.js).
 // ===========================================================================
 export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini'];
 const MAX_MSG = 4000;
@@ -109,10 +108,21 @@ export class RoomCore {
       if (i < 0 || this.slots[i]) return send(sock, { t: 'error', e: 'full' });
     }
     const prev = this.slots[i];
+    // retour pendant un combat (coupure franche, ou connexion morte que le serveur n'avait pas encore vue)
+    const back = !!(prev && this.started && !this.finalized);
+    if (prev && prev.dropTimer) this.io.cancel && this.io.cancel(prev.dropTimer);
+    if (prev && !prev.left && prev.sock !== sock) {
+      try {
+        prev.sock.close();
+      } catch (e) {}
+    }
     this.slots[i] = { sock, id: user.id, name: user.name, anon: user.anon, char: prev ? prev.char : null, ready: prev ? prev.ready : false, reported: prev ? prev.reported : null, left: false };
-    send(sock, { t: 'hello', idx: i, ranked: this.ranked, started: this.started, peers: this.peersInfo() });
+    send(sock, { t: 'hello', idx: i, ranked: this.ranked, started: this.started && !this.finalized, peers: this.peersInfo() });
     const other = this.slots[1 - i];
-    if (other && !other.left) send(other.sock, { t: 'peers', peers: this.peersInfo() });
+    if (other && !other.left) {
+      if (back) send(other.sock, { t: 'back' });
+      send(other.sock, { t: 'peers', peers: this.peersInfo() });
+    }
   }
 
   start() {
@@ -143,6 +153,12 @@ export class RoomCore {
     if (ra !== null && rb !== null && ra === rb) winner = ra;
     else if (ra !== null && rb !== null) {
       this.finalized = true;
+      if (this.ranked && this.io.dispute) {
+        try {
+          await this.io.dispute(a.id);
+          await this.io.dispute(b.id);
+        } catch (e) {}
+      }
       return this.broadcast({ t: 'final', winner: null, disputed: true });
     } else if (ra !== null && !bHere) winner = ra; // l'adversaire a quitté : forfait
     else if (rb !== null && !aHere) winner = rb;
@@ -162,7 +178,26 @@ export class RoomCore {
     const i = this.slotOf(sock);
     if (i < 0) return;
     const me = this.slots[i];
+    if (me.left) return; // déjà compté (close + error)
     me.left = true;
+    const other = this.slots[1 - i];
+    const inMatch = this.started && !this.finalized;
+    if (inMatch && this.io.later) {
+      // coupure pendant un combat : 10 s pour revenir avant de compter un abandon
+      if (other && !other.left) send(other.sock, { t: 'drop' });
+      me.dropTimer = this.io.later(10000, () => this.dropped(me));
+      return;
+    }
+    if (other && !other.left) {
+      send(other.sock, { t: 'left', started: inMatch });
+      send(other.sock, { t: 'peers', peers: this.peersInfo() });
+    }
+    if (inMatch && other && other.reported !== null) await this.tryFinalize();
+  }
+
+  async dropped(me) {
+    const i = this.slots.indexOf(me);
+    if (i < 0 || !me.left) return; // revenu entre-temps
     const other = this.slots[1 - i];
     if (other && !other.left) {
       send(other.sock, { t: 'left', started: this.started && !this.finalized });
@@ -198,6 +233,12 @@ export class QueueCore {
         user = null;
       }
       if (!user || user.anon) return send(sock, { t: 'error', e: 'auth' });
+      // au 3e litige (résultats contradictoires), le compte ne joue plus en classé
+      let disputes = 0;
+      try {
+        disputes = this.io.disputes ? await this.io.disputes(user.id) : 0;
+      } catch (e) {}
+      if (disputes >= 3) return send(sock, { t: 'error', e: 'banned' });
       this.waiting = this.waiting.filter((w) => w.id !== user.id);
       let rating = 1000;
       try {
@@ -230,6 +271,8 @@ export class QueueCore {
     }
   }
 }
+
+
 
 
 // --- Comptes : pseudo + mot de passe, sans e-mail ni vérification ---------------------
@@ -372,6 +415,9 @@ function makeIo(env, createRoom) {
     },
     createRoom,
     now: () => Date.now(),
+    later: (ms, fn) => setTimeout(fn, ms),
+    cancel: (t) => clearTimeout(t),
+    dispute: (id) => env.QUEUE.get(env.QUEUE.idFromName('main')).fetch('https://queue/dispute', { method: 'POST', body: JSON.stringify({ id }) }),
   };
 }
 
@@ -413,6 +459,10 @@ export class Room extends DurableObject {
       this.report();
     });
     const gone = async () => {
+      // répondre à la fermeture, sinon le téléphone attend jusqu'à 60 s avant de se reconnecter
+      try {
+        server.close(1000, 'bye');
+      } catch (e) {}
       await this.core.onClose(server);
       this.report();
     };
@@ -426,14 +476,24 @@ export class Room extends DurableObject {
 export class Lobby extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.rooms = new Map();
+    this.rooms = null;
+  }
+  async load() {
+    if (this.rooms) return;
+    const saved = await this.ctx.storage.get('rooms');
+    this.rooms = new Map(saved ? Object.entries(saved) : []);
+  }
+  async save() {
+    await this.ctx.storage.put('rooms', Object.fromEntries(this.rooms));
   }
   async fetch(request) {
     const url = new URL(request.url);
+    await this.load();
     if (url.pathname === '/upd') {
       const r = await request.json();
       if (r.n > 0) this.rooms.set(r.code, { ...r, t: Date.now() });
       else this.rooms.delete(r.code);
+      await this.save();
       return new Response('ok');
     }
     const now = Date.now();
@@ -450,19 +510,34 @@ export class Lobby extends DurableObject {
 export class Queue extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.core = new QueueCore(
-      makeIo(env, async (code, ids, ranked) => {
-        const stub = env.ROOM.get(env.ROOM.idFromName('R' + code));
-        await stub.fetch('https://room/init', { method: 'POST', body: JSON.stringify({ ids, ranked }) });
-      })
-    );
+    const io = makeIo(env, async (code, ids, ranked) => {
+      const stub = env.ROOM.get(env.ROOM.idFromName('R' + code));
+      await stub.fetch('https://room/init', { method: 'POST', body: JSON.stringify({ ids, ranked }) });
+    });
+    // compteur de litiges par compte (gardé dans la mémoire durable de la file d'attente)
+    io.disputes = async (id) => (await this.ctx.storage.get('d:' + id)) || 0;
+    this.core = new QueueCore(io);
   }
-  async fetch() {
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === '/dispute') {
+      const { id } = await request.json();
+      const k = 'd:' + id;
+      await this.ctx.storage.put(k, ((await this.ctx.storage.get(k)) || 0) + 1);
+      return new Response('ok');
+    }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     server.accept();
     server.addEventListener('message', (e) => this.core.onMessage(server, typeof e.data === 'string' ? e.data : ''));
-    server.addEventListener('close', () => this.core.onClose(server));
+    const gone = () => {
+      try {
+        server.close(1000, 'bye');
+      } catch (e) {}
+      this.core.onClose(server);
+    };
+    server.addEventListener('close', gone);
+    server.addEventListener('error', gone);
     return new Response(null, { status: 101, webSocket: client });
   }
 }
