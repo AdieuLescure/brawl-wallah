@@ -282,7 +282,8 @@ function mkCanvas(scene, key, w, h, fn, mode) {
 // Les textures haute résolution (RES x plus de pixels) sont affichées avec une échelle divisée par RES :
 // tout le reste du jeu continue de raisonner en « pixels d'art » logiques.
 const HRTEX = new Set();
-const texK = (o) => (o && o.texture && HRTEX.has(o.texture.key) ? 1 / RES : 1);
+const TEXSCALE = {}; // textures des persos dessinés (PNG) : échelle propre
+const texK = (o) => (o && o.texture ? TEXSCALE[o.texture.key] || (HRTEX.has(o.texture.key) ? 1 / RES : 1) : 1);
 ['Image', 'Sprite'].forEach((n) => {
   const P = Phaser.GameObjects[n].prototype;
   const orig = P.setScale;
@@ -477,6 +478,16 @@ class GameScene extends Phaser.Scene {
   // ----- Textures ---------------------------------------------------------
   makeTextures() {
     ORDER.forEach((id) => {
+      const png = typeof PNG_IMG !== 'undefined' && PNG_IMG[id] && PNG_CHARS[id];
+      if (png) {
+        // perso dessiné en pixel art : une case par posture dans la planche (posture absente -> garde)
+        const all = new Set([...SPR48.namesFor(id), ...png.names]);
+        all.forEach((name) => {
+          const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf('idle0');
+          mkCanvas(this, `${id}_${name}`, png.w, png.h, (c) => c.drawImage(PNG_IMG[id], fi * png.w, 0, png.w, png.h, 0, 0, png.w, png.h), 'raw');
+          TEXSCALE[`${id}_${name}`] = png.scale / PX;
+        });
+      } else
       SPR48.namesFor(id).forEach((name) => {
         mkCanvas(this, `${id}_${name}`, 24, 20, (c) => c.putImageData(new ImageData(SPR48.draw(id, name), SPR48.W, SPR48.H), 0, 0), 'native');
         if (id === 'nini') mkCanvas(this, `${id}_${name}_r`, 24, 20, (c) => c.putImageData(new ImageData(SPR48.draw(id, name, { rage: true }), SPR48.W, SPR48.H), 0, 0), 'native');
@@ -762,7 +773,12 @@ class GameScene extends Phaser.Scene {
     const sprite = this.physics.add.sprite(x, y, `${charId}_idle0`).setScale(PX).setDepth(10);
     const bw = charId === 'grom' ? 9 : charId === 'astra' ? 6 : 7;
     const bh = charId === 'grom' ? 16 : 15;
-    sprite.body.setSize(bw * RES, bh * RES, false).setOffset((12 - bw / 2) * RES, (20 - bh) * RES);
+    const png = typeof PNG_IMG !== 'undefined' && PNG_IMG[charId] && PNG_CHARS[charId];
+    if (png) {
+      // même boîte de collision qu'avant (en pixels du monde), pieds en bas de la case
+      const k = png.scale, w = (bw * 4) / k, h = (bh * 4) / k;
+      sprite.body.setSize(w, h, false).setOffset(png.w / 2 - w / 2, png.h - 1 - h);
+    } else sprite.body.setSize(bw * RES, bh * RES, false).setOffset((12 - bw / 2) * RES, (20 - bh) * RES);
     sprite.body.setGravityY(GRAVITY);
     const tag = this.add
       .text(x, y, isHuman ? 'TOI' : 'BOT', { fontFamily: FONT, fontSize: '12px', color: isHuman ? '#ffe9a8' : '#ff8fa3', stroke: '#000', strokeThickness: 4 })
@@ -2725,4 +2741,5 @@ Promise.race([
   new Promise((r) => setTimeout(r, 2000)),
 ])
   .catch(() => {})
+  .then(() => (typeof loadPngChars === 'function' ? loadPngChars() : null))
   .then(boot);

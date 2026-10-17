@@ -26,6 +26,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `bots.js` : bots par niveau (temps de réaction, précision), mannequin d'entraînement
   - `extras.js` : sons synthétisés, vibration, indicateurs hors écran, réglages, entraînement
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
+- `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
+  (`flat.py` = moteur à aplats, `toro_set.py` = postures de Toro). Style : celui de la référence de Noah
+  (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
+  Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
 - `server/` : `core.js` (logique des salles, partagée), `worker.js` (Cloudflare), `dev-server.js` (test local)
 - `tools/build.py` : assemble `index.html` et `relay.js` — **toujours relancer après une modification**, puis committer
   les fichiers générés (Cloudflare ne lance pas de build).
