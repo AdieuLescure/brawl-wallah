@@ -110,8 +110,8 @@ const CHARS = {
     moves: {
       neutral: { type: 'melee', pose: 'guitar', startup: 60, active: 110, total: 270, w: 72, h: 52, ox: 54, oy: -4, dmg: 7, kb: 245, ks: 5.5, ang: -0.35, stun: 160, fx: { cres: 'cres_wood', s: 2.8, ang: 0, notes: true } },
       forward: { type: 'melee', pose: 'guitarBig', startup: 170, active: 130, total: 560, w: 96, h: 80, ox: 58, oy: -14, dmg: 12, kb: 340, ks: 9, ang: -0.55, stun: 230, lunge: 200, fx: { cres: 'cres_wood', s: 4.6, ang: -30, notes: true, ghosts: 2 } },
-      up: { type: 'melee', pose: 'kickUp', startup: 90, active: 140, total: 470, w: 62, h: 104, ox: 24, oy: -56, dmg: 11, kb: 330, ks: 8.5, ang: -1.35, stun: 210, fx: { cres: 'cres_fire', s: 4.8, ang: -90, flames: 11, pillar: true, ghosts: 2 } },
-      upAir: { type: 'melee', pose: 'kickUp', startup: 70, active: 200, total: 500, w: 62, h: 104, ox: 24, oy: -56, dmg: 10, kb: 310, ks: 8, ang: -1.35, stun: 200, rise: 670, riseX: 70, helpless: true, fx: { cres: 'cres_fire', s: 4.8, ang: -90, flames: 11, pillar: true, ghosts: 2 } },
+      up: { type: 'melee', pose: 'kickUp', prePose: 'kickUpPre', startup: 90, active: 140, total: 470, w: 62, h: 104, ox: 24, oy: -56, dmg: 11, kb: 330, ks: 8.5, ang: -1.35, stun: 210, fx: { cres: 'cres_fire', s: 4.8, ang: -90, flames: 11, pillar: true, ghosts: 2, transform: true } },
+      upAir: { type: 'melee', pose: 'kickUp', prePose: 'kickUpPre', startup: 70, active: 200, total: 500, w: 62, h: 104, ox: 24, oy: -56, dmg: 10, kb: 310, ks: 8, ang: -1.35, stun: 200, rise: 670, riseX: 70, helpless: true, fx: { cres: 'cres_fire', s: 4.8, ang: -90, flames: 11, pillar: true, ghosts: 2, transform: true } },
       down: { type: 'book', pose: 'summon', startup: 110, total: 500, cd: 2500, dist: 250, warn: 500,
         book: { kind: 'book', tex: 'book', s: 1.0, vx: 0, vy: 700, grav: 1500, life: 1100, w: 120, h: 110, ox: 0, oy: -420, dmg: 10, kb: 310, ks: 7.5, ang: -1.15, stun: 240, explode: true } },
       downAir: { type: 'melee', pose: 'plunge', startup: 80, active: 220, total: 600, w: 66, h: 74, ox: 8, oy: 50, dmg: 10, kb: 320, ks: 7, ang: 1.15, stun: 210, dive: 800, fx: { cres: 'cres_wood', s: 3.8, ang: 90, ghosts: 3 } },
@@ -1560,7 +1560,7 @@ class GameScene extends Phaser.Scene {
     let name;
     if (stunned) name = 'hurt';
     else if (pl.ledgeSide) name = 'jump';
-    else if (pl.atk) name = pl.atk.pose || pl.atk.m.pose;
+    else if (pl.atk) name = pl.atk.m.prePose && now < pl.atk.hitAt ? pl.atk.m.prePose : pl.atk.pose || pl.atk.m.pose;
     else if (rolling) name = Math.floor(now / 70) % 2 ? 'run0' : 'run1';
     else if (!grounded) name = 'jump';
     else if (Math.abs(b.velocity.x) > 60) name = Math.floor(now / 130) % 2 ? 'run0' : 'run1';
@@ -1711,6 +1711,9 @@ class GameScene extends Phaser.Scene {
     // ghosts (traînée d'images rémanentes)
     if (fx.ghosts) for (let i = 0; i < fx.ghosts; i++) this.time.delayedCall(m.startup + i * 45, () => this.ghost(pl, col.main));
 
+    // changement de tenue (JAMBE FEU de Lulu) : éclair blanc, étincelles dorées, puis bouffée de fumée au retour
+    if (fx.transform) this.transformFx(pl, m);
+
     // runes magiques (ASTRA)
     if (fx.rune) this.time.delayedCall(Math.max(m.startup - 40, 0), () => {
       const b = pl.sprite.body.center;
@@ -1750,6 +1753,32 @@ class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: g, scale: 3.4, alpha: 0, duration: 260, onComplete: () => g.destroy() });
       }
     });
+  }
+
+  transformFx(pl, m) {
+    const s = pl.sprite;
+    const c = s.body.center;
+    s.setTintFill(0xffffff);
+    this.time.delayedCall(60, () => s.active && !pl.shade && s.clearTint());
+    const ring = this.add.image(c.x, c.y, 'ring').setTint(0xffe27a).setScale(0.6).setDepth(31);
+    this.tweens.add({ targets: ring, scale: 3.4, alpha: 0, duration: 260, onComplete: () => ring.destroy() });
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const q = this.add.rectangle(c.x, c.y - 10, i % 3 ? 5 : 8, i % 3 ? 5 : 8, i % 2 ? 0xffe27a : 0xffffff).setDepth(31).setAngle(45);
+      this.tweens.add({ targets: q, x: c.x + Math.cos(a) * 60, y: c.y - 10 + Math.sin(a) * 50, angle: 225, alpha: 0, duration: 320, onComplete: () => q.destroy() });
+    }
+    this.time.delayedCall(m.total, () => this.puffFx(pl));
+  }
+
+  puffFx(pl) {
+    const s = pl.sprite;
+    if (!s.active) return;
+    const c = s.body.center;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const q = this.add.circle(c.x + Math.cos(a) * 10, c.y + Math.sin(a) * 18, 9 + (i % 3) * 3, 0xe8e8f0, 0.9).setDepth(31);
+      this.tweens.add({ targets: q, x: q.x + Math.cos(a) * 26, y: q.y + Math.sin(a) * 22 - 10, scale: 1.6, alpha: 0, duration: 380, onComplete: () => q.destroy() });
+    }
   }
 
   // ---- NINI : pivoine, pétales, vent ------------------------------------------
