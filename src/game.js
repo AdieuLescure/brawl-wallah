@@ -204,7 +204,7 @@ const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, tot
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
 const SETTINGS = Object.assign(
-  { sound: true, vib: true, btnSize: 1, flip: false, timer: true, botLevel: 1 },
+  { sound: true, vib: true, btnSize: 1, flip: false, timer: true, botLevel: 1, stage: 2 },
   (() => {
     try {
       return JSON.parse(localStorage.getItem('brawl_settings') || '{}');
@@ -452,6 +452,10 @@ class GameScene extends Phaser.Scene {
     this.makeTextures();
     this.buildBackground();
     this.buildStage();
+    if (this.buildDune) {
+      this.buildDune();
+      this.applyStage(this.pickStage());
+    }
     this.chainGfx = this.add.graphics().setDepth(14);
     this.setupInput();
     this.buildControlsUi();
@@ -717,7 +721,7 @@ class GameScene extends Phaser.Scene {
       c.fillStyle = '#0a0818';
       c.fillRect(0, horizon + 2, w, h);
     });
-    this.add.image(0, 0, 'bg').setOrigin(0).setScale(PX).setDepth(-10);
+    this.bgImg = this.add.image(0, 0, 'bg').setOrigin(0).setScale(PX).setDepth(-10);
   }
 
   buildStage() {
@@ -751,6 +755,8 @@ class GameScene extends Phaser.Scene {
     this.platforms = this.physics.add.staticGroup();
     const main = this.platforms.create(this.W / 2, L.baseY + 28, 'main').setScale(PX).refreshBody();
     main.setDepth(5);
+    this.mainPlat = main;
+    this.softPlats = [];
     // tout le bloc (herbe + terre) est solide : on ne traverse plus la terre par les côtés ni par dessous
     const sx = mw * 0.3;
     [
@@ -761,6 +767,7 @@ class GameScene extends Phaser.Scene {
       const p = this.platforms.create(x, y, 'soft').setScale(PX).refreshBody();
       p.setDepth(5);
       p.soft = true;
+      this.softPlats.push(p);
       p.body.checkCollision.down = false;
       p.body.checkCollision.left = false;
       p.body.checkCollision.right = false;

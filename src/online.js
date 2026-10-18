@@ -669,6 +669,8 @@ Object.assign(GameScene.prototype, {
     this.clearUi();
     onlinePick = null;
     this.over = false;
+    // même terrain sur les deux téléphones : tiré du code de la salle
+    if (this.applyStage) this.applyStage(stageFromCode(Online.code));
     this.beginNetMatch({ me: Online.idx, chars: m.chars, names: m.names, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
     this.state = 'countdown';
     this.setControls(true);

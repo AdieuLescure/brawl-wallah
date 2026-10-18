@@ -73,6 +73,10 @@ const SFX = {
       else if (name === 'count') this.tone('square', 660, 660, 0.12, 0.08);
       else if (name === 'go') this.tone('square', 990, 990, 0.25, 0.1);
       else if (name === 'ui') this.tone('triangle', 520, 640, 0.05, 0.06);
+      else if (name === 'rumble') {
+        this.tone('sine', 55, 38, 1.4, 0.3);
+        this.hiss('lowpass', 260, 1.6, 0.22, 120);
+      }
     } catch (e) {}
   },
 };
@@ -143,6 +147,7 @@ Object.assign(GameScene.prototype, {
       flip: () => 'MAINS : ' + (SETTINGS.flip ? 'GAUCHER' : 'DROITIER'),
       timer: () => 'CHRONO : ' + (SETTINGS.timer ? '3 MIN' : 'AUCUN'),
       botLevel: () => 'BOT : ' + ['FACILE', 'MOYEN', 'DIFFICILE'][SETTINGS.botLevel],
+      stage: () => 'TERRAIN : ' + ['NUIT', 'DESERT', 'HASARD'][SETTINGS.stage || 0],
     };
     const next = {
       sound: () => (SETTINGS.sound = !SETTINGS.sound),
@@ -151,6 +156,7 @@ Object.assign(GameScene.prototype, {
       flip: () => (SETTINGS.flip = !SETTINGS.flip),
       timer: () => (SETTINGS.timer = !SETTINGS.timer),
       botLevel: () => (SETTINGS.botLevel = (SETTINGS.botLevel + 1) % 3),
+      stage: () => (SETTINGS.stage = ((SETTINGS.stage || 0) + 1) % 3),
     };
     const keys = Object.keys(lab);
     this.uiBtns = [];
