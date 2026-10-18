@@ -142,10 +142,10 @@ Object.assign(GameScene.prototype, {
 
   showPlayMenu() {
     this.menuBase('JOUER');
-    const list = [{ label: 'VS BOT', fn: () => { campPick = false; camp = null; trainingMode = false; this.training = false; this.showSelect(); } }];
+    const list = [{ label: 'VS BOT', fn: () => { campPick = false; camp = null; trainingMode = false; this.training = false; this.showStagePick(() => this.showSelect()); } }];
     if (typeof ONLINE_OK !== 'undefined' && ONLINE_OK)
       list.push({ label: 'EN LIGNE', col: 0xffb703, fn: async () => { if (await Auth.ensure()) setTimeout(goOnline, 0); } });
-    list.push({ label: 'ENTRAINEMENT', col: 0x6ee7b7, fn: () => { campPick = false; camp = null; trainingMode = true; this.training = true; this.showSelect(); } });
+    list.push({ label: 'ENTRAINEMENT', col: 0x6ee7b7, fn: () => { campPick = false; camp = null; trainingMode = true; this.training = true; this.showStagePick(() => this.showSelect()); } });
     list.push({ label: 'RETOUR', col: 0x888888, fn: () => this.showMenu() });
     this.menuButtons(list, this.H * (L.portrait ? 0.38 : 0.5));
   },

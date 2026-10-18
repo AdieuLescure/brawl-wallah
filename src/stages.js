@@ -11,10 +11,87 @@ function stageFromCode(code) {
 
 Object.assign(GameScene.prototype, {
   pickStage() {
+    if (camp) return camp.ch % 2 ? 'dune' : 'night';
     const s = SETTINGS.stage === undefined ? 2 : SETTINGS.stage;
     if (s === 0) return 'night';
     if (s === 1) return 'dune';
     return Math.random() < 0.5 ? 'night' : 'dune';
+  },
+
+  // ----- écran de choix de l'arène (avant le choix du perso) -----
+  showStagePick(next) {
+    this.menuBase('CHOISIS L\'ARENE', { small: true, noBar: true });
+    const D = 120;
+    const port = L.portrait;
+    const opts = [
+      { id: 'night', name: 'NUIT', tex: 'bg', plat: 'main', soft: 'soft' },
+      { id: 'dune', name: 'DESERT', tex: 'bg_dune', plat: 'main_dune', soft: 'soft_dune' },
+      { id: 'rand', name: 'HASARD' },
+    ];
+    const cur = SETTINGS.stage === undefined ? 2 : SETTINGS.stage;
+    let cw, ph;
+    const top = port ? 170 : 160, lab = port ? 44 : 40;
+    if (port) {
+      cw = this.W - 80;
+      ph = Math.min(Math.floor((this.H - top - 160) / 3) - lab - 18, Math.round(cw * 0.5));
+    } else {
+      cw = Math.min(420, Math.floor((this.W - 120) / 3));
+      ph = Math.round(cw * 0.62);
+    }
+    this.uiBtns = [];
+    opts.forEach((o, i) => {
+      const cx = port ? this.W / 2 : this.W / 2 + (i - 1) * (cw + 30);
+      const y0 = port ? top + i * (ph + lab + 18) : top + 20;
+      const left = cx - cw / 2;
+      const sel = cur === i;
+      this.ui.push(this.add.rectangle(cx, y0 + (ph + lab) / 2, cw + 8, ph + lab + 8, 0x1a1d33, 1).setStrokeStyle(4, sel ? 0xffd166 : 0xf72585).setDepth(D));
+      // aperçu : un morceau du décor autour de l'arène (half = 0/1 : seulement la moitié gauche/droite)
+      const preview = (tex, plat, soft, half) => {
+        const a = cw / ph;
+        let wh = Math.min(this.H * 0.8, this.W / a), ww = wh * a;
+        if (ww < L.mainW + 120) { ww = Math.min(this.W, L.mainW + 120); wh = ww / a; }
+        const wx0 = this.W / 2 - ww / 2, wy0 = Math.max(0, Math.min(this.H - wh, L.baseY + 60 - wh * 0.78));
+        const k = cw / ww;
+        const img = this.add.image(0, 0, tex).setOrigin(0).setDepth(D + 1);
+        const tk = img.width / this.bgImg.displayWidth; // pixels de texture par pixel d'écran
+        const hx = half === 1 ? ww / 2 : 0, hw = half === undefined ? ww : ww / 2;
+        img.setCrop((wx0 + hx) * tk, wy0 * tk, hw * tk, wh * tk);
+        img.scale = k / tk; // échelle réelle (sans la correction automatique des textures HD)
+        img.setPosition(left - wx0 * k, y0 - wy0 * k);
+        this.ui.push(img);
+        if (half !== undefined) return;
+        const put = (key, x, y, w2, h2) => {
+          const py = y0 + (y - wy0) * k;
+          if (py - (h2 * k) / 2 < y0 || py + (h2 * k) / 2 > y0 + ph) return;
+          this.ui.push(this.add.image(left + (x - wx0) * k, py, key).setDisplaySize(w2 * k, h2 * k).setDepth(D + 2));
+        };
+        const mp = this.mainPlat;
+        put(plat, mp.x, mp.y, mp.displayWidth, mp.displayHeight);
+        (this.softPlats || []).forEach((p) => put(soft, p.x, p.y, p.displayWidth, p.displayHeight));
+      };
+      if (o.tex) preview(o.tex, o.plat, o.soft);
+      else {
+        preview('bg', null, null, 0);
+        preview('bg_dune', null, null, 1);
+        this.ui.push(this.add.rectangle(cx, y0 + ph / 2, cw, ph, 0x0b0d1f, 0.45).setDepth(D + 2));
+        this.ui.push(this.add.text(cx, y0 + ph / 2, '?', { fontFamily: FONT, fontSize: Math.round(ph * 0.5) + 'px', color: '#ffd166', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(D + 3));
+      }
+      this.ui.push(this.add.text(cx, y0 + ph + lab / 2 + 2, o.name, { fontFamily: FONT, fontSize: port ? '22px' : '20px', color: sel ? '#ffd166' : '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1));
+      this.uiBtns.push({
+        x: cx, y: y0 + (ph + lab) / 2, w: cw + 8, h: ph + lab + 8,
+        fn: () => {
+          SETTINGS.stage = i;
+          if (typeof saveSettings === 'function') saveSettings();
+          this.applyStage(this.pickStage());
+          next();
+        },
+      });
+    });
+    const yb = port ? this.H - 90 : this.H - 70;
+    const r = this.add.rectangle(this.W / 2, yb, 300, 64, 0x1a1d33, 1).setStrokeStyle(4, 0x888888).setDepth(D);
+    const t = this.add.text(this.W / 2, yb, 'RETOUR', { fontFamily: FONT, fontSize: '18px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1);
+    this.ui.push(r, t);
+    this.uiBtns.push({ x: this.W / 2, y: yb, w: 300, h: 64, fn: () => this.showPlayMenu() });
   },
 
   applyStage(id) {
@@ -70,52 +147,49 @@ Object.assign(GameScene.prototype, {
       disc(Math.round(w * 0.62), horizon - 16, 22, '#ffd8a0', '#ffd8a0');
       c.globalAlpha = 1;
       disc(Math.round(w * 0.62), horizon - 16, 14, '#ffe2a8', '#f8c070');
-      // mesas lointaines
-      let x = 0;
-      while (x < w) {
-        const bw = 10 + Math.floor(rnd() * 22), bh = 6 + Math.floor(rnd() * 14);
-        c.fillStyle = '#8a3c2c';
-        for (let i = 0; i < bw; i++) {
-          const slope = Math.min(i, bw - 1 - i) < 3 ? 3 - Math.min(i, bw - 1 - i) : 0;
-          c.fillRect(x + i, horizon - 6 - bh + slope, 1, bh + 8);
-        }
-        c.fillStyle = '#a24c34';
-        c.fillRect(x + 3, horizon - 6 - bh, Math.max(bw - 6, 1), 1);
-        x += bw + 4 + Math.floor(rnd() * 26);
-      }
-      // cité de béton au loin : blocs massifs à toits inclinés, quelques fenêtres chaudes
-      const cx0 = Math.round(w * 0.06);
-      [[0, 18, 10], [11, 26, 8], [20, 14, 12], [33, 22, 6]].forEach(([dx, bh, bw]) => {
-        c.fillStyle = '#5a2626';
-        for (let i = 0; i < bw; i++) c.fillRect(cx0 + dx + i, horizon - 8 - bh + Math.floor(i * 0.5), 1, bh + 10);
-        c.fillStyle = '#ffb45a';
-        for (let k = 0; k < 3; k++) c.fillRect(cx0 + dx + 2 + Math.floor(rnd() * (bw - 3)), horizon - 4 - Math.floor(rnd() * bh), 1, 1);
-      });
-      // trois rangées de dunes (crête claire, versant ombré)
-      const layer = (base, amp, f1, f2, ph, col, crest, shade) => {
-        const topAt = (xx) => Math.round(base - amp * (0.6 * Math.sin(xx * f1 + ph) + 0.4 * Math.sin(xx * f2 + ph * 2.3)));
-        for (let xx = 0; xx < w; xx++) {
-          const top = topAt(xx), next = topAt(xx + 1);
-          c.fillStyle = col;
-          c.fillRect(xx, top, 1, h);
-          // versant à l'ombre : seulement une bande sous la crête
-          if (next > top || topAt(xx + 3) > top + 1) {
-            c.fillStyle = shade;
-            c.fillRect(xx, top + 1, 1, 3 + Math.round(amp * 0.5));
+      // dunes irrégulières : face raide à gauche (à l'ombre), longue pente douce vers la droite,
+      // tailles et écarts au hasard, petites bosses sur les crêtes
+      const layer = (base, minH, maxH, minW, maxW, col, crest, shade) => {
+        const top = new Array(w + 1).fill(base), lee = new Array(w + 1).fill(false);
+        let x0 = -Math.floor(rnd() * maxW * 0.5);
+        while (x0 < w) {
+          const dw = minW + Math.floor(rnd() * (maxW - minW)), dh = minH + rnd() * (maxH - minH);
+          const cr = Math.max(3, Math.round(dw * (0.22 + rnd() * 0.16))); // la crête est près du bord gauche
+          const wob = rnd() * 6;
+          for (let i = 0; i <= dw; i++) {
+            const xx = x0 + i;
+            if (xx < 0 || xx > w) continue;
+            const f = i < cr ? Math.sin((Math.PI / 2) * (i / cr)) : 0.5 * (1 + Math.cos((Math.PI * (i - cr)) / (dw - cr)));
+            const bump = Math.sin(i * 0.45 + wob) * 0.6 * f;
+            const y = Math.round(base - dh * f - bump);
+            if (y < top[xx]) { top[xx] = y; lee[xx] = i < cr; }
           }
-          c.fillStyle = crest;
-          c.fillRect(xx, top, 1, 1);
+          x0 += Math.round(dw * (0.55 + rnd() * 0.4));
+        }
+        for (let xx = 0; xx < w; xx++) {
+          const t = top[xx];
+          c.fillStyle = col;
+          c.fillRect(xx, t, 1, h);
+          if (lee[xx]) {
+            c.fillStyle = shade;
+            c.fillRect(xx, t, 1, Math.max(1, Math.round((base - t) * 0.65)));
+          } else {
+            c.fillStyle = crest;
+            c.fillRect(xx, t, 1, 1);
+          }
         }
       };
-      layer(horizon - 3, 5, 0.05, 0.13, 0.4, '#c8783e', '#f2b06a', '#a65c30');
-      layer(horizon + 4, 6, 0.035, 0.09, 1.7, '#b4642f', '#e2a05c', '#8e4a24');
-      layer(horizon + 12, 5, 0.03, 0.11, 2.9, '#94502a', '#c88448', '#743a1e');
+      // très loin, dans la brume
+      layer(horizon - 6, 3, 9, 30, 70, '#d48a4c', '#e8a868', '#c07a44');
+      layer(horizon - 2, 3, 8, 22, 55, '#c8783e', '#f2b06a', '#a65c30');
+      layer(horizon + 5, 4, 9, 26, 60, '#b4642f', '#e2a05c', '#8e4a24');
+      layer(horizon + 13, 3, 8, 30, 70, '#94502a', '#c88448', '#743a1e');
       // avant-plan : dunes dans l'ombre, de plus en plus sombres vers le bas, rides de vent
       const deep = [['#6e3620', '#8a4a2a', '#5a2a18'], ['#5a2a18', '#743c22', '#48200f'], ['#46200f', '#5e301a', '#381809'], ['#36180b', '#4a2414', '#2a1207'], ['#2a1208', '#3a1c0e', '#200d05']];
       let base = horizon + 22, k = 0;
       while (base < h + 20) {
         const d = deep[Math.min(k, deep.length - 1)];
-        layer(base, 4 + k * 2, 0.025 + k * 0.004, 0.07, 3.1 + k * 1.9, d[0], d[1], d[2]);
+        layer(base, 2 + k, 5 + k * 2, 40 + k * 14, 90 + k * 26, d[0], d[1], d[2]);
         // rides
         for (let r = 0; r < w * 0.5; r++) {
           const rx = Math.floor(rnd() * w), ry = base + 4 + Math.floor(rnd() * (14 + k * 8));
@@ -125,34 +199,36 @@ Object.assign(GameScene.prototype, {
         k++;
       }
     });
-    // plateau principal : sable sur le dessus, grès en strates dessous
+    // plateau principal : roche sombre (contraste avec le sable du fond), coiffée d'une couche de sable
     const tw = Math.round(L.mainW / PX);
     mkCanvas(this, 'main_dune', tw, 14, (c) => {
       for (let y = 0; y < 14; y++)
         for (let x = 0; x < tw; x++) {
           let col;
-          if (y === 0) col = (x * 5) % 9 === 0 ? '#fff0b8' : '#f4c880';
-          else if (y === 1) col = (x + Math.floor(x / 6)) % 5 === 0 ? '#c88a48' : '#dca460';
-          else if (y === 13) col = '#3a1a10';
+          const drift = 2 + (Math.sin(x * 0.21) > 0.6 ? 1 : 0); // le sable déborde un peu par endroits
+          if (y === 0) col = (x * 5) % 9 === 0 ? '#fff0c0' : '#f8d490';
+          else if (y < drift) col = (x + Math.floor(x / 6)) % 5 === 0 ? '#d09a58' : '#e4b46c';
+          else if (y === drift) col = '#1c1824';
+          else if (y === 13) col = '#141018';
           else {
-            const band = Math.floor((y - 2 + Math.round(Math.sin(x * 0.18) * 1.2)) / 2) % 3;
-            col = ['#b8653a', '#a2532e', '#c67e48'][band];
-            if ((x * 13 + y * 7) % 23 === 0) col = '#7c3a20';
-            if (y > 3 && (x + y * 3) % 17 === 0) col = '#d89a62';
+            const band = Math.floor((y - 2 + Math.round(Math.sin(x * 0.15) * 1.2)) / 3) % 2;
+            col = band ? '#3a3346' : '#463e56';
+            if ((x * 13 + y * 7) % 19 === 0) col = '#262030';
+            if (y > 4 && (x + y * 3) % 23 === 0) col = '#6a5e7e';
           }
           c.fillStyle = col;
           c.fillRect(x, y, 1, 1);
         }
     });
-    // plateformes : dalles de pierre gravées
+    // plateformes : dalles de pierre sombre gravées
     mkCanvas(this, 'soft_dune', 50, 5, (c) => {
       for (let y = 0; y < 5; y++)
         for (let x = 0; x < 50; x++) {
-          let col = y === 0 ? '#ecc08a' : y === 4 ? '#4a2412' : '#a86a40';
-          if (y === 1) col = '#c88a54';
-          if (y === 2 && x % 8 === 3) col = '#6e3a1e';
-          if (y === 2 && x % 8 === 4) col = '#d8a06a';
-          if (x === 0 || x === 49) col = '#6e3a1e';
+          let col = y === 0 ? '#b4a6c6' : y === 4 ? '#18141e' : '#4a4058';
+          if (y === 1) col = '#6e6084';
+          if (y === 2 && x % 8 === 3) col = '#2a2434';
+          if (y === 2 && x % 8 === 4) col = '#8a7ca0';
+          if (x === 0 || x === 49) col = '#2a2434';
           c.fillStyle = col;
           c.fillRect(x, y, 1, 1);
         }

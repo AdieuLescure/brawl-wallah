@@ -469,7 +469,8 @@ class GameScene extends Phaser.Scene {
       this.beginMatch(chosen);
     } else if (goSelect) {
       this.state = 'select';
-      this.showSelect();
+      if (this.showStagePick) this.showStagePick(() => this.showSelect());
+      else this.showSelect();
     } else if (sessionReady) {
       this.state = 'menu';
       this.showMenu();

@@ -25,8 +25,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `online.js` : comptes Supabase, salons publics/privés, duel classé, reconnexion
   - `bots.js` : bots par niveau (temps de réaction, précision), mannequin d'entraînement
   - `stages.js` : terrains (décor seulement, mêmes plateformes) : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes,
-    ver géant qui surgit au loin, ornithoptère, épice). Réglages → TERRAIN : NUIT / DÉSERT / HASARD. En ligne, le terrain
-    est tiré du code de la salle (`stageFromCode`) pour être identique sur les deux téléphones.
+    ver géant qui surgit au loin, ornithoptère, épice ; plateformes en roche sombre pour le contraste). L'arène se choisit
+    sur un écran avant le choix du perso (`showStagePick`, mémorisé dans `SETTINGS.stage`). Campagne : alterne selon le
+    chapitre. En ligne : tirée du code de la salle (`stageFromCode`) pour être identique sur les deux téléphones.
   - `extras.js` : sons synthétisés, vibration, indicateurs hors écran, réglages, entraînement
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
