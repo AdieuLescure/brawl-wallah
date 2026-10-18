@@ -496,7 +496,9 @@ Object.assign(GameScene.prototype, {
   async goCreate(pub) {
     if (!(await Auth.ensure())) return this.showOnlineMenu();
     const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-    this.joinRoom(code, false, '', !!pub);
+    // le créateur du salon choisit l'arène (envoyée au serveur, qui la donne aux deux joueurs)
+    if (this.roomPoll) { this.roomPoll.remove(); this.roomPoll = null; }
+    this.showStagePick((stage) => this.joinRoom(code, false, '', !!pub, stage), () => this.showOnlineMenu());
   },
   async goJoinPrompt() {
     if (!(await Auth.ensure())) return this.showOnlineMenu();
@@ -508,7 +510,7 @@ Object.assign(GameScene.prototype, {
     else this.showOnlineMenu();
   },
 
-  async joinRoom(code, ranked, vs, pub) {
+  async joinRoom(code, ranked, vs, pub, stage) {
     this.onlineMsg('CONNEXION...', 'SALLE ' + code);
     Online.code = code;
     Online.ranked = ranked;
@@ -516,12 +518,13 @@ Object.assign(GameScene.prototype, {
     Online.rematchAsked = false;
     Online.picked = null;
     Online.leaving = false;
+    Online.stage = stage || null;
     try {
       Online.conn = await netOpen('/ws/room/' + code + (pub ? '?pub=1' : ''), (m) => this.roomMsg(m), (x) => this.roomClosed(x));
     } catch (e) {
       return this.onlineMsg('ERREUR', 'SERVEUR INJOIGNABLE');
     }
-    Online.conn.send({ t: 'join', token: await Auth.token() });
+    Online.conn.send({ t: 'join', token: await Auth.token(), stage: Online.stage });
   },
 
   roomClosed(c) {
@@ -585,6 +588,7 @@ Object.assign(GameScene.prototype, {
     }
     if (m.t === 'hello') {
       Online.idx = m.idx;
+      if (m.stage) Online.stage = m.stage;
       Online.peers = m.peers;
       onlineStage = 'lobby';
       return this.showLobby();
@@ -634,6 +638,8 @@ Object.assign(GameScene.prototype, {
     };
     line(me, 120, 'TOI:');
     line(other, 156, 'ADV:');
+    if (!Online.ranked && Online.stage)
+      this.ui.push(this.add.text(this.W - 40, 56, 'ARENE : ' + (STAGE_NAMES[Online.stage] || '?'), { fontFamily: FONT, fontSize: '16px', color: '#ffd166', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5).setDepth(D + 1));
     const buttons = [];
     if (!me || !me.char || !me.ready) buttons.push({ label: me && me.char ? 'CHANGER DE PERSO' : 'CHOISIR MON PERSO', fn: () => this.lobbyPick() });
     if (!Online.ranked) buttons.push({ label: 'COPIER LE LIEN', col: 0x4cc9f0, fn: () => this.copyInvite() });
@@ -670,7 +676,8 @@ Object.assign(GameScene.prototype, {
     onlinePick = null;
     this.over = false;
     // même terrain sur les deux téléphones : tiré du code de la salle
-    if (this.applyStage) this.applyStage(stageFromCode(Online.code));
+    const stage = STAGES.includes(m.stage) ? m.stage : STAGES.includes(Online.stage) ? Online.stage : stageFromCode(Online.code);
+    if (this.applyStage) this.applyStage(stage);
     this.beginNetMatch({ me: Online.idx, chars: m.chars, names: m.names, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
     this.state = 'countdown';
     this.setControls(true);

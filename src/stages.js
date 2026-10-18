@@ -1,12 +1,15 @@
 // ===========================================================================
 // TERRAINS : « NUIT » (la ville, d'origine) et « DÉSERT » (une planète de sable : dunes, deux lunes,
-// mesas, cité de béton, épice qui flotte, vers géants qui surgissent au loin, ornithoptère qui passe).
+// dunes irrégulières, épice qui flotte, vers géants qui surgissent au loin, ornithoptère qui passe).
 // Le décor ne change rien au combat : mêmes plateformes, mêmes dimensions.
 // ===========================================================================
+const STAGES = ['night', 'dune'];
+const STAGE_NAMES = { night: 'NUIT', dune: 'DESERT' };
+// salle sans arène choisie (duel classé) : tirée du code de la salle, identique sur les deux téléphones
 function stageFromCode(code) {
   let h = 0;
   for (const ch of String(code || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h % 2 ? 'dune' : 'night';
+  return STAGES[h % STAGES.length];
 }
 
 Object.assign(GameScene.prototype, {
@@ -19,7 +22,8 @@ Object.assign(GameScene.prototype, {
   },
 
   // ----- écran de choix de l'arène (avant le choix du perso) -----
-  showStagePick(next) {
+  // next(id) : appelé avec l'arène choisie ; back : bouton RETOUR (menu JOUER par défaut)
+  showStagePick(next, back) {
     this.menuBase('CHOISIS L\'ARENE', { small: true, noBar: true });
     const D = 120;
     const port = L.portrait;
@@ -82,8 +86,9 @@ Object.assign(GameScene.prototype, {
         fn: () => {
           SETTINGS.stage = i;
           if (typeof saveSettings === 'function') saveSettings();
-          this.applyStage(this.pickStage());
-          next();
+          const id = this.pickStage();
+          this.applyStage(id);
+          next(id);
         },
       });
     });
@@ -91,7 +96,7 @@ Object.assign(GameScene.prototype, {
     const r = this.add.rectangle(this.W / 2, yb, 300, 64, 0x1a1d33, 1).setStrokeStyle(4, 0x888888).setDepth(D);
     const t = this.add.text(this.W / 2, yb, 'RETOUR', { fontFamily: FONT, fontSize: '18px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1);
     this.ui.push(r, t);
-    this.uiBtns.push({ x: this.W / 2, y: yb, w: 300, h: 64, fn: () => this.showPlayMenu() });
+    this.uiBtns.push({ x: this.W / 2, y: yb, w: 300, h: 64, fn: () => (back ? back() : this.showPlayMenu()) });
   },
 
   applyStage(id) {

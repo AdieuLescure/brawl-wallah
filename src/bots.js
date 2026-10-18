@@ -42,7 +42,7 @@ const BOT_MOVES = {
     { d: 'down', air: true, dx: [0, 60], dy: [30, 160], w: 2 },
   ],
   deadlulu: [
-    { d: 'neutral', air: false, dx: [0, 95], dy: [-60, 50], w: 4 },
+    { d: 'neutral', air: false, dx: [110, 420], dy: [-60, 60], w: 4 },
     { d: 'forward', air: false, dx: [50, 150], dy: [-60, 50], w: 2 },
     { d: 'up', air: false, dx: [0, 80], dy: [-180, -20], w: 2 },
     { d: 'down', air: false, dx: [180, 320], dy: [-40, 60], w: 1.5, tgtGround: true },
@@ -70,8 +70,16 @@ const BOT_MOVES = {
     { d: 'forward', air: true, dx: [30, 130], dy: [-60, 60], w: 2 },
     { d: 'down', air: true, dx: [0, 80], dy: [40, 260], w: 1.5 },
   ],
+  adieulescure: [
+    { d: 'neutral', air: false, dx: [0, 90], dy: [-50, 60], w: 4 },
+    { d: 'forward', air: false, dx: [60, 260], dy: [-50, 50], w: 2 },
+    { d: 'up', air: false, dx: [0, 90], dy: [-200, -20], w: 2 },
+    { d: 'neutral', air: true, dx: [0, 90], dy: [-70, 70], w: 3 },
+    { d: 'forward', air: true, dx: [120, 420], dy: [-40, 160], w: 2 },
+    { d: 'back', air: true, dx: [20, 120], dy: [-50, 50], w: 1.5 },
+  ],
 };
-const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 80, denodoom: 160, nini: 90 };
+const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90 };
 
 Object.assign(GameScene.prototype, {
   botInput(bot, tgt, now) {
@@ -166,6 +174,12 @@ Object.assign(GameScene.prototype, {
       const approaching = Math.sign(p.vx || 0) === Math.sign(pdx) || (p.spec.kind === 'book' && Math.abs(pdx) < 110);
       if (approaching && Math.abs(pdx) < 220 && Math.abs(p.y - s.y) < 120 && now - p.born >= lv.react * 0.5) {
         bot.botSeenProj = p.id;
+        const cm = bot.def.moves.back;
+        if (cm && cm.type === 'catch' && grounded && !bot.atk && now > bot.cdUntil && Math.random() < lv.dodge * 0.7) {
+          i.sx = -dir;
+          i.attack = true;
+          return i;
+        }
         if (Math.random() < lv.dodge) {
           if (grounded && Math.random() < 0.5 && bot.jumps > 0) i.jump = true;
           else press();
@@ -272,6 +286,17 @@ Object.assign(GameScene.prototype, {
       i.sx = -bot.facing;
       i.sy = 0;
       return;
+    }
+    // AdieuLescure : CTRL+Z pour revenir là où il était (s'il était plus près du terrain)
+    if (bot.def.rewind && !bot.atk && now > bot.cdUntil && now >= (bot.moveCd.ctrlz || 0) && bot.zn >= 6) {
+      const j = bot.zn < 10 ? 0 : bot.zi || 0;
+      const back = (bot['zx' + j] - edgeX) * side;
+      if (back < out - 120 && Math.random() < 0.3 * lv.escape + 0.1) {
+        i.attack = true;
+        i.sy = 1;
+        i.sx = 0;
+        return;
+      }
     }
     if (b.velocity.y > -80) {
       if (bot.jumps > 0 && now - bot.lastJump > 220 && (below || out > 160)) i.jump = true;

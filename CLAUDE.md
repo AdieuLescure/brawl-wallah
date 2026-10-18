@@ -27,11 +27,17 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `stages.js` : terrains (décor seulement, mêmes plateformes) : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes,
     ver géant qui surgit au loin, ornithoptère, épice ; plateformes en roche sombre pour le contraste). L'arène se choisit
     sur un écran avant le choix du perso (`showStagePick`, mémorisé dans `SETTINGS.stage`). Campagne : alterne selon le
-    chapitre. En ligne : tirée du code de la salle (`stageFromCode`) pour être identique sur les deux téléphones.
+    chapitre. En ligne : le créateur du salon la choisit (envoyée au serveur avec `join`, renvoyée dans `hello` et `start`) ;
+    duel classé : tirée du code de la salle (`stageFromCode`).
+  - `adieu.js` : le perso AdieuLescure (données, textures de ses objets, mécaniques uniques) + le PASTIS de Deadlulu.
+    CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 14 s (trace dans
+    les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
+    projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
   - `extras.js` : sons synthétisés, vibration, indicateurs hors écran, réglages, entraînement
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py` = postures de Toro, Dead Lulu et Denodoom). Style : celui de la référence de Noah
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py` = postures de Toro, Deadlulu,
+  Denodoom et AdieuLescure). Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
 - `server/` : `core.js` (logique des salles, partagée), `worker.js` (Cloudflare), `dev-server.js` (test local)
@@ -51,4 +57,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Nini ne frappe jamais elle-même : Scarlett (le chat), le corgi, l'amour, la pivoine, le voyage (valise) et le vent
   (Autant en emporte le vent). Le corgi est sur BAS avec une recharge, pas sur un coup de base.
 - Chrono de 3 min puis mort subite (premier coup gagne). 3 vies.
+- Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
+- Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en
+  ligne elles sont désactivées (le perso restait tout blanc, l'aigle restait figé). La teinte est décidée à chaque image
+  dans `step` d'après `flashUntil` ; un objet à effacer pendant un rejeu est détruit tout de suite.
+- Bouton X en haut pendant un combat : quitter (hors ligne) ou abandonner (en ligne, message `leave` au serveur).
 - Tester avec Playwright (Chromium déjà installé) en pilotant `game.step()` image par image.

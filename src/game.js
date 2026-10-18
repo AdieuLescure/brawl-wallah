@@ -450,6 +450,7 @@ class GameScene extends Phaser.Scene {
     this.projs = [];
     this.ui = [];
     this.makeTextures();
+    if (this.makeExtraTextures) this.makeExtraTextures();
     this.buildBackground();
     this.buildStage();
     if (this.buildDune) {
@@ -942,6 +943,11 @@ class GameScene extends Phaser.Scene {
   clearUi() {
     this.ui.forEach((o) => o.destroy());
     this.ui = [];
+    // lignes de la liste des salons publics (créées à part) : sinon elles restaient affichées pendant le combat
+    if (this.roomObjs) {
+      this.roomObjs.forEach((o) => o.destroy());
+      this.roomObjs = [];
+    }
     if (this.cardTimer) this.cardTimer.remove();
     if (this.roomPoll) {
       this.roomPoll.remove();
@@ -1082,6 +1088,7 @@ class GameScene extends Phaser.Scene {
     };
     this.fsBtn = { x: this.W / 2, y: 40, r: 34 };
     this.ctrlObjs.push(this.add.image(this.fsBtn.x, this.fsBtn.y, 'icoFs').setScale(3).setAlpha(0.6).setDepth(D));
+    if (this.buildQuitBtn) this.buildQuitBtn(D);
   }
 
   setupInput() {
@@ -1115,6 +1122,7 @@ class GameScene extends Phaser.Scene {
         }
         return;
       }
+      if (this.quitTap && this.quitTap(p)) return;
       if (this.over) {
         if (camp && camp.phase === 'match') {
           if (this.campSkip) this.campSkip();
@@ -1194,6 +1202,7 @@ class GameScene extends Phaser.Scene {
   // ----- Bot (adapté au personnage) --------------------------------------
   update(time, delta) {
     if (this.state !== 'play' || this.over) return;
+    if (this.quitUi && !this.net) return; // pause pendant la question « quitter ? » (hors ligne)
     if (this.net) {
       this.netUpdate(delta);
       return;
@@ -1296,6 +1305,8 @@ class GameScene extends Phaser.Scene {
       if (pl.atk && pl.atk.id === d.aid) this.niniSkillFire(pl, pl.atk.m, d.key, now);
     } else if (t.kind === 'book') {
       this.bookLand(pl, this.pl(1 - d.pi), d, now);
+    } else if (t.kind === 'rewind') {
+      if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doRewind(pl, now);
     }
   }
 
@@ -1318,6 +1329,7 @@ class GameScene extends Phaser.Scene {
     const grounded = !pl.ledgeSide && (b.blocked.down || b.touching.down);
     let stunned = now < pl.stunUntil;
     if (grounded) this.landReset(pl);
+    if (def.rewind) this.zRecord(pl, now); // CTRL+Z d'AdieuLescure : on garde la trace de la dernière seconde
     // --- tampon d'entrée : un appui fait un peu trop tôt part dès que c'est possible
     if (inp.attack) pl.bufAtk = now + BUF_MS;
     if (inp.jump) pl.bufJump = now + BUF_MS;
@@ -1332,12 +1344,10 @@ class GameScene extends Phaser.Scene {
       const dxc = other.sprite.x - s.x;
       inp = { sx: Math.abs(dxc) > 70 ? Math.sign(dxc) * Math.min(200 / def.speed, 1) : 0, sy: 0, jump: false, attack: false, hold: false, block: false };
       pl.bufAtk = pl.bufJump = pl.bufDodge = 0;
-      s.setTint(0xffb0d8);
       pl.charmFx = true;
       if (now - (pl.lastHeart || 0) > 260) { pl.lastHeart = now; this.heartFx(s.x + (Math.random() - 0.5) * 30, s.y - 50, 1.4); }
     } else if (pl.charmFx) {
       pl.charmFx = false;
-      s.clearTint();
     }
     // RAS-LE-BOL (Nini)
     const raging = now < pl.rageUntil;
@@ -1499,7 +1509,8 @@ class GameScene extends Phaser.Scene {
     } else if (pl.carryImg) {
       const eg = pl.carryImg;
       pl.carryImg = null;
-      this.tweens.add({ targets: eg, y: eg.y - 160, alpha: 0, duration: 380, onComplete: () => eg.destroy() });
+      if (this.resim) eg.destroy();
+      else this.tweens.add({ targets: eg, y: eg.y - 160, alpha: 0, duration: 380, onComplete: () => eg.destroy() });
     }
 
     // Prise en cours
@@ -1568,13 +1579,19 @@ class GameScene extends Phaser.Scene {
     let name;
     if (stunned) name = 'hurt';
     else if (pl.ledgeSide) name = 'jump';
-    else if (pl.atk) name = pl.atk.m.prePose && now < pl.atk.hitAt ? pl.atk.m.prePose : pl.atk.pose || pl.atk.m.pose;
+    else if (pl.atk) name = pl.atk.m.prePose && now < pl.atk.hitAt ? pl.atk.m.prePose : pl.atk.m.anim && pl.atk.pose === pl.atk.m.pose ? pl.atk.m.anim[Math.floor(now / 90) % 2] : pl.atk.pose || pl.atk.m.pose;
     else if (rolling) name = Math.floor(now / 70) % 2 ? 'run0' : 'run1';
     else if (!grounded) name = 'jump';
     else if (Math.abs(b.velocity.x) > 60) name = Math.floor(now / 130) % 2 ? 'run0' : 'run1';
     else name = Math.floor(now / 450) % 2 ? 'idle0' : 'idle1';
     s.setTexture(`${pl.char}_${name}${raging && pl.char === 'nini' ? '_r' : ''}`);
-    if (pl.shade && !charmed && now > (pl.flashUntil || 0)) s.setTint(pl.shade);
+    if (def.idleFx && !this.resim) this.idleFx(pl, name, now);
+    // teinte décidée à chaque image d'après l'état (jamais par minuterie : en ligne, un rejeu sautait la minuterie
+    // et le perso restait tout blanc)
+    if (now < (pl.flashUntil || 0)) s.setTintFill(pl.flashCol || 0xffffff);
+    else if (charmed) s.setTint(0xffb0d8);
+    else if (pl.shade) s.setTint(pl.shade);
+    else if (s.isTinted) s.clearTint();
     s.setAlpha(now < pl.dodgeUntil ? 0.4 : now < pl.invulnUntil ? (Math.floor(now / 90) % 2 ? 0.35 : 0.8) : pl.helpless ? 0.75 : 1);
     pl.tag.setPosition(s.x, s.y - 66).setVisible(pl.stocks > 0);
 
@@ -1625,6 +1642,7 @@ class GameScene extends Phaser.Scene {
     }
     pl.cdUntil = now + m.total;
     const s = pl.sprite;
+    if (m.turn) pl.facing = -pl.facing; // coup donné dos à l'adversaire (ruade)
     if (m.lunge) s.setVelocityX(pl.facing * m.lunge);
     if (m.retreat) s.setVelocityX(-pl.facing * m.retreat);
     if (m.hop && (grounded || !pl.hopUsed)) {
@@ -1657,6 +1675,20 @@ class GameScene extends Phaser.Scene {
       pl.atk.moveLock = now + m.total;
     }
     if (m.type === 'recover' || m.type === 'heal' || m.type === 'float') this.niniSkill(pl, m, key, now);
+    // CONTRÔLE (AdieuLescure) : fenêtre où il attrape projectiles et coups
+    if (m.type === 'catch') {
+      pl.atk.cFrom = now + m.startup;
+      pl.atk.cTo = now + m.startup + m.window;
+      pl.atk.done = true;
+      pl.atk.moveLock = now + m.total;
+      s.setVelocityX(s.body.velocity.x * 0.2);
+    }
+    // CTRL+Z (AdieuLescure) : retour une seconde en arrière
+    if (m.type === 'rewind') {
+      pl.atk.done = true;
+      pl.atk.moveLock = now + m.total;
+      this.sched(m.startup, 'rewind', { pi: pl.i, aid: pl.atk.id });
+    }
     if (m.cd) pl.moveCd[cdKey] = now + m.cd;
     this.attackFx(pl, m);
     this.sfx('swing');
@@ -1756,6 +1788,7 @@ class GameScene extends Phaser.Scene {
       if (fx.burst) this.runeFx(b.x, b.y, col, 2.2);
       if (fx.dust) this.dust(b.x + f * 40, b.y + 30, f, 5, col);
       if (fx.shock) this.shockwave(b.x, b.y + 28, col);
+      if (this.extraFx) this.extraFx(pl, m, fx, b, f);
       if (fx.grabFx) {
         const g = this.add.image(b.x + f * 56, b.y - 6, 'ring').setTint(col.alt).setScale(1).setDepth(21);
         this.tweens.add({ targets: g, scale: 3.4, alpha: 0, duration: 260, onComplete: () => g.destroy() });
@@ -1766,8 +1799,9 @@ class GameScene extends Phaser.Scene {
   transformFx(pl, m) {
     const s = pl.sprite;
     const c = s.body.center;
+    pl.flashUntil = (this.nowT || 0) + 60;
+    pl.flashCol = 0xffffff;
     s.setTintFill(0xffffff);
-    this.time.delayedCall(60, () => s.active && !pl.shade && s.clearTint());
     const ring = this.add.image(c.x, c.y, 'ring').setTint(0xffe27a).setScale(0.6).setDepth(31);
     this.tweens.add({ targets: ring, scale: 3.4, alpha: 0, duration: 260, onComplete: () => ring.destroy() });
     for (let i = 0; i < 12; i++) {
@@ -2010,13 +2044,15 @@ class GameScene extends Phaser.Scene {
     if (now < att.rageUntil) spec = { ...spec, dmg: spec.dmg * RAGE_DMG };
     // OBJECTION ! : la parade de Lulu annule le coup et riposte
     if (!noCounter && vic.atk && vic.atk.m.type === 'counter' && now >= vic.atk.cFrom && now <= vic.atk.cTo) return this.counterHit(vic, att, spec, now);
+    // CONTRÔLE : AdieuLescure attrape l'attaquant et le projette
+    if (!noCounter && vic.atk && vic.atk.m.type === 'catch' && now >= vic.atk.cFrom && now <= vic.atk.cTo) return this.catchMelee(vic, att, spec, now);
     // armure : on encaisse les dégâts sans être interrompu
     if (now < vic.armorUntil && spec.dmg <= (vic.armorMax || 0) && !this.sudden) {
       vic.damage += spec.dmg;
       this.gainRage(vic, spec.dmg, now);
-      vic.flashUntil = this.time.now + 100;
+      vic.flashUntil = now + 90;
+      vic.flashCol = 0xffd166;
       vic.sprite.setTintFill(0xffd166);
-      this.time.delayedCall(90, () => vic.sprite.active && vic.sprite.clearTint());
       const c = vic.sprite.body.center;
       this.popup(c.x, c.y - 80, 'ARMURE', '#ffd166');
       this.hitstop(50);
@@ -2086,9 +2122,9 @@ class GameScene extends Phaser.Scene {
     if (att.char === 'toro') for (let i = 0; i < 3; i++) this.time.delayedCall(i * 40, () => this.flame(x + (Math.random() - 0.5) * 30, y + 10, col));
 
     // flash blanc de la victime
-    vic.flashUntil = this.time.now + 100;
+    vic.flashUntil = (this.nowT || 0) + 90;
+    vic.flashCol = 0xffffff;
     vic.sprite.setTintFill(0xffffff);
-    this.time.delayedCall(90, () => vic.sprite.active && vic.sprite.clearTint());
     this.cameras.main.shake(90, Math.min(0.002 + vic.damage * 0.00003 + power * 0.002, 0.009));
     this.sfx('hit', power);
     if (vic.human || att.human) this.buzz(lethal ? 90 : 25 + power * 25);
@@ -2137,7 +2173,7 @@ class GameScene extends Phaser.Scene {
       const dir = pl.lastSx * f > 0.5 ? f : -f;
       this.applyHit(pl, v, spec, now, dir, null);
       this.shockwave(v.sprite.x, v.sprite.body.bottom, pl.def.fx);
-      this.popup(v.sprite.x, v.sprite.y - 70, 'SUPLEX !', '#ffd166');
+      this.popup(v.sprite.x, v.sprite.y - 70, spec.name || 'SUPLEX !', '#ffd166');
     }
   }
 
@@ -2420,6 +2456,12 @@ class GameScene extends Phaser.Scene {
         continue;
       }
       if (sp.kind === 'book') p.sprite.angle = Math.max(p.sprite.angle * 0.94, -3);
+      // bouteilles, tomates : éclatent en touchant le sol du terrain
+      if (sp.breakGround && p.vy > 0 && p.y > L.baseY - 10 && Math.abs(p.x - this.W / 2) < L.mainW / 2 + 10) {
+        this.splatFx(p);
+        this.killProj(p, false);
+        continue;
+      }
       if (now - p.born > sp.life) {
         this.killProj(p, false);
         continue;
@@ -2432,6 +2474,11 @@ class GameScene extends Phaser.Scene {
       const pcy = sp.bottom ? p.y - sp.h / 2 : p.y;
       const hit = p.x + sp.w / 2 > vb.x && p.x - sp.w / 2 < vb.right && pcy + sp.h / 2 > vb.y && pcy - sp.h / 2 < vb.bottom;
       if (!hit) continue;
+      // CONTRÔLE : AdieuLescure amortit le projectile et le renvoie de volée
+      if (v.atk && v.atk.m.type === 'catch' && now >= v.atk.cFrom && now <= v.atk.cTo && sp.kind !== 'hermine' && sp.kind !== 'mine') {
+        this.catchProj(v, p, now);
+        continue;
+      }
 
       if (sp.kind === 'ring' || sp.kind === 'kiss') {
         const vb3 = v.sprite.body;
@@ -2467,7 +2514,10 @@ class GameScene extends Phaser.Scene {
         const dir = sp.kind === 'comet' || sp.kind === 'mine' || sp.kind === 'book' || sp.kind === 'hermine' ? Math.sign(v.sprite.x - p.x) || p.f : Math.sign(p.vx) || p.f;
         this.applyHit(p.owner, v, sp, now, dir, { x: p.x, y: sp.bottom ? p.y - sp.h / 2 : p.y });
         if (sp.kind === 'hermine') p.spent = true; // elle retourne sous terre toute seule
-        else this.killProj(p, !!sp.explode);
+        else {
+          if (sp.breakGround) this.splatFx(p);
+          this.killProj(p, !!sp.explode);
+        }
       }
     }
     this.projs = this.projs.filter((p) => !p.dead);

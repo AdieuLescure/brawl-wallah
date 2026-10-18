@@ -16,7 +16,7 @@ const NULLOBJ = new Proxy(function () {}, {
 });
 
 // Etat d'un joueur : tous ses champs simples (nombres, booléens, textes) sont sauvegardés, sauf ceux-ci
-const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg']);
+const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff']);
 const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string';
 
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
@@ -100,7 +100,11 @@ Object.assign(GameScene.prototype, {
       if (!p) {
         p = { id: d.id, ...fields, sprite: null };
         p.sprite = this.makeProjSprite(p);
-      } else Object.assign(p, fields);
+      } else {
+        Object.assign(p, fields);
+        // son image a pu être effacée entre-temps (projectile détruit puis ressuscité par le rejeu)
+        if (p.sprite !== NULLOBJ && (!p.sprite || !p.sprite.active)) p.sprite = this.makeProjSprite(p);
+      }
       return p;
     });
     live.forEach((p, id) => {

@@ -216,6 +216,11 @@ POSES = {
     # COUP DE PIED (arrière / rebord)
     'rkick': dict(P=(26, 40), lean=-18, tilt=-8, hd=(-2, 1), expr='shout', nA=((-4, 7), (-1, 1)), fA=((5, 5), (8, -1)), nFist='U', fFist='U',
                   nL=((-2, 8), (-4, 16)), fL=((9, -1), (19, -3)), fRot=-80),
+    # PASTIS : il lance une petite bouteille (élan bras en arrière, puis bras tendu devant)
+    'tossPre': dict(P=(28, 41), lean=-6, tilt=-4, expr='normal', nA=((-6, 2), (-8, -6)), fA=((5, 6), (10, 3)), nFist='U',
+                    nL=((-4, 8), (-7, 14)), fL=((5, 7), (8, 14))),
+    'toss': dict(P=(30, 41), lean=12, hd=(1, 0), expr='shout', nA=((8, 5), (17, 6)), fA=((-1, 8), (-4, 13)), nFist='R', fFist='D',
+                 nL=((-6, 7), (-11, 13)), fL=((7, 6), (9, 14))),
     # CODE PÉNAL : il pointe le ciel, le livre tombe
     'summon': dict(P=(29, 40), lean=-4, tilt=-4, expr='shout', fA=((3, -8), (5, -15)), nA=((1, 9.5), (6.5, 0)), fFist='P',
                    nL=((-3, 8), (-5.5, 14)), fL=((5, 7), (7, 14))),

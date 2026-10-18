@@ -235,3 +235,73 @@ Object.assign(GameScene.prototype, {
 
 let trainDummy = 'toro';
 let trainDummyMode = 0;
+
+// --- Bouton QUITTER pendant le combat ---------------------------------------------
+Object.assign(GameScene.prototype, {
+  buildQuitBtn(D) {
+    this.quitBtn = { x: this.W / 2 + 74, y: 40, w: 56, h: 46 };
+    const r = this.add.rectangle(this.quitBtn.x, this.quitBtn.y, 46, 38, 0x000000, 0.45).setStrokeStyle(2, 0xffffff, 0.6).setDepth(D);
+    const t = this.add.text(this.quitBtn.x, this.quitBtn.y + 1, 'X', { fontFamily: FONT, fontSize: '20px', color: '#ffffff' }).setOrigin(0.5).setDepth(D + 1).setAlpha(0.85);
+    this.ctrlObjs.push(r, t);
+    this.quitUi = null;
+  },
+
+  // renvoie true si le toucher a été pris par le bouton ou par la question « quitter ? »
+  quitTap(p) {
+    const inside = (b) => Math.abs(p.x - b.x) <= b.w / 2 && Math.abs(p.y - b.y) <= b.h / 2;
+    if (this.quitUi) {
+      for (const b of this.quitUi.btns) if (inside(b)) { b.fn(); return true; }
+      return true; // la question est ouverte : on ignore le reste
+    }
+    if (this.over || this.state !== 'play' || !this.quitBtn || !inside(this.quitBtn)) return false;
+    if (this.ctrlObjs && this.ctrlObjs[0] && !this.ctrlObjs[0].visible) return false;
+    this.askQuit();
+    return true;
+  },
+
+  askQuit() {
+    const D = 130, cx = this.W / 2, cy = this.H * 0.42;
+    const objs = [];
+    objs.push(this.add.rectangle(cx, this.H / 2, this.W, this.H, 0x000000, 0.55).setDepth(D));
+    const bw = Math.min(600, this.W - 40);
+    objs.push(this.add.rectangle(cx, cy, bw, 250, 0x1a1d33, 1).setStrokeStyle(4, 0xf72585).setDepth(D + 1));
+    const q = this.net ? 'ABANDONNER ?\n(DEFAITE)' : 'QUITTER LE COMBAT ?';
+    objs.push(this.add.text(cx, cy - 64, q, { fontFamily: FONT, fontSize: '22px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(D + 2));
+    const btns = [];
+    const half = Math.min(125, bw / 4 + 10), w = Math.min(220, bw / 2 - 20);
+    const mk = (x, label, col, fn) => {
+      objs.push(this.add.rectangle(x, cy + 54, w, 66, 0x0b0d1f, 1).setStrokeStyle(4, col).setDepth(D + 2));
+      objs.push(this.add.text(x, cy + 54, label, { fontFamily: FONT, fontSize: '16px', color: '#ffffff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 3));
+      btns.push({ x, y: cy + 54, w, h: 66, fn });
+    };
+    mk(cx - half, 'QUITTER', 0xff5a5a, () => this.doQuit());
+    mk(cx + half, 'CONTINUER', 0x6ee7b7, () => this.closeQuit());
+    this.quitUi = { objs, btns };
+    // pas de coup « fantôme » au retour
+    if (this.stick) { this.stick.id = null; this.stick.sx = this.stick.sy = 0; }
+    if (this.btn) Object.values(this.btn).forEach((b) => { b.id = null; b.img.setAlpha(0.75); });
+  },
+
+  closeQuit() {
+    if (!this.quitUi) return;
+    this.quitUi.objs.forEach((o) => o.destroy());
+    this.quitUi = null;
+    this.acc = 0;
+  },
+
+  doQuit() {
+    this.closeQuit();
+    if (this.net) {
+      // en ligne : abandon immédiat (l'adversaire gagne), puis retour au menu
+      try { Online.conn && Online.conn.send({ t: 'leave' }); } catch (e) {}
+      Online.leaving = true;
+      setTimeout(() => leaveOnline(), 150);
+      return;
+    }
+    trainingMode = false;
+    camp = null;
+    chosen = null;
+    goSelect = false;
+    this.scene.restart();
+  },
+});

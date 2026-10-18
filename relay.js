@@ -4,7 +4,8 @@ import { DurableObject } from 'cloudflare:workers';
 // Logique serveur (salles + file d'attente), indépendante de la plateforme.
 // Utilisée par Cloudflare (relay.js) ET par le serveur de test local (dev-server.js).
 // ===========================================================================
-export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini'];
+export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini', 'adieulescure'];
+export const STAGES = ['night', 'dune'];
 const MAX_MSG = 4000;
 
 const send = (sock, o) => {
@@ -23,6 +24,7 @@ export class RoomCore {
     this.finalized = false;
     this.desync = false;
     this.rematch = [false, false];
+    this.stage = null; // arène choisie par le créateur du salon
   }
 
   init(ids, ranked) {
@@ -81,6 +83,17 @@ export class RoomCore {
         me.reported = m.winner === 0 || m.winner === 1 ? m.winner : null;
         await this.tryFinalize();
         break;
+      case 'leave': {
+        // abandon volontaire (bouton QUITTER) : pas de délai de reconnexion
+        const inMatch = this.started && !this.finalized;
+        me.left = true;
+        if (other && !other.left) {
+          send(other.sock, { t: 'left', started: inMatch });
+          send(other.sock, { t: 'peers', peers: this.peersInfo() });
+        }
+        if (inMatch && other && other.reported !== null) await this.tryFinalize();
+        break;
+      }
       case 'rematch':
         if (!this.finalized && this.started) return;
         this.rematch[i] = true;
@@ -108,6 +121,7 @@ export class RoomCore {
       if (i < 0 || this.slots[i]) return send(sock, { t: 'error', e: 'full' });
     }
     const prev = this.slots[i];
+    if (!this.stage && STAGES.includes(m.stage)) this.stage = m.stage;
     // retour pendant un combat (coupure franche, ou connexion morte que le serveur n'avait pas encore vue)
     const back = !!(prev && this.started && !this.finalized);
     if (prev && prev.dropTimer) this.io.cancel && this.io.cancel(prev.dropTimer);
@@ -117,7 +131,7 @@ export class RoomCore {
       } catch (e) {}
     }
     this.slots[i] = { sock, id: user.id, name: user.name, anon: user.anon, char: prev ? prev.char : null, ready: prev ? prev.ready : false, reported: prev ? prev.reported : null, left: false };
-    send(sock, { t: 'hello', idx: i, ranked: this.ranked, started: this.started && !this.finalized, peers: this.peersInfo() });
+    send(sock, { t: 'hello', idx: i, ranked: this.ranked, stage: this.stage, started: this.started && !this.finalized, peers: this.peersInfo() });
     const other = this.slots[1 - i];
     if (other && !other.left) {
       if (back) send(other.sock, { t: 'back' });
@@ -131,7 +145,7 @@ export class RoomCore {
     this.desync = false;
     this.rematch = [false, false];
     this.slots.forEach((s) => (s.reported = null));
-    this.broadcast({ t: 'start', chars: this.slots.map((s) => s.char), names: this.slots.map((s) => s.name) });
+    this.broadcast({ t: 'start', stage: this.stage, chars: this.slots.map((s) => s.char), names: this.slots.map((s) => s.name) });
   }
 
   reset() {
