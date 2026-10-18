@@ -1,5 +1,5 @@
-# Denodoom : cheveux très courts dégradés, barbe noire fournie, gros sourcils, anneau à l'oreille, lunettes de soleil
-# posées sur la tête ; long manteau de cuir noir doublé de rouge, tenue noire, ceinture, rangers.
+# Denodoom : cheveux très courts dégradés, barbe noire fournie, gros sourcils, anneau à l'oreille, lunettes
+# de soleil noires sur les yeux ; long manteau de cuir noir doublé de rouge, tenue noire, ceinture, rangers.
 # Accessoires : deux pistolets, sabre, poêle, ballon de handball.
 import math
 from flat import *
@@ -88,23 +88,23 @@ def head(N, tilt=0, expr='normal', flow=0):
     it.append(Part(HAIR, T([(24.6, 11), (24.4, 7), (26.6, 4.2), (30, 2.8), (34.6, 3), (37.8, 5.4), (38.6, 7.6), (36.4, 7.2), (33, 7.4), (30, 8), (28, 9.4), (26.8, 11.6)]),
                    shades=[(T([(27, 4.4), (31, 3.4), (34, 3.6), (30, 4.8)]), 2)]))
     it.append(Part(mat('#3a281c', '#5a4030', '#7a5a44'), T([(24.6, 11), (26.8, 11.6), (26.4, 14), (24.8, 13.4)]), base=1, outline=False))
-    # lunettes de soleil posées sur la tête
-    it.append(Part(INNER, T([(27, 2.4), (38.6, 2.0), (39, 3.2), (27, 3.6)]), base=1))
-    it.append(Part(LENS, T([(31.6, 1.2), (35.6, 1.0), (35.6, 3.4), (31.6, 3.6)]), shades=[(T([(31.6, 1.2), (33.4, 1.1), (33, 2.4)]), 2)], base=1))
-    it.append(Part(LENS, T([(36.4, 1.4), (39, 1.4), (39, 3.4), (36.4, 3.4)]), base=0))
     # barbe noire fournie : mâchoire, menton, moustache
     it.append(Part(BEARD, T([(27.4, 14.4), (29.4, 16.6), (33, 16.4), (35, 15.2), (38.6, 15.4), (38.4, 16.6), (37, 19), (34, 21.6), (30, 21.4), (27, 18.6)]),
                    shades=[(T([(27.4, 14.4), (29.4, 16.6), (30.4, 21.4), (27, 18.6)]), 0)], base=1))
     it.append(Part(SKIN, T([(34, 17.2), (37.4, 17), (37, 18.2), (34.2, 18.4)]), base=1, outline=False))
     fx, fy = o
+    # lunettes de soleil noires sur les yeux (verres fins, reflet)
+    it.append(stamp(["kkkkk.kkk"], FACE, 29 + fx, 9 + fy) if expr != 'hurt' else stamp(["kkkk..kkk"], FACE, 29 + fx, 8 + fy))
+    G = mat('#060508', '#121018', '#5a5868')
+    it.append(Part(G, T([(30.8, 11), (34.6, 11), (34.4, 13), (33.4, 13.6), (31.2, 13.2)]), shades=[(T([(31.2, 11.1), (32.4, 11.1), (31.6, 12)]), 2)], base=1, outline=False))
+    it.append(Part(G, T([(35.8, 11), (38.4, 11), (38.2, 12.8), (36.2, 13.2)]), shades=[(T([(36, 11.1), (36.8, 11.1), (36.2, 11.8)]), 2)], base=1, outline=False))
+    it.append(Part(G, T([(34.4, 11), (35.9, 11), (35.9, 11.8), (34.4, 11.8)]), base=0, outline=False))
+    it.append(Part(G, T([(26.6, 11.4), (31, 11), (31, 11.9), (26.6, 12.3)]), base=0, outline=False))
     if expr == 'hurt':
-        it.append(stamp(["kkkk.kk", "....k..", ".kkk..."], FACE, 31 + fx, 9 + fy))
         it.append(stamp(["mrm"], FACE, 34 + fx, 17 + fy))
     elif expr == 'shout':
-        it.append(stamp(["kkkkk.kkk", "....kk.kk", "...wk.wk."], FACE, 29 + fx, 9 + fy))
         it.append(stamp(["kkk", "rmk"], FACE, 34 + fx, 17 + fy))
     else:
-        it.append(stamp(["kkkkk.kkk", "....kk.kk", "...wk.wk."], FACE, 29 + fx, 9 + fy))
         it.append(stamp(["mmm"], FACE, 34 + fx, 17 + fy))
     it.append(stamp(["e"], FACE, 26 + fx, 16 + fy))  # anneau à l'oreille
     return it
