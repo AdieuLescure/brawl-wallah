@@ -33,11 +33,19 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 14 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
     projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
-  - `extras.js` : sons synthétisés, vibration, indicateurs hors écran, réglages, entraînement
+  - `anim.js` : animation d'affichage. `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
+    chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
+    aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
+    temps (`run0, run2, run1, run3`). Ne touche jamais la simulation.
+  - `extras.js` : vibration, indicateurs hors écran, réglages, entraînement, bouton quitter
+  - `audio.js` : son 100 % synthétisé (aucun fichier). `SFX.play(nom)` = bruitages en couches + réverbération ;
+    `MUSIC` = séquenceur avec 3 morceaux originaux (`menu`, `night`, `desert`, notes écrites dans `SONGS`), jingles
+    victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
   (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py` = postures de Toro, Deadlulu,
-  Denodoom et AdieuLescure). Style : celui de la référence de Noah
+  Denodoom et AdieuLescure) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
+  préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
 - `server/` : `core.js` (logique des salles, partagée), `worker.js` (Cloudflare), `dev-server.js` (test local)

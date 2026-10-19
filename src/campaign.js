@@ -91,6 +91,7 @@ Object.assign(GameScene.prototype, {
 
   menuBase(title, opts) {
     opts = opts || {};
+    if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     this.clearUi();
     this.state = 'menu';
     this.barBtn = null;

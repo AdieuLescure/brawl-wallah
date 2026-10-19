@@ -141,7 +141,8 @@ Object.assign(GameScene.prototype, {
     this.menuBase('REGLAGES');
     const D = 120;
     const lab = {
-      sound: () => 'SON : ' + (SETTINGS.sound ? 'OUI' : 'NON'),
+      sound: () => 'BRUITAGES : ' + (SETTINGS.sound ? 'OUI' : 'NON'),
+      music: () => 'MUSIQUE : ' + (SETTINGS.music !== false ? 'OUI' : 'NON'),
       vib: () => 'VIBRATION : ' + (SETTINGS.vib ? 'OUI' : 'NON'),
       btnSize: () => 'BOUTONS : ' + ['PETITS', 'MOYENS', 'GRANDS'][SETTINGS.btnSize],
       flip: () => 'MAINS : ' + (SETTINGS.flip ? 'GAUCHER' : 'DROITIER'),
@@ -150,6 +151,7 @@ Object.assign(GameScene.prototype, {
     };
     const next = {
       sound: () => (SETTINGS.sound = !SETTINGS.sound),
+      music: () => { SETTINGS.music = SETTINGS.music === false; if (typeof MUSIC !== 'undefined') MUSIC.setVolume(); },
       vib: () => (SETTINGS.vib = !SETTINGS.vib),
       btnSize: () => (SETTINGS.btnSize = (SETTINGS.btnSize + 1) % 3),
       flip: () => (SETTINGS.flip = !SETTINGS.flip),

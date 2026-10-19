@@ -204,7 +204,7 @@ const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, tot
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
 const SETTINGS = Object.assign(
-  { sound: true, vib: true, btnSize: 1, flip: false, timer: true, botLevel: 1, stage: 2 },
+  { sound: true, music: true, vib: true, btnSize: 1, flip: false, timer: true, botLevel: 1, stage: 2 },
   (() => {
     try {
       return JSON.parse(localStorage.getItem('brawl_settings') || '{}');
@@ -858,6 +858,7 @@ class GameScene extends Phaser.Scene {
     this.timeLimit = this.training || camp ? 0 : SETTINGS.timer ? MATCH_MS : 0;
     this.buildHud();
     if (this.training) this.trainSetup();
+    if (typeof MUSIC !== 'undefined') MUSIC.play(this.stageId === 'dune' ? 'desert' : 'night');
   }
 
   buildHud() {
@@ -956,6 +957,7 @@ class GameScene extends Phaser.Scene {
   }
 
   showTitle() {
+    if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     const D = 100;
     this.ui.push(
       this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.78).setDepth(D),
@@ -983,6 +985,7 @@ class GameScene extends Phaser.Scene {
 
   showSelect() {
     this.clearUi();
+    if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     const D = 100;
     this.state = 'select';
     this.cards = [];
@@ -1240,6 +1243,7 @@ class GameScene extends Phaser.Scene {
       else {
         this.sudden = true;
         this.popup(this.W / 2, L.baseY - 200, 'MORT SUBITE !', '#ff5a5a');
+        if (typeof MUSIC !== 'undefined') MUSIC.setTempo(1.2);
         this.sfx('count');
       }
     }
@@ -1691,7 +1695,7 @@ class GameScene extends Phaser.Scene {
     }
     if (m.cd) pl.moveCd[cdKey] = now + m.cd;
     this.attackFx(pl, m);
-    this.sfx('swing');
+    this.sfx('swing', Math.min(((m.dmg || (m.proj && m.proj.dmg) || 6) - 3) / 10, 1));
     // coup puissant : petit éclat de préparation pour qu'on le voie venir
     if ((m.dmg || (m.proj && m.proj.dmg) || 0) >= 10 && m.startup >= 120 && !this.resim) {
       const c = pl.sprite.body.center;
@@ -2149,6 +2153,7 @@ class GameScene extends Phaser.Scene {
     pl.atk.moveLock = now + 560;
     pl.sprite.setVelocityX(0);
     pl.grab = { victim: vic, start: now, slamAt: now + 400, spec: m.throw };
+    this.sfx('grab');
     const vc = vic.sprite.body.center;
     this.popup(vc.x, vc.y - 70, 'ATTRAPE !', '#6ee7b7');
     const g = this.add.image(vc.x, vc.y, 'ring').setTint(0x6ee7b7).setScale(1).setDepth(30);
@@ -2262,6 +2267,8 @@ class GameScene extends Phaser.Scene {
     };
     this.projs.push(proj);
     if (!spOverride && sp.kind === 'bullet') this.muzzle(pl, 0);
+    const snd = { bullet: 'shoot', orb: 'magic', comet: 'magic', mine: 'magic', ring: 'charm', kiss: 'charm', eagle: 'rooster' }[sp.kind];
+    this.sfx(snd || 'throw', sp.tex === 'orb_l' ? 1 : 0.3);
     if (sp.kind === 'mine') {
       img.setAlpha(0);
       this.tweens.add({ targets: img, alpha: 1, duration: 200 });
@@ -2288,6 +2295,7 @@ class GameScene extends Phaser.Scene {
       p.carry = null;
     }
     if (boom) {
+      this.sfx('boom');
       const col = p.owner.def.fx;
       const r = this.add.image(p.x, p.y, 'ring').setTint(col.alt).setDepth(30).setScale(1);
       this.tweens.add({ targets: r, scale: 7, alpha: 0, duration: 380, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
@@ -2565,6 +2573,7 @@ class GameScene extends Phaser.Scene {
 
   finish(winner) {
     this.over = true;
+    if (!this.resim && typeof MUSIC !== 'undefined') MUSIC.jingle(winner === (this.net ? this.pl(this.net.me) : this.p1) ? 'win' : 'lose');
     if (this.net) {
       this.onlineFinish(winner);
     } else {
@@ -2613,6 +2622,7 @@ class GameScene extends Phaser.Scene {
 
   grabLedge(pl, side, now) {
     const s = pl.sprite;
+    this.sfx('ledge');
     if (pl.grab) this.releaseGrab(pl);
     pl.ledgeSide = side;
     pl.ledgeAt = now;
@@ -2721,7 +2731,7 @@ class GameScene extends Phaser.Scene {
     pl.cdUntil = now + m.total;
     if (m.lunge) pl.sprite.setVelocityX(pl.facing * m.lunge);
     this.attackFx(pl, m);
-    this.sfx('swing');
+    this.sfx('swing', Math.min(((m.dmg || (m.proj && m.proj.dmg) || 6) - 3) / 10, 1));
   }
 
   // Le coup va-t-il faire sortir la victime ? (prévision simple, identique sur les deux téléphones)

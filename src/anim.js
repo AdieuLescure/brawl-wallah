@@ -1,0 +1,156 @@
+// ===========================================================================
+// ANIMATION D'AFFICHAGE : chaque perso a deux objets
+//  - pl.sprite : le corps physique (invisible), seul à compter pour le combat
+//  - pl.view   : l'image qu'on voit, qui suit le corps et ajoute la souplesse : écrasement à l'atterrissage,
+//    étirement au saut, préparation et détente des coups, tremblement quand on est touché, vrille quand on est
+//    éjecté fort, petit balancement en courant, respiration à l'arrêt.
+// Rien ici ne touche la simulation : en ligne, les deux téléphones restent identiques.
+// Postures en plus (si le dessin existe) : '<coup>Pre' pendant la préparation, 'fall' en chute, 'crouch' à
+// l'atterrissage, course en 4 temps (run0, run2, run1, run3).
+// ===========================================================================
+(() => {
+  const P = GameScene.prototype;
+  const baseMake = P.makePlayer;
+  P.makePlayer = function (charId, x, y, isHuman) {
+    const pl = baseMake.call(this, charId, x, y, isHuman);
+    const s = pl.sprite;
+    pl.view = this.add.image(s.x, s.y, s.texture.key).setDepth(s.depth);
+    s.setVisible(false);
+    pl.anim = { sx: 1, sy: 1, ang: 0, spin: 0, ox: 0, oy: 0, wasGround: true, prevVy: 0, stunSeen: 0, shake: 0, land: 0, t: 0, key: '' };
+    return pl;
+  };
+  const baseUpdate = P.update;
+  P.update = function (time, delta) {
+    baseUpdate.call(this, time, delta);
+    if (this.p1 && this.p2 && this.p1.view) {
+      const dt = Math.min(delta, 50) / 1000;
+      this.syncView(this.p1, dt);
+      this.syncView(this.p2, dt);
+    }
+  };
+
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  Object.assign(P, {
+    hasTex(key) {
+      if (!this._texOk) this._texOk = new Map();
+      let v = this._texOk.get(key);
+      if (v === undefined) {
+        v = this.textures.exists(key);
+        this._texOk.set(key, v);
+      }
+      return v;
+    },
+
+    syncView(pl, dt) {
+      const s = pl.sprite, v = pl.view, a = pl.anim, b = s.body;
+      if (!v || !v.active) return;
+      const now = this.nowT || 0;
+      const frozen = this.freezeLeft > 0 || this.over || this.state !== 'play';
+      a.t += dt;
+      const grounded = !pl.ledgeSide && (b.blocked.down || b.touching.down);
+      const vx = b.velocity.x, vy = b.velocity.y;
+      const stunned = now < pl.stunUntil;
+      let tsx = 1, tsy = 1, tang = 0, tox = 0;
+      // --- événements
+      if (!frozen) {
+        if (a.wasGround && !grounded && vy < -150 && !stunned) { a.sx = 0.84; a.sy = 1.18; }
+        if (!a.wasGround && grounded && a.prevVy > 220) {
+          const k = Math.min(a.prevVy / 1300, 1);
+          a.sx = 1.12 + 0.12 * k;
+          a.sy = 0.86 - 0.1 * k;
+          a.land = 0.09;
+          this.sfx('land', k);
+          if (k > 0.3) this.dust(s.x, b.bottom, 0, 3, pl.def.fx);
+        }
+        a.wasGround = grounded;
+        a.prevVy = vy;
+      }
+      // coup reçu : petit écrasement et tremblement
+      if (pl.stunStart && pl.stunStart !== a.stunSeen && stunned) {
+        a.stunSeen = pl.stunStart;
+        a.shake = 0.18;
+        a.sx = 0.86;
+        a.sy = 1.12;
+      }
+      a.land = Math.max(0, a.land - dt);
+      // --- cibles selon l'état
+      const atk = pl.atk;
+      if (atk && !stunned) {
+        const m = atk.m;
+        const hitAt = atk.hitAt, act = m.active || 120;
+        if (atk.charging) { tsx = 1.05; tsy = 0.96; tang = -pl.facing * 4; }
+        else if (now < hitAt) {
+          // préparation : on se ramasse et on recule le buste
+          const k = Math.min((now - atk.start) / Math.max(hitAt - atk.start, 1), 1);
+          tsx = 1 + 0.07 * k; tsy = 1 - 0.06 * k; tang = -pl.facing * 6 * k; tox = -pl.facing * 3 * k;
+        } else if (now < hitAt + act) {
+          // détente : on s'étire dans le sens du coup
+          tsx = 1.1; tsy = 0.94; tang = pl.facing * 5; tox = pl.facing * 5;
+          if ((m.oy || 0) < -40) { tsx = 0.94; tsy = 1.1; tang = 0; tox = 0; } // coups vers le haut
+        } else { tang = pl.facing * 2; }
+      } else if (stunned) {
+        const sp = Math.hypot(vx, vy);
+        if (sp > 950 && !grounded) a.spin += (vx >= 0 ? 1 : -1) * dt * Math.min(sp, 2200) * 0.9;
+        tang = Math.max(-20, Math.min(20, vx / 60));
+      } else if (!grounded) {
+        tsy = 1 + Math.min(Math.abs(vy) / 9000, 0.07);
+        tsx = 1 - Math.min(Math.abs(vy) / 12000, 0.05);
+        tang = Math.max(-6, Math.min(6, vx / 120));
+      } else if (Math.abs(vx) > 60) {
+        tang = Math.max(-5, Math.min(5, vx / 70));
+      } else {
+        tsy = 1 + 0.012 * Math.sin(a.t * 3.2);
+      }
+      if (!stunned) a.spin = lerp(a.spin, Math.round(a.spin / 360) * 360, Math.min(1, dt * 10));
+      // --- lissage (ressort amorti)
+      if (!frozen) {
+        const k = Math.min(1, dt * 16);
+        a.sx = lerp(a.sx, tsx, k);
+        a.sy = lerp(a.sy, tsy, k);
+        a.ang = lerp(a.ang, tang, Math.min(1, dt * 12));
+        a.ox = lerp(a.ox, tox, Math.min(1, dt * 14));
+      }
+      let jx = 0, jy = 0;
+      if (a.shake > 0) {
+        a.shake -= dt;
+        jx = (Math.random() - 0.5) * 7;
+        jy = (Math.random() - 0.5) * 4;
+      }
+      // course : petit rebond
+      const running = grounded && Math.abs(vx) > 60 && !atk && !stunned;
+      const bob = running ? -Math.abs(Math.sin(a.t * 11)) * 2.5 : 0;
+
+      // --- posture affichée (variantes dessinées si elles existent)
+      let key = s.texture.key;
+      const ch = pl.char;
+      const name = key.slice(ch.length + 1);
+      if (atk && !stunned && now < atk.hitAt && !atk.m.prePose && !atk.charging) {
+        const pre = `${ch}_${atk.pose || atk.m.pose}Pre`;
+        if (this.hasTex(pre)) key = pre;
+      } else if (name === 'jump' && vy > 140 && this.hasTex(`${ch}_fall`)) key = `${ch}_fall`;
+      else if ((name === 'idle0' || name === 'idle1') && a.land > 0 && this.hasTex(`${ch}_crouch`)) key = `${ch}_crouch`;
+      else if ((name === 'run0' || name === 'run1') && this.hasTex(`${ch}_run2`)) {
+        key = `${ch}_${['run0', 'run2', 'run1', 'run3'][Math.floor(now / 85) % 4]}`;
+      }
+      if (key !== a.key) {
+        v.setTexture(key);
+        a.key = key;
+      }
+      // --- recopie de l'apparence du corps
+      const h = s.displayHeight;
+      v.scaleX = s.scaleX * a.sx;
+      v.scaleY = s.scaleY * a.sy;
+      v.setFlipX(s.flipX);
+      v.angle = s.angle + a.ang + a.spin;
+      v.x = s.x + a.ox + jx;
+      v.y = s.y + (h / 2) * (1 - a.sy) + bob + jy;
+      v.alpha = s.alpha;
+      v.visible = pl.stocks > 0 || this.training;
+      v.depth = s.depth;
+      if (s.tintFill) v.setTintFill(s.tintTopLeft);
+      else if (s.isTinted) v.setTint(s.tintTopLeft);
+      else if (v.isTinted) v.clearTint();
+    },
+  });
+})();

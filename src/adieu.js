@@ -112,7 +112,7 @@ Object.assign(GameScene.prototype, {
     const u = this.add.image(x, y - 90, 'undo').setScale(PX).setDepth(40);
     this.tweens.add({ targets: u, y: y - 120, angle: -360, alpha: 0, duration: 520, onComplete: () => u.destroy() });
     this.popup(x, y - 70, undone >= 1 ? `CTRL+Z  -${Math.round(undone)}%` : 'CTRL+Z', '#7fb2ff');
-    this.sfx('parry');
+    this.sfx('rewind');
   },
 
   // --- CONTRÔLE ---------------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ Object.assign(GameScene.prototype, {
     this.popup(c.x, c.y - 90, 'CONTROLE !', '#7fb2ff');
     const r = this.add.image(c.x, c.y - 10, 'ring').setTint(0xffffff).setDepth(31).setScale(0.8);
     this.tweens.add({ targets: r, scale: 4, alpha: 0, duration: 280, onComplete: () => r.destroy() });
-    this.sfx('parry');
+    this.sfx('catch');
   },
 
   catchMelee(v, att, spec, now) {
@@ -147,7 +147,7 @@ Object.assign(GameScene.prototype, {
     if (att.grab) this.releaseGrab(att);
     this.startGrab(v, att, a.m, now);
     v.invulnUntil = Math.max(v.invulnUntil, now + 300);
-    this.sfx('parry');
+    this.sfx('catch');
   },
 
   // --- effets visuels ----------------------------------------------------------------------------------
@@ -163,13 +163,15 @@ Object.assign(GameScene.prototype, {
       const r = this.add.image(b.x, b.y - 20, 'rooster').setScale(PX * 0.6).setDepth(22).setFlipX(f < 0).setAlpha(0.95);
       this.tweens.add({ targets: r, y: b.y - 150, scale: PX * 1.1, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
       this.popup(b.x, b.y - 110, 'COCORICO !', '#ffffff');
+      this.sfx('rooster');
     }
     if (fx.donkey) {
       const d = this.add.image(b.x - f * 80, b.y + 4, 'donkey').setScale(PX * 0.5).setDepth(22).setFlipX(f > 0);
       this.tweens.add({ targets: d, scale: PX * 1.1, alpha: 0, duration: 380, onComplete: () => d.destroy() });
       this.dust(b.x - f * 60, b.y + 10, -f, 4, pl.def.fx);
     }
-    if (fx.bike) this.dust(b.x - f * 30, b.y + 34, -f, 6, pl.def.fx);
+    if (fx.bike) { this.dust(b.x - f * 30, b.y + 34, -f, 6, pl.def.fx); this.sfx('bike'); }
+    if (fx.violin || fx.notes) this.sfx('note');
     if (fx.violin) for (let i = 0; i < 6; i++) this.noteFx(b.x + Math.cos(i) * 50, b.y - 10 + Math.sin(i * 1.7) * 40, i % 2 ? 1 : -1, i);
   },
 
@@ -177,6 +179,7 @@ Object.assign(GameScene.prototype, {
   splatFx(p) {
     if (this.resim) return;
     const sp = p.spec, col = sp.splat || 0xffffff;
+    this.sfx(sp.kind === 'bottle' ? 'glass' : 'splat');
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI * Math.random();
       const d = 20 + Math.random() * 50;

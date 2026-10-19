@@ -6,6 +6,9 @@ CHARS = {'toro': ('toro_set', 0), 'deadlulu': ('lulu_set', 0), 'denodoom': ('den
 data = {}
 for cid, (mod, dx) in CHARS.items():
     m = importlib.import_module(mod)
+    from extra_poses import extra_for
+    for k, v in extra_for(cid).items():
+        m.POSES.setdefault(k, v)  # postures en plus (course en 4 temps, réception, chute, préparations)
     names = list(m.POSES)
     sheet = Image.new('RGBA', (80 * len(names), 64), (0, 0, 0, 0))
     for i, n in enumerate(names):

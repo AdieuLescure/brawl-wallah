@@ -626,6 +626,7 @@ Object.assign(GameScene.prototype, {
   // ----- Salon : choix du personnage -----------------------------------------------
   showLobby() {
     this.clearUi();
+    if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     this.state = 'lobby';
     const me = Online.peers[Online.idx], other = Online.peers[1 - Online.idx];
     const D = 100;
@@ -678,6 +679,7 @@ Object.assign(GameScene.prototype, {
     // même terrain sur les deux téléphones : tiré du code de la salle
     const stage = STAGES.includes(m.stage) ? m.stage : STAGES.includes(Online.stage) ? Online.stage : stageFromCode(Online.code);
     if (this.applyStage) this.applyStage(stage);
+    if (typeof MUSIC !== 'undefined') MUSIC.play(stage === 'dune' ? 'desert' : 'night');
     this.beginNetMatch({ me: Online.idx, chars: m.chars, names: m.names, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
     this.state = 'countdown';
     this.setControls(true);
