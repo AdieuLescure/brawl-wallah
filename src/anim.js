@@ -22,16 +22,57 @@
   const baseUpdate = P.update;
   P.update = function (time, delta) {
     baseUpdate.call(this, time, delta);
+    const dt = Math.min(delta, 50) / 1000;
     if (this.p1 && this.p2 && this.p1.view) {
-      const dt = Math.min(delta, 50) / 1000;
       this.syncView(this.p1, dt);
       this.syncView(this.p2, dt);
     }
+    this.updateCamera(dt);
   };
 
   const lerp = (a, b, k) => a + (b - a) * k;
 
   Object.assign(P, {
+    // --- CAMÉRA À LA BRAWLHALLA : elle suit les deux persos et zoome quand ils sont proches.
+    // Une deuxième caméra, fixe, affiche l'interface (profondeur >= 50 : barre de vie, boutons, menus).
+    updateCamera(dt) {
+      const cam = this.cameras.main;
+      if (!this.uiCam || !this.cameras.cameras.includes(this.uiCam)) {
+        this.uiCam = this.cameras.add(0, 0, this.W, this.H);
+        this.uiCam.transparent = true;
+        cam.setBounds(0, 0, this.W, this.H);
+        this.camZ = 1;
+        this.camX = this.W / 2;
+        this.camY = this.H / 2;
+      }
+      const ui = this.uiCam;
+      const list = this.children.list;
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        o.cameraFilter = o.depth >= 50 ? cam.id : ui.id;
+      }
+      // cible : les deux persos (vivants) avec de la marge
+      let tz = 1, tx = this.W / 2, ty = this.H / 2;
+      const inMatch = this.p1 && this.p2 && this.p1.view && (this.state === 'play' || this.state === 'countdown') && !this.over;
+      if (inMatch && SETTINGS.zoom !== false) {
+        const pts = [this.p1, this.p2].filter((p) => p.stocks > 0 || this.training).map((p) => p.sprite);
+        if (pts.length) {
+          const x0 = Math.min(...pts.map((p) => p.x)), x1 = Math.max(...pts.map((p) => p.x));
+          const y0 = Math.min(...pts.map((p) => p.y)), y1 = Math.max(...pts.map((p) => p.y));
+          const w = x1 - x0 + 520, h = y1 - y0 + 380;
+          tz = Math.max(1, Math.min(L.portrait ? 1.9 : 1.75, this.W / w, this.H / h));
+          tx = (x0 + x1) / 2;
+          ty = (y0 + y1) / 2 - 30;
+        }
+      }
+      const k = Math.min(1, dt * 4);
+      this.camZ += (tz - this.camZ) * k;
+      this.camX += (tx - this.camX) * Math.min(1, dt * 6);
+      this.camY += (ty - this.camY) * Math.min(1, dt * 6);
+      cam.setZoom(this.camZ);
+      cam.centerOn(this.camX, this.camY);
+    },
+
     hasTex(key) {
       if (!this._texOk) this._texOk = new Map();
       let v = this._texOk.get(key);

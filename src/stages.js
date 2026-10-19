@@ -323,7 +323,7 @@ Object.assign(GameScene.prototype, {
     const worm = () => {
       if (this.stageId !== 'dune') return;
       const x = this.W / 2 + (Math.random() - 0.5) * L.mainW * 0.9;
-      const k = PX * (1.5 + Math.random() * 0.4);
+      const k = PX * (1.15 + Math.random() * 0.3);
       const hgt = 72 * k;
       const wImg = this.add.image(x, horizonY + 8 + hgt, 'worm').setOrigin(0.5, 1).setScale(k).setDepth(-9).setAlpha(0.92).setFlipX(Math.random() < 0.5);
       // le ver sort du sable : on cache tout ce qui est sous la ligne des dunes

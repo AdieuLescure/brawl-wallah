@@ -22,14 +22,14 @@ const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boo
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
 function packInput(i) {
   const q = (v) => Math.max(-127, Math.min(127, Math.round(v * 127))) + 127;
-  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0);
+  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0) | (i.heavy ? 1 << 20 : 0);
 }
 function unpackInput(v) {
-  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)) };
+  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)) };
 }
 const NEUTRAL_IN = packInput({});
 // pour prédire : on garde la direction et les boutons maintenus, jamais les « appuis » ponctuels
-const predictFrom = (v) => v & ~((1 << 16) | (1 << 17));
+const predictFrom = (v) => v & ~((1 << 16) | (1 << 17) | (1 << 20));
 
 function hashStr(s) {
   let h = 2166136261;
@@ -215,8 +215,8 @@ Object.assign(GameScene.prototype, {
   },
 
   sampleLocal() {
-    const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, hold: this.btn.attack.id !== null, block: this.btn.block.id !== null };
-    this.queue.jump = this.queue.attack = this.queue.block = false;
+    const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, hold: this.btn.heavy.id !== null, block: this.btn.block.id !== null };
+    this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.block = false;
     return packInput(inp);
   },
 

@@ -30,10 +30,14 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     chapitre. En ligne : le créateur du salon la choisit (envoyée au serveur avec `join`, renvoyée dans `hello` et `start`) ;
     duel classé : tirée du code de la salle (`stageFromCode`).
   - `adieu.js` : le perso AdieuLescure (données, textures de ses objets, mécaniques uniques) + le PASTIS de Deadlulu.
-    CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 14 s (trace dans
+    CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
     projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
-  - `anim.js` : animation d'affichage. `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
+  - `kits.js` : commandes À LA BRAWLHALLA. Deux boutons d'attaque : LÉGER (`nLight`/`sLight`/`dLight` au sol,
+    `nAir`/`sAir`/`dAir` en l'air) et LOURD (`nSig`/`sSig`/`dSig` au sol ; en l'air `rec` = coup de retour, `gp` = LOURD+bas).
+    Haut = neutre, plus de coup arrière (on se tourne du côté poussé). Coups légers : `combo` (avantage garanti en ms) et
+    `pop` (petit envol) pour les vrais combos (léger bas -> saut -> léger en l'air). Ce fichier remappe les anciens coups.
+  - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
     aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
     temps (`run0, run2, run1, run3`). Ne touche jamais la simulation.
@@ -57,8 +61,11 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - La simulation doit rester **déterministe** (en ligne, les deux téléphones rejouent la même partie) :
   pas de `Math.random()` ni de temps réel dans la logique, seulement pour les effets visuels et les bots hors ligne.
   Tout état de jeu d'un joueur doit être un champ simple (nombre, booléen, texte) pour être sauvegardé par `snapshot()`.
-- Défense façon Brawlhalla : pas de garde, esquives (sur place, roulade, aérienne une fois par saut, recharge 1 s au sol).
-- Coup de retour = HAUT en l'air, une fois, puis chute impuissante. Rebord automatique. Être touché rend un saut.
+- Défense façon Brawlhalla : pas de garde. Esquive au sol sur place (recharge 1 s), ESQUIVE + côté au sol = SPRINT
+  (sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
+  après un coup qui touche (2 au sol, 1 en l'air).
+- 3 sauts (sol + 2 en l'air). Coup de retour = LOURD en l'air, une fois par saut, SANS chute impuissante.
+  Rebord automatique. Être touché rend un saut. On regarde du côté où l'on pousse le joystick.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
   et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
   (sinon le corps physique garde un décalage d'une image).

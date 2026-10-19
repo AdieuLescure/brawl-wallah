@@ -143,6 +143,7 @@ Object.assign(GameScene.prototype, {
     const lab = {
       sound: () => 'BRUITAGES : ' + (SETTINGS.sound ? 'OUI' : 'NON'),
       music: () => 'MUSIQUE : ' + (SETTINGS.music !== false ? 'OUI' : 'NON'),
+      zoom: () => 'CAMERA : ' + (SETTINGS.zoom !== false ? 'ZOOM' : 'FIXE'),
       vib: () => 'VIBRATION : ' + (SETTINGS.vib ? 'OUI' : 'NON'),
       btnSize: () => 'BOUTONS : ' + ['PETITS', 'MOYENS', 'GRANDS'][SETTINGS.btnSize],
       flip: () => 'MAINS : ' + (SETTINGS.flip ? 'GAUCHER' : 'DROITIER'),
@@ -152,6 +153,7 @@ Object.assign(GameScene.prototype, {
     const next = {
       sound: () => (SETTINGS.sound = !SETTINGS.sound),
       music: () => { SETTINGS.music = SETTINGS.music === false; if (typeof MUSIC !== 'undefined') MUSIC.setVolume(); },
+      zoom: () => (SETTINGS.zoom = SETTINGS.zoom === false),
       vib: () => (SETTINGS.vib = !SETTINGS.vib),
       btnSize: () => (SETTINGS.btnSize = (SETTINGS.btnSize + 1) % 3),
       flip: () => (SETTINGS.flip = !SETTINGS.flip),
@@ -282,6 +284,7 @@ Object.assign(GameScene.prototype, {
     // pas de coup « fantôme » au retour
     if (this.stick) { this.stick.id = null; this.stick.sx = this.stick.sy = 0; }
     if (this.btn) Object.values(this.btn).forEach((b) => { b.id = null; b.img.setAlpha(0.75); });
+    if (this.queue) this.queue.attack = this.queue.heavy = this.queue.jump = false;
   },
 
   closeQuit() {

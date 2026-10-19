@@ -25,9 +25,9 @@ CHARS.adieulescure = {
     up: { type: 'melee', pose: 'drink', startup: 120, active: 160, total: 500, w: 84, h: 110, ox: 10, oy: -84, dmg: 9, kb: 320, ks: 8.4, ang: -1.4, stun: 210, fx: { foam: true } },
     // ÉPERONS : coup de pied retourné vers le haut, le coq chante (coup de retour)
     upAir: { type: 'melee', pose: 'spur', startup: 60, active: 240, total: 520, w: 70, h: 100, ox: 22, oy: -50, dmg: 9, kb: 300, ks: 7, ang: -1.35, stun: 200, rise: 800, riseX: 110, inv: 50, helpless: true, fx: { rooster: true, ghosts: 2 } },
-    // CTRL+Z : retour une seconde en arrière (recharge 14 s)
-    down: { type: 'rewind', pose: 'ctrl', startup: 120, total: 380, cd: 14000, cdKey: 'ctrlz', fx: { undo: true } },
-    downAir: { type: 'rewind', pose: 'ctrl', startup: 120, total: 380, cd: 14000, cdKey: 'ctrlz', fx: { undo: true } },
+    // CTRL+Z : retour une seconde en arrière (recharge 11 s)
+    down: { type: 'rewind', pose: 'ctrl', startup: 120, total: 380, cd: 11000, cdKey: 'ctrlz', fx: { undo: true } },
+    downAir: { type: 'rewind', pose: 'ctrl', startup: 120, total: 380, cd: 11000, cdKey: 'ctrlz', fx: { undo: true } },
     // CONTRÔLE : amorti de la poitrine ; projectile renvoyé de volée, attaquant attrapé et projeté
     back: { type: 'catch', pose: 'catch', startup: 60, window: 260, total: 720, fx: {},
       throw: { dmg: 10, kb: 360, ks: 8.6, ang: -0.75, stun: 250, name: 'GRAND PONT !' } },
@@ -52,6 +52,9 @@ CHARS.deadlulu.moves.neutral = {
 
 Object.assign(GameScene.prototype, {
   makeExtraTextures() {
+    // bouton LOURD (orange) et son icône (gros poing)
+    circleTex(this, 'btnHeavy', 28, 'rgba(255,140,40,0.35)', 'rgba(255,255,255,0.8)', 2);
+    iconTex(this, 'icoHeavy', ['..XXXXX..', '.XX.X.XX.', 'XX.XX.XXX', 'XXXXXXXXX', 'XXXXXXXXX', 'XXXXXXXX.', '.XXXXXXX.', '..XXXXX..', '..XXXXX..'], '#ffffff');
     // bouteille de pastis (verre, liquide ambré, étiquette jaune et bleue)
     iconTex(this, 'pastis', ['...kkk...', '...kbk...', '...kgk...', '...kgk...', '..kgggk..', '.kgaaagk.', '.khaaaak.', '.kyyyyyk.', '.kybbbyk.', '.kyyyyyk.', '.khaaaak.', '.kaaaaak.', '.kgaaagk.', '..kkkkk..'], '#000',
       { k: '#14121c', b: '#1e3a8a', g: '#d8f0ea', a: '#f0b030', h: '#ffe9a0', y: '#ffd23a' });

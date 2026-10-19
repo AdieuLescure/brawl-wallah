@@ -12,73 +12,45 @@ const BOT_LV = [
 // dx (distance horizontale à la cible, en px), dy (cible - bot, négatif = cible au-dessus), w (poids du choix)
 const BOT_MOVES = {
   toro: [
-    { d: 'neutral', air: false, dx: [0, 90], dy: [-60, 50], w: 4 },
-    { d: 'forward', air: false, dx: [50, 150], dy: [-50, 50], w: 2 },
-    { d: 'up', air: false, dx: [0, 80], dy: [-170, -20], w: 2 },
-    { d: 'down', air: false, dx: [30, 140], dy: [-20, 60], w: 1.5 },
-    { d: 'back', air: false, dx: [40, 150], dy: [-40, 40], w: 1 },
-    { d: 'neutral', air: true, dx: [0, 90], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [40, 160], dy: [-60, 60], w: 2 },
-    { d: 'down', air: true, dx: [0, 60], dy: [30, 160], w: 2 },
+    ['nLight', [0, 90], [-60, 50], 4], ['sLight', [40, 150], [-40, 40], 3], ['dLight', [10, 110], [-20, 60], 2],
+    ['nSig', [0, 90], [-180, -10], 2], ['sSig', [60, 170], [-50, 50], 2], ['dSig', [30, 150], [-20, 60], 1.5],
+    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [40, 160], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 2], ['gp', [0, 70], [60, 260], 1],
   ],
   astra: [
-    { d: 'neutral', air: false, dx: [140, 600], dy: [-60, 60], w: 4 },
-    { d: 'forward', air: false, dx: [200, 650], dy: [-60, 60], w: 1.5 },
-    { d: 'up', air: false, dx: [60, 320], dy: [-260, -60], w: 2 },
-    { d: 'down', air: false, dx: [40, 230], dy: [-20, 60], w: 1 },
-    { d: 'back', air: false, dx: [0, 160], dy: [-60, 60], w: 3 },
-    { d: 'neutral', air: true, dx: [0, 90], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [200, 650], dy: [-80, 80], w: 1 },
-    { d: 'down', air: true, dx: [60, 300], dy: [40, 320], w: 2 },
+    ['nLight', [140, 600], [-60, 60], 4], ['sLight', [0, 110], [-50, 50], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['nSig', [60, 320], [-260, -60], 2], ['sSig', [200, 650], [-60, 60], 1.5], ['dSig', [40, 230], [-20, 60], 1],
+    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [140, 600], [-80, 80], 2], ['dAir', [60, 300], [40, 320], 2],
   ],
   grom: [
-    { d: 'neutral', air: false, dx: [0, 95], dy: [-60, 50], w: 3 },
-    { d: 'forward', air: false, dx: [0, 85], dy: [-50, 40], w: 3, grab: true },
-    { d: 'up', air: false, dx: [0, 90], dy: [-180, -20], w: 2 },
-    { d: 'down', air: false, dx: [0, 120], dy: [-20, 40], w: 1.5, tgtGround: true },
-    { d: 'back', air: false, dx: [180, 420], dy: [-50, 50], w: 1, hook: true },
-    { d: 'neutral', air: true, dx: [0, 100], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [30, 120], dy: [-20, 120], w: 2 },
-    { d: 'down', air: true, dx: [0, 60], dy: [30, 160], w: 2 },
+    ['nLight', [0, 95], [-60, 50], 3], ['sLight', [180, 420], [-50, 50], 1, { hook: true }], ['dLight', [0, 110], [-20, 60], 2],
+    ['nSig', [0, 90], [-180, -20], 2], ['sSig', [0, 85], [-50, 40], 3, { grab: true }], ['dSig', [0, 120], [-20, 40], 1.5, { tgtGround: true }],
+    ['nAir', [0, 100], [-70, 70], 3], ['dAir', [30, 120], [-20, 120], 2], ['gp', [0, 60], [30, 220], 1.5],
   ],
   deadlulu: [
-    { d: 'neutral', air: false, dx: [110, 420], dy: [-60, 60], w: 4 },
-    { d: 'forward', air: false, dx: [50, 150], dy: [-60, 50], w: 2 },
-    { d: 'up', air: false, dx: [0, 80], dy: [-180, -20], w: 2 },
-    { d: 'down', air: false, dx: [180, 320], dy: [-40, 60], w: 1.5, tgtGround: true },
-    { d: 'neutral', air: true, dx: [0, 100], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [30, 140], dy: [-60, 60], w: 2 },
-    { d: 'down', air: true, dx: [0, 60], dy: [30, 160], w: 1.5 },
+    ['nLight', [110, 420], [-60, 60], 4], ['sLight', [0, 110], [-50, 50], 3], ['dLight', [0, 110], [-20, 60], 2],
+    ['sSig', [50, 150], [-60, 50], 2], ['dSig', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
+    ['nAir', [0, 100], [-70, 70], 3], ['sAir', [30, 140], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
   ],
   denodoom: [
-    { d: 'neutral', air: false, dx: [40, 260], dy: [-50, 50], w: 3 },
-    { d: 'forward', air: false, dx: [30, 140], dy: [-50, 50], w: 3 },
-    { d: 'up', air: false, dx: [0, 120], dy: [-320, -60], w: 2 },
-    { d: 'down', air: false, dx: [90, 170], dy: [-40, 60], w: 1.5, tgtGround: true },
-    { d: 'back', air: false, dx: [250, 620], dy: [-50, 50], w: 1, charge: true },
-    { d: 'neutral', air: true, dx: [0, 100], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [30, 140], dy: [-60, 60], w: 2 },
-    { d: 'down', air: true, dx: [0, 60], dy: [30, 160], w: 1.5 },
+    ['nLight', [40, 260], [-50, 50], 3], ['sLight', [30, 140], [-50, 50], 3], ['dLight', [0, 110], [-20, 60], 2],
+    ['nSig', [0, 120], [-320, -60], 2], ['sSig', [250, 620], [-50, 50], 1, { charge: true }], ['dSig', [90, 170], [-40, 60], 1.5, { tgtGround: true }],
+    ['nAir', [0, 100], [-70, 70], 3], ['sAir', [30, 140], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
   ],
   nini: [
-    { d: 'neutral', air: false, dx: [0, 95], dy: [-60, 50], w: 4 },
-    { d: 'forward', air: false, dx: [50, 170], dy: [-50, 50], w: 2.5 },
-    { d: 'up', air: false, dx: [0, 90], dy: [-200, -20], w: 2 },
-    { d: 'down', air: false, dx: [160, 600], dy: [-40, 60], w: 1.2, tgtGround: true },
-    { d: 'back', air: false, dx: [160, 520], dy: [-50, 50], w: 1.2, tgtGround: true },
-    { d: 'neutral', air: true, dx: [0, 95], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [30, 130], dy: [-60, 60], w: 2 },
-    { d: 'down', air: true, dx: [0, 80], dy: [40, 260], w: 1.5 },
+    ['nLight', [0, 95], [-60, 50], 4], ['sLight', [40, 150], [-50, 50], 2.5], ['dLight', [0, 110], [-20, 60], 2],
+    ['nSig', [160, 520], [-50, 50], 1.2, { tgtGround: true }], ['sSig', [50, 170], [-50, 50], 2], ['dSig', [160, 600], [-40, 60], 1.2, { tgtGround: true }],
+    ['nAir', [0, 95], [-70, 70], 3], ['sAir', [30, 130], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 80], [40, 260], 1.5],
   ],
   adieulescure: [
-    { d: 'neutral', air: false, dx: [0, 90], dy: [-50, 60], w: 4 },
-    { d: 'forward', air: false, dx: [60, 260], dy: [-50, 50], w: 2 },
-    { d: 'up', air: false, dx: [0, 90], dy: [-200, -20], w: 2 },
-    { d: 'neutral', air: true, dx: [0, 90], dy: [-70, 70], w: 3 },
-    { d: 'forward', air: true, dx: [120, 420], dy: [-40, 160], w: 2 },
-    { d: 'back', air: true, dx: [20, 120], dy: [-50, 50], w: 1.5 },
+    ['nLight', [0, 90], [-50, 60], 4], ['sLight', [40, 200], [-30, 50], 3], ['dLight', [0, 100], [-20, 60], 2],
+    ['sSig', [60, 260], [-50, 50], 2],
+    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [20, 120], [-50, 50], 2], ['dAir', [60, 260], [40, 260], 1.5],
   ],
 };
+const BOT_AIR = { nAir: 1, sAir: 1, dAir: 1, rec: 1, gp: 1 };
+const BOT_HEAVY = { nSig: 1, sSig: 1, dSig: 1, rec: 1, gp: 1 };
+for (const id in BOT_MOVES)
+  BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], heavy: !!BOT_HEAVY[k] }, ex || {}));
 const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90 };
 
 Object.assign(GameScene.prototype, {
@@ -174,10 +146,10 @@ Object.assign(GameScene.prototype, {
       const approaching = Math.sign(p.vx || 0) === Math.sign(pdx) || (p.spec.kind === 'book' && Math.abs(pdx) < 110);
       if (approaching && Math.abs(pdx) < 220 && Math.abs(p.y - s.y) < 120 && now - p.born >= lv.react * 0.5) {
         bot.botSeenProj = p.id;
-        const cm = bot.def.moves.back;
+        const cm = bot.def.moves.nSig;
         if (cm && cm.type === 'catch' && grounded && !bot.atk && now > bot.cdUntil && Math.random() < lv.dodge * 0.7) {
-          i.sx = -dir;
-          i.attack = true;
+          i.sx = dir * 0.35;
+          i.heavy = true;
           return i;
         }
         if (Math.random() < lv.dodge) {
@@ -214,8 +186,20 @@ Object.assign(GameScene.prototype, {
 
     // l'adversaire est charmé : on en profite avec un coup fort
     if (tgt.charmUntil > now && !bot.atk && now > bot.cdUntil && adx < 200) {
-      const o = grounded ? { d: adx < 90 ? 'neutral' : 'forward' } : { d: 'forward' };
+      const o = grounded ? { k: adx < 90 ? 'nSig' : 'sSig' } : { k: 'sAir', air: true };
       return this.botUse(bot, i, o, dir, { acc: 1 });
+    }
+    // combo : l'adversaire est sonné juste au-dessus -> on saute et on enchaîne en l'air
+    if (now < tgt.stunUntil && adx < 120 && !bot.atk && now > bot.cdUntil && Math.random() < lv.acc) {
+      if (grounded && dy < -40 && dy > -260 && bot.jumps > 0) {
+        i.jump = true;
+        i.sx = dir * 0.5;
+        return i;
+      }
+      if (!grounded && Math.abs(dy) < 90) {
+        const k = adx > 60 ? 'sAir' : 'nAir';
+        if (this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: true }, dir, lv);
+      }
     }
     // --- attaque
     if (!bot.atk && now > bot.cdUntil) {
@@ -244,11 +228,7 @@ Object.assign(GameScene.prototype, {
   // le coup est-il disponible (recharge, objets déjà à l'écran) ?
   botReady(bot, o, grounded, now) {
     const mv = bot.def.moves;
-    let key = o.d;
-    if (!grounded) {
-      const ak = { neutral: 'nAir', forward: 'fwdAir', back: 'bAir', up: 'upAir', down: 'downAir' }[o.d];
-      if (mv[ak]) key = ak;
-    }
+    const key = o.k;
     const m = mv[key];
     if (!m) return false;
     if ((m.cd || m.cooldown) && now < (bot.moveCd[m.cdKey || key] || 0)) return false;
@@ -257,16 +237,17 @@ Object.assign(GameScene.prototype, {
   },
 
   botUse(bot, i, o, dir, lv) {
-    i.attack = true;
-    i.sx = 0;
-    i.sy = 0;
-    let d = o.d;
+    let k = o.k;
     // erreur de précision : mauvais coup de temps en temps
-    if (Math.random() > lv.acc) d = ['neutral', 'forward', 'down', 'up'][Math.floor(Math.random() * 4)];
-    if (d === 'forward') i.sx = dir;
-    else if (d === 'back') i.sx = -dir;
-    else if (d === 'up') i.sy = -1;
-    else if (d === 'down') i.sy = 1;
+    if (Math.random() > lv.acc) k = (o.air ? ['nAir', 'sAir', 'dAir'] : ['nLight', 'sLight', 'dLight', 'nSig'])[Math.floor(Math.random() * (o.air ? 3 : 4))];
+    const heavy = !!BOT_HEAVY[k];
+    i.attack = !heavy;
+    i.heavy = heavy;
+    i.sy = 0;
+    const a = k[0] === 'n' || k === 'rec' ? 'n' : k[0] === 's' ? 's' : 'd';
+    // neutre/bas : un léger mouvement vers la cible pour se tourner vers elle (sans en faire un coup de côté)
+    i.sx = a === 's' ? dir : dir * 0.35;
+    if (a === 'd' || k === 'gp') i.sy = 1;
     if (o.charge) bot.botCharge = 200 + Math.random() * 800;
     bot.botBlockPrev = false;
     return i;
@@ -282,8 +263,8 @@ Object.assign(GameScene.prototype, {
     i.sx = -side;
     // Grom : grappin vers le bord quand il est assez près
     if (bot.char === 'grom' && !bot.atk && out < 330 && Math.abs(s.y - L.baseY) < 110 && now > bot.cdUntil && Math.random() < 0.3) {
-      i.attack = true;
-      i.sx = -bot.facing;
+      i.attack = true; // grappin (léger + côté en l'air), vers le terrain
+      i.sx = -side;
       i.sy = 0;
       return;
     }
@@ -292,7 +273,7 @@ Object.assign(GameScene.prototype, {
       const j = bot.zn < 10 ? 0 : bot.zi || 0;
       const back = (bot['zx' + j] - edgeX) * side;
       if (back < out - 120 && Math.random() < 0.3 * lv.escape + 0.1) {
-        i.attack = true;
+        i.heavy = true; // LOURD + bas en l'air = CTRL+Z
         i.sy = 1;
         i.sx = 0;
         return;
@@ -301,8 +282,8 @@ Object.assign(GameScene.prototype, {
     if (b.velocity.y > -80) {
       if (bot.jumps > 0 && now - bot.lastJump > 220 && (below || out > 160)) i.jump = true;
       else if (bot.jumps === 0 && !bot.recUsed && (s.y > L.baseY - 60 || out > 140)) {
-        // coup de retour (HAUT en l'air), en visant le terrain
-        i.attack = true;
+        // coup de retour (LOURD en l'air), en visant le terrain
+        i.heavy = true;
         i.sy = -1;
         i.sx = -side * 0.6;
       } else if (bot.jumps === 0 && bot.recUsed && !bot.airDodged && s.y > L.baseY + 20 && out < 260 && Math.random() < lv.escape) {

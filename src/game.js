@@ -19,8 +19,8 @@ function dsin(x) {
 function dcos(x) { return dsin(x + 1.5707963267948966); }
 function hyp(a, b) { return Math.sqrt(a * a + b * b); }
 
-const GRAVITY = 1500;
-const FAST_FALL = 850;
+const GRAVITY = 1700;
+const FAST_FALL = 1050;
 const STOCKS = 3;
 const STICK_R = 90;
 
@@ -199,7 +199,7 @@ const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esqu
 const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
-const HELP_TXT = "JOYSTICK + BOUTON ROSE = COUPS\n(EN L'AIR : COUPS AERIENS)\n\nHAUT EN L'AIR = COUP DE RETOUR\n(UNE FOIS, PUIS ON RETOMBE)\n\nBOUTON BLEU = SAUT (x2)\nBOUTON VERT = ESQUIVE\n(+ DIRECTION = ROULADE)\n\nPRES DU BORD : ON S'ACCROCHE\nBAS TENU : TRAVERSER UNE PLATEFORME";
+const HELP_TXT = "LEGER = COUPS RAPIDES QUI S'ENCHAINENT\nLOURD = GROS COUPS DU PERSO\n(+ JOYSTICK : COTE OU BAS)\n\nEN L'AIR : LOURD = COUP DE RETOUR\nLOURD + BAS = PIQUE\n\nSAUT x3 (SOL + 2 EN L'AIR)\nESQUIVE + COTE AU SOL = SPRINT\nAPRES UN COUP QUI TOUCHE :\nESQUIVE = POURSUITE\n\nCOMBO : LEGER BAS, SAUT, LEGER";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -828,6 +828,12 @@ class GameScene extends Phaser.Scene {
       ledgeCdUntil: 0,
       ledgeInvUsed: false,
       bufAtk: 0,
+      bufHeavy: 0,
+      dashCd: 0,
+      sprintDir: 0,
+      chaseLeft: 0,
+      chaseUntil: 0,
+      chaseAtkUntil: 0,
       bufJump: 0,
       bufDodge: 0,
       lastSx: 0,
@@ -1080,14 +1086,16 @@ class GameScene extends Phaser.Scene {
     const mkBtn = (key, tex, ico, x, y, r) => {
       x = fx(x);
       r *= z;
-      const img = this.add.image(x, y, tex).setScale((r * 2) / (tex === 'btnAtk' ? 28 : 24)).setAlpha(0.75).setDepth(D);
+      const img = this.add.image(x, y, tex).setScale((r * 2) / (tex === 'btnAtk' || tex === 'btnHeavy' ? 28 : 24)).setAlpha(0.75).setDepth(D);
       this.ctrlObjs.push(img, this.add.image(x, y, ico).setScale(PX * z).setAlpha(0.95).setDepth(D + 1));
       return { key, x, y, r, img, id: null };
     };
+    // 4 boutons comme Brawlhalla : LÉGER (le plus gros, sous le pouce), LOURD, SAUT, ESQUIVE
     this.btn = {
-      attack: mkBtn('attack', 'btnAtk', 'icoAtk', this.W - 150 * z, this.H - 160 * z, 98),
-      jump: mkBtn('jump', 'btnJump', 'icoJump', this.W - (150 + 205) * z, this.H - 115 * z, 80),
-      block: mkBtn('block', 'btnBlk', 'icoBlk', this.W - (150 + 180) * z, this.H - 290 * z, 70),
+      attack: mkBtn('attack', 'btnAtk', 'icoAtk', this.W - 140 * z, this.H - 150 * z, 84),
+      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy', this.W - 330 * z, this.H - 105 * z, 72),
+      jump: mkBtn('jump', 'btnJump', 'icoJump', this.W - 125 * z, this.H - 335 * z, 64),
+      block: mkBtn('block', 'btnBlk', 'icoBlk', this.W - 295 * z, this.H - 280 * z, 60),
     };
     this.fsBtn = { x: this.W / 2, y: 40, r: 34 };
     this.ctrlObjs.push(this.add.image(this.fsBtn.x, this.fsBtn.y, 'icoFs').setScale(3).setAlpha(0.6).setDepth(D));
@@ -1097,7 +1105,7 @@ class GameScene extends Phaser.Scene {
   setupInput() {
     this.input.addPointer(3);
     this.stick = { id: null, ox: 0, oy: 0, sx: 0, sy: 0 };
-    this.queue = { jump: false, attack: false };
+    this.queue = { jump: false, attack: false, heavy: false };
 
     this.input.on('pointerdown', (p) => {
       if (this.state === 'lobby' || this.state === 'menu' || this.state === 'story') {
@@ -1148,13 +1156,17 @@ class GameScene extends Phaser.Scene {
         toggleFullscreen();
         return;
       }
+      // bouton le plus proche du doigt (les zones se touchent)
+      let best = null, bd = 1e9;
       for (const b of Object.values(this.btn)) {
-        if (b.id === null && hyp(p.x - b.x, p.y - b.y) < b.r * 1.35) {
-          b.id = p.id;
-          this.queue[b.key] = true;
-          b.img.setAlpha(1);
-          return;
-        }
+        const d = hyp(p.x - b.x, p.y - b.y) / b.r;
+        if (b.id === null && d < 1.3 && d < bd) { best = b; bd = d; }
+      }
+      if (best) {
+        best.id = p.id;
+        this.queue[best.key] = true;
+        best.img.setAlpha(1);
+        return;
       }
       if ((SETTINGS.flip ? p.x > this.W * 0.5 : p.x < this.W * 0.5) && this.stick.id === null) {
         this.stick.id = p.id;
@@ -1267,8 +1279,8 @@ class GameScene extends Phaser.Scene {
   inputFor(pl, other, i, now) {
     if (this.netInput) return this.netInput(i, now);
     if (i === 0 && !this.autoP1) {
-      const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, hold: this.btn.attack.id !== null || !!this.forceHold, block: this.btn.block.id !== null };
-      this.queue.jump = this.queue.attack = this.queue.block = false;
+      const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, hold: this.btn.heavy.id !== null || !!this.forceHold, block: this.btn.block.id !== null };
+      this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.block = false;
       return inp;
     }
     if (this.training && i === 1) return this.dummyInput(pl, other, now);
@@ -1320,10 +1332,10 @@ class GameScene extends Phaser.Scene {
 
   aimOf(pl, inp) {
     const { sx, sy } = inp;
-    if (hyp(sx, sy) < 0.4) return 'neutral';
-    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'up';
-    if (sy > 0.55 && sy >= Math.abs(sx) * 0.8) return 'down';
-    return sx * pl.facing > 0 ? 'forward' : 'back';
+    if (hyp(sx, sy) < 0.4) return 'n';
+    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'n'; // haut = neutre (comme Brawlhalla)
+    if (sy > 0.55 && sy >= Math.abs(sx) * 0.8) return 'd';
+    return 's';
   }
 
   step(pl, other, now, dt, inp) {
@@ -1335,7 +1347,8 @@ class GameScene extends Phaser.Scene {
     if (grounded) this.landReset(pl);
     if (def.rewind) this.zRecord(pl, now); // CTRL+Z d'AdieuLescure : on garde la trace de la dernière seconde
     // --- tampon d'entrée : un appui fait un peu trop tôt part dès que c'est possible
-    if (inp.attack) pl.bufAtk = now + BUF_MS;
+    if (inp.attack) { pl.bufAtk = now + BUF_MS; pl.bufHeavy = 0; }
+    if (inp.heavy) { pl.bufHeavy = now + BUF_MS; pl.bufAtk = 0; }
     if (inp.jump) pl.bufJump = now + BUF_MS;
     const dEdge = !!inp.block && !pl.prevBlock;
     pl.prevBlock = !!inp.block;
@@ -1361,9 +1374,9 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: q, y: q.y - 70 - Math.random() * 40, alpha: 0, duration: 420, onComplete: () => q.destroy() });
     }
 
-    // on fait face à l'adversaire (pas pendant un coup, une prise ou au rebord)
-    if (other.stocks > 0 && !pl.grab && !pl.atk && !pl.ledgeSide) {
-      const nf = other.sprite.x >= s.x ? 1 : -1;
+    // on regarde du côté où l'on pousse le joystick (pas pendant un coup, une prise, au rebord ou sonné)
+    if (!pl.grab && !pl.atk && !pl.ledgeSide && !stunned && Math.abs(inp.sx || 0) > 0.3) {
+      const nf = inp.sx > 0 ? 1 : -1;
       if (nf !== pl.facing) {
         pl.facing = nf;
         pl.flipAt = now;
@@ -1372,10 +1385,7 @@ class GameScene extends Phaser.Scene {
     s.setFlipX(pl.facing < 0);
 
     // fin du coup ; après un coup de retour en l'air : chute impuissante jusqu'au sol
-    if (pl.atk && now >= pl.atk.end) {
-      if (pl.atk.m.helpless && pl.recUsed && !grounded && !pl.ledgeSide) pl.helpless = true;
-      pl.atk = null;
-    }
+    if (pl.atk && now >= pl.atk.end) pl.atk = null; // plus de chute impuissante : le coup de retour se fait une fois par saut
 
     let rolling = false;
     if (pl.ledgeSide) {
@@ -1392,18 +1402,37 @@ class GameScene extends Phaser.Scene {
         pl.cdUntil = now;
         this.clearCharge(pl);
       }
-      // --- ESQUIVES (façon Brawlhalla) : sur place, roulade, esquive aérienne
-      const free = !stunned && !pl.atk && !pl.grab && !pl.helpless && now >= pl.rollUntil && now >= pl.dodgeLock;
-      if (free && pl.bufDodge >= now) {
-        if (grounded && now >= pl.dodgeCd) {
+      // --- ESQUIVES (façon Brawlhalla) : sur place, sprint (au sol + côté), esquive aérienne, poursuite après un coup
+      const free = !stunned && !pl.atk && !pl.grab && !pl.helpless && now >= pl.dodgeLock;
+      if (free && pl.bufDodge >= now && pl.chaseLeft > 0 && now < pl.chaseUntil && !(grounded && Math.abs(inp.sx) > 0.5)) {
+        // ESQUIVE DE POURSUITE : juste après avoir touché, une esquive rapide dans n'importe quelle direction (sauf en
+        // arrière), sans recharge : pour coller à l'adversaire et enchaîner
+        pl.bufDodge = 0;
+        pl.chaseLeft--;
+        const mag = hyp(inp.sx, inp.sy);
+        let dx = mag > 0.4 ? inp.sx / mag : pl.facing, dy = mag > 0.4 ? inp.sy / mag : 0;
+        if (dx * pl.facing < 0) { dx = 0; dy = dy || -1; }
+        s.setVelocity(dx * 620, dy * 520 - 40);
+        pl.dodgeUntil = pl.invulnUntil = Math.max(pl.invulnUntil, now + 260);
+        pl.dodgeLock = now + 180;
+        pl.chaseAtkUntil = now + 330; // une attaque pendant la poursuite la coupe
+        this.ghost(pl, 0xffe27a);
+        this.sfx('dodge');
+      } else if (free && pl.bufDodge >= now && now >= pl.rollUntil) {
+        if (grounded && Math.abs(inp.sx) > 0.5 && now >= pl.dashCd) {
+          // SPRINT : élan rapide (sans invincibilité), qu'on peut couper par un saut ou une attaque
+          pl.bufDodge = 0;
+          pl.dashCd = now + 350;
+          pl.rollDir = Math.sign(inp.sx);
+          pl.facing = pl.rollDir;
+          pl.rollUntil = now + 170;
+          pl.sprintDir = pl.rollDir;
+          this.dust(s.x, b.bottom, -pl.rollDir, 4, def.fx);
+          this.sfx('dodge');
+        } else if (grounded && now >= pl.dodgeCd) {
           pl.bufDodge = 0;
           pl.dodgeCd = now + 1000;
-          if (Math.abs(inp.sx) > 0.5) {
-            pl.rollDir = Math.sign(inp.sx);
-            pl.rollUntil = now + 300;
-            pl.dodgeUntil = pl.invulnUntil = Math.max(pl.invulnUntil, now + 280);
-            this.dust(s.x, b.bottom, -pl.rollDir, 4, def.fx);
-          } else {
+          {
             pl.dodgeLock = now + 367;
             pl.dodgeUntil = pl.invulnUntil = Math.max(pl.invulnUntil, now + 267);
             s.setVelocityX(0);
@@ -1428,14 +1457,16 @@ class GameScene extends Phaser.Scene {
       }
       rolling = now < pl.rollUntil;
       const spotLock = now < pl.dodgeLock;
+      // le sprint continue tant qu'on garde le joystick du même côté au sol
+      if (pl.sprintDir && (!grounded || Math.sign(inp.sx || 0) !== pl.sprintDir || Math.abs(inp.sx) < 0.5 || pl.atk || stunned)) pl.sprintDir = grounded || stunned ? 0 : pl.sprintDir;
 
       if (!stunned) {
         const charging = !!(pl.atk && pl.atk.charging);
         const moveLocked = (pl.atk && !charging && now < pl.atk.moveLock) || (spotLock && grounded);
-        if (rolling) {
-          s.setVelocityX(pl.rollDir * 520);
+        if (rolling && !pl.atk) {
+          s.setVelocityX(pl.rollDir * def.speed * 2.6);
         } else if (!moveLocked) {
-          let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1);
+          let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1) * (pl.sprintDir ? 1.35 : 1);
           if (charging) spd *= pl.atk.m.walk || 0;
           if (now < pl.slowUntil) spd *= 0.5;
           if (pl.helpless) spd *= 0.7;
@@ -1446,8 +1477,9 @@ class GameScene extends Phaser.Scene {
           s.setVelocityX(b.velocity.x * 0.96);
         }
         // saut
-        if (pl.bufJump >= now && pl.jumps > 0 && now - pl.lastJump > 140 && !pl.grab && !rolling && !pl.helpless && !spotLock && !charging) {
+        if (pl.bufJump >= now && pl.jumps > 0 && now - pl.lastJump > 140 && !pl.grab && !pl.helpless && !spotLock && !charging) {
           pl.bufJump = 0;
+          if (rolling) { pl.rollUntil = now; s.setVelocityX(pl.rollDir * def.speed * 1.6); } // saut d'élan
           s.setVelocityY(-def.jump);
           pl.jumps--;
           pl.lastJump = now;
@@ -1465,14 +1497,17 @@ class GameScene extends Phaser.Scene {
           }
         } else pl.downHold = 0;
         // attaque (avec enchaînement possible : on coupe la fin du jab pour le coup suivant)
-        if (pl.bufAtk >= now && !pl.grab && !rolling && !spotLock && !pl.helpless) {
+        const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now;
+        if ((wantL || wantH) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0)) && !pl.helpless) {
           const a0 = pl.atk;
-          if (a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && this.aimOf(pl, inp) === 'neutral') {
+          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && this.aimOf(pl, inp) === 'n') {
             pl.bufAtk = 0;
             this.startChain(pl, now);
           } else if (now > pl.cdUntil) {
-            pl.bufAtk = 0;
-            this.startAttack(pl, this.aimOf(pl, inp), grounded, now, inp);
+            pl.bufAtk = pl.bufHeavy = 0;
+            if (rolling) pl.rollUntil = now; // une attaque coupe le sprint
+            if (spotLock) pl.dodgeLock = now; // ... et l'esquive de poursuite
+            this.startAttack(pl, this.aimOf(pl, inp), grounded, now, inp, wantH);
           }
         }
       } else {
@@ -1604,15 +1639,19 @@ class GameScene extends Phaser.Scene {
     if (s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y > L.baseY + BLAST_BOTTOM || s.y < L.baseY - BLAST_TOP) this.die(pl, now);
   }
 
-  startAttack(pl, dir, grounded, now, inp) {
+  // aim : 'n' (neutre ou haut), 's' (côté), 'd' (bas) ; heavy : bouton LOURD
+  startAttack(pl, aim, grounded, now, inp, heavy) {
     const mv = pl.def.moves;
-    let key = dir;
-    if (!grounded) {
-      const ak = { neutral: 'nAir', forward: 'fwdAir', back: 'bAir', up: 'upAir', down: 'downAir' }[dir];
-      if (mv[ak]) key = ak;
-    }
+    let key;
+    if (heavy) key = grounded ? { n: 'nSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
+    else key = grounded ? { n: 'nLight', s: 'sLight', d: 'dLight' }[aim] : { n: 'nAir', s: 'sAir', d: 'dAir' }[aim];
     let m = mv[key];
     if (!m) return;
+    // coup de côté : on se tourne d'abord du côté poussé
+    if (aim === 's' && inp && Math.abs(inp.sx || 0) > 0.2) {
+      pl.facing = inp.sx > 0 ? 1 : -1;
+      pl.sprite.setFlipX(pl.facing < 0);
+    }
     const cdKey = m.cdKey || key;
     if ((m.cd || m.cooldown) && now < (pl.moveCd[cdKey] || 0)) {
       const b0 = pl.sprite.body.center;
@@ -1986,7 +2025,7 @@ class GameScene extends Phaser.Scene {
   }
 
   popup(x, y, text, color) {
-    const t = this.add.text(x, y, text, { fontFamily: FONT, fontSize: '16px', color, stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(55);
+    const t = this.add.text(x, y, text, { fontFamily: FONT, fontSize: '16px', color, stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(46);
     this.tweens.add({ targets: t, y: y - 40, alpha: 0, duration: 800, onComplete: () => t.destroy() });
   }
 
@@ -2009,7 +2048,7 @@ class GameScene extends Phaser.Scene {
   }
 
   bookLand(pl, tgt, d, now) {
-    const sp = pl.def.moves.down.book;
+    const sp = (pl.def.moves.dSig || pl.def.moves.down).book;
     if (this.over || pl.stocks <= 0 || !sp) return;
     const x = d.tx;
     const y = L.baseY - 40 + sp.oy;
@@ -2082,10 +2121,18 @@ class GameScene extends Phaser.Scene {
       ux = nx;
       uy = ny;
     }
-    vic.sprite.setVelocity(ux * power, uy * power);
+    let vy = uy * power;
+    // coups légers vers le haut (léger bas) : petit envol garanti, pour relancer en l'air
+    if (spec.pop) vy = Math.min(vy, -spec.pop * (1 + Math.min(vic.damage, 120) / 400));
+    vic.sprite.setVelocity(ux * power, vy);
     const combo = now < vic.stunUntil;
     let stunMs = spec.stun * STUN_BASE + power * STUN_GROW;
-    if (rem !== undefined) stunMs = Math.max(stunMs, rem + 2 * STEP_MS); // un coup qui touche laisse toujours l'avantage
+    // un coup qui touche laisse toujours l'avantage ; les coups légers en laissent assez pour enchaîner
+    if (rem !== undefined) stunMs = Math.max(stunMs, rem + (spec.combo || 2 * STEP_MS));
+    // poursuite : l'attaquant peut esquiver juste après pour suivre (2 fois au sol, 1 fois en l'air)
+    const ab = att.sprite.body;
+    att.chaseLeft = ab.blocked.down || ab.touching.down ? 2 : 1;
+    att.chaseUntil = Math.max(now, att.atk ? att.atk.end : now) + 220;
     vic.stunUntil = now + stunMs;
     vic.stunStart = now;
     if (vic.atk && vic.atk.charging) this.clearCharge(vic);
