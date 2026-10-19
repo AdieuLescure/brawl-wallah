@@ -287,8 +287,8 @@ const SONGS = {
     drums: { k: 'x...x...x...x...', s: '....x.......x...', h: '..x...x...x...x.' },
     form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 4, lead: false, drums: 'none' }, { bars: 8 }],
   },
-  // DÉSERT : mode « phrygien dominant » sur ré, percussions sèches, bourdon
-  desert: {
+  // ancien morceau du désert (remplacé par le MIDI de Noah, gardé en secours)
+  desertOld: {
     bpm: 108, bassOct: 2, arpOct: 4, padOct: 3, lead: 'triangle', leadVol: 0.2, drone: true,
     chords: ['D', 'D', 'Eb', 'D', 'Cm', 'Cm', 'Eb', 'D'],
     bass: '1 . . . 1 . 8 . 1 . . . 5 . 8 .',
@@ -307,6 +307,8 @@ const SONGS = {
     form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 4, lead: false }, { bars: 8 }],
   },
 };
+if (typeof DUNE_MIDI !== 'undefined') SONGS.desert = { midi: DUNE_MIDI };
+else SONGS.desert = SONGS.desertOld;
 const JINGLES = {
   win: { bpm: 150, notes: 'C5 E5 G5 C6 - - E6 - - - - - - - - -', chord: [60, 64, 67, 72] },
   lose: { bpm: 90, notes: 'G4 - F4 - D4 - - - C4 - - - - - - -', chord: [48, 55, 58] },
@@ -350,6 +352,12 @@ const MUSIC = {
     const send = ctx.createGain();
     send.gain.value = 0.35;
     bus.connect(send).connect(AUDIO.revIn);
+    if (song.midi) {
+      const M = song.midi;
+      this.cur = { id: this.want, song, bus, midi: M, t0: ctx.currentTime + 0.1, spt: 60 / M.bpm / M.tpb, ptr: M.tracks.map(() => 0) };
+      this.tempoMul = 1;
+      return;
+    }
     // section, mesure dans la section, pas
     const plan = [];
     song.form.forEach((f) => { for (let i = 0; i < f.bars; i++) plan.push(f); });
@@ -363,6 +371,7 @@ const MUSIC = {
     if (this.want && !this.cur) this.start();
     const c = this.cur;
     if (!c) return;
+    if (c.midi) return this.tickMidi(c, ctx);
     const song = c.song;
     const stepDur = 60 / (song.bpm * this.tempoMul) / 4;
     if (c.t < ctx.currentTime - 0.3) c.t = ctx.currentTime + 0.05; // l'onglet était en pause
@@ -375,6 +384,59 @@ const MUSIC = {
         c.bar = (c.bar + 1) % c.plan.length;
       }
     }
+  },
+  // lecture d'un MIDI : on programme les notes qui commencent dans les 150 ms à venir, puis on reboucle
+  tickMidi(c, ctx) {
+    const M = c.midi;
+    const spt = 60 / (M.bpm * this.tempoMul) / M.tpb;
+    if (spt !== c.spt) {
+      // changement de tempo (mort subite) : on garde la position actuelle dans le morceau
+      const tick = (ctx.currentTime - c.t0) / c.spt;
+      c.t0 = ctx.currentTime - tick * spt;
+      c.spt = spt;
+    }
+    if (ctx.currentTime - c.t0 > M.loop * spt + 1) c.t0 = ctx.currentTime + 0.05; // l'onglet était en pause
+    const horizon = ctx.currentTime + 0.15;
+    const end = M.loopEnd || M.loop, start = M.loopStart || 0;
+    for (;;) {
+      let any = false;
+      M.tracks.forEach((tr, ti) => {
+        while (c.ptr[ti] < tr.length && tr[c.ptr[ti]] < end) {
+          const i = c.ptr[ti];
+          const t = c.t0 + tr[i] * spt;
+          if (t > horizon) break;
+          if (t >= ctx.currentTime - 0.05) this.midiNote(M.names[ti], tr[i + 2], t, Math.min(tr[i + 1], end - tr[i]) * spt, tr[i + 3] / 127, c.bus);
+          c.ptr[ti] += 4;
+          any = true;
+        }
+      });
+      // fin de la boucle : on repart au début du thème (l'intro ne se joue qu'une fois)
+      if (c.t0 + end * spt <= horizon) {
+        c.t0 += (end - start) * spt;
+        c.ptr = M.tracks.map((tr) => {
+          let i = 0;
+          while (i < tr.length && tr[i] < start) i += 4;
+          return i;
+        });
+        continue;
+      }
+      if (!any) break;
+    }
+  },
+  midiNote(kind, note, t, dur, v, bus) {
+    if (kind === 'drums') {
+      if (note === 36) this.drum('kick', t, bus);
+      else if (note === 38 || note === 40) this.drum('snare', t, bus);
+      else if (note === 42 || note === 44) this.drum('hat', t, bus, 0.5 + v);
+      else if (note === 46) this.drum('ohat', t, bus);
+      else if (note === 49 || note === 57) this.drum('crash', t, bus);
+      else this.drum('tek', t, bus);
+      return;
+    }
+    const hz = hzOf(note);
+    if (kind === 'lead') this.voice('lead', hz, t, Math.max(dur, 0.05), bus, 1, { lead: 'square', leadVol: 0.05 + 0.07 * v });
+    else if (kind === 'arp') this.voice('arp', hz, t, Math.max(dur, 0.04), bus, 0.6 + 1.6 * v);
+    else this.voice('bass', hz, t, Math.max(dur, 0.06), bus);
   },
   stepAt(c, t, sd) {
     const song = c.song, sec = c.plan[c.bar], s = c.step;
@@ -465,6 +527,8 @@ const MUSIC = {
     if (kind === 'snare') { f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; dur = 0.16; vol = 0.2; }
     else if (kind === 'hat') { f.type = 'highpass'; f.frequency.value = 7500; dur = 0.035; vol = 0.05 * (k || 1); }
     else if (kind === 'tek') { f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 3; dur = 0.05; vol = 0.16; }
+    else if (kind === 'ohat') { f.type = 'highpass'; f.frequency.value = 6500; dur = 0.22; vol = 0.06; }
+    else if (kind === 'crash') { f.type = 'highpass'; f.frequency.value = 4000; dur = 1.1; vol = 0.09; }
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g);

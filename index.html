@@ -1159,7 +1159,7 @@ const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esqu
 const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
-const HELP_TXT = "LEGER = COUPS RAPIDES QUI S'ENCHAINENT\nLOURD = GROS COUPS DU PERSO\n(+ JOYSTICK : COTE OU BAS)\n\nEN L'AIR : LOURD = COUP DE RETOUR\nLOURD + BAS = PIQUE\n\nSAUT x3 (SOL + 2 EN L'AIR)\nESQUIVE + COTE AU SOL = SPRINT\nAPRES UN COUP QUI TOUCHE :\nESQUIVE = POURSUITE\n\nCOMBO : LEGER BAS, SAUT, LEGER";
+const HELP_TXT = "LEGER / LOURD + JOYSTICK :\nAVANT, HAUT OU BAS\n\nEN L'AIR : LOURD + HAUT = COUP DE RETOUR\nLOURD + BAS = COUP DE PIED PLONGEANT\n\nCOMBO : DES LEGERS QUI TOUCHENT,\nPUIS UN LOURD POUR FINIR\n(LEGER BAS, SAUT, LEGER EN L'AIR...)\n\nSAUT x3 - ESQUIVE + COTE = SPRINT\nAPRES UN COUP : ESQUIVE = POURSUITE";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -2290,12 +2290,18 @@ class GameScene extends Phaser.Scene {
     return i === 0 ? this.p1 : this.p2;
   }
 
+  // trois directions : avant ('s', aussi sans direction), haut ('u'), bas ('d')
   aimOf(pl, inp) {
     const { sx, sy } = inp;
-    if (hyp(sx, sy) < 0.4) return 'n';
-    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'n'; // haut = neutre (comme Brawlhalla)
+    if (hyp(sx, sy) < 0.4) return 's';
+    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'u';
     if (sy > 0.55 && sy >= Math.abs(sx) * 0.8) return 'd';
     return 's';
+  }
+
+  moveKey(aim, grounded, heavy) {
+    if (heavy) return grounded ? { u: 'uSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
+    return grounded ? { u: 'uLight', s: 'sLight', d: 'dLight' }[aim] : { u: 'uAir', s: 'sAir', d: 'dAir' }[aim];
   }
 
   step(pl, other, now, dt, inp) {
@@ -2385,7 +2391,7 @@ class GameScene extends Phaser.Scene {
           pl.dashCd = now + 350;
           pl.rollDir = Math.sign(inp.sx);
           pl.facing = pl.rollDir;
-          pl.rollUntil = now + 170;
+          pl.rollUntil = now + 210;
           pl.sprintDir = pl.rollDir;
           this.dust(s.x, b.bottom, -pl.rollDir, 4, def.fx);
           this.sfx('dodge');
@@ -2424,7 +2430,7 @@ class GameScene extends Phaser.Scene {
         const charging = !!(pl.atk && pl.atk.charging);
         const moveLocked = (pl.atk && !charging && now < pl.atk.moveLock) || (spotLock && grounded);
         if (rolling && !pl.atk) {
-          s.setVelocityX(pl.rollDir * def.speed * 2.6);
+          s.setVelocityX(pl.rollDir * def.speed * 1.9);
         } else if (!moveLocked) {
           let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1) * (pl.sprintDir ? 1.35 : 1);
           if (charging) spd *= pl.atk.m.walk || 0;
@@ -2460,14 +2466,21 @@ class GameScene extends Phaser.Scene {
         const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now;
         if ((wantL || wantH) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0)) && !pl.helpless) {
           const a0 = pl.atk;
-          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && this.aimOf(pl, inp) === 'n') {
+          const aim = this.aimOf(pl, inp);
+          // COMBO : un coup léger qui a touché peut être coupé par un autre léger (différent) ou par un lourd
+          const nextKey = this.moveKey(aim, grounded, wantH);
+          const cancel = a0 && a0.landed && a0.m.light && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 4 && (wantH || nextKey !== a0.key) && pl.def.moves[nextKey];
+          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && aim === 's') {
             pl.bufAtk = 0;
             this.startChain(pl, now);
-          } else if (now > pl.cdUntil) {
+          } else if (now > pl.cdUntil || cancel) {
             pl.bufAtk = pl.bufHeavy = 0;
             if (rolling) pl.rollUntil = now; // une attaque coupe le sprint
             if (spotLock) pl.dodgeLock = now; // ... et l'esquive de poursuite
-            this.startAttack(pl, this.aimOf(pl, inp), grounded, now, inp, wantH);
+            const n0 = cancel ? (a0.cancels || 0) + 1 : 0;
+            if (cancel) { pl.atk = null; pl.cdUntil = now; }
+            this.startAttack(pl, aim, grounded, now, inp, wantH);
+            if (pl.atk && cancel) pl.atk.cancels = n0;
           }
         }
       } else {
@@ -2559,6 +2572,7 @@ class GameScene extends Phaser.Scene {
         const vGround = vb.blocked.down || vb.touching.down;
         if (now >= other.invulnUntil && other.stocks > 0 && !other.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
           pl.atk.done = true;
+          pl.atk.landed = now;
           const dir = Math.sign(other.sprite.x - s.x) || pl.facing;
           if (m.type === 'grab') this.startGrab(pl, other, m, now);
           else this.applyHit(pl, other, m, now, dir, null, pl.atk.end - now);
@@ -2602,9 +2616,7 @@ class GameScene extends Phaser.Scene {
   // aim : 'n' (neutre ou haut), 's' (côté), 'd' (bas) ; heavy : bouton LOURD
   startAttack(pl, aim, grounded, now, inp, heavy) {
     const mv = pl.def.moves;
-    let key;
-    if (heavy) key = grounded ? { n: 'nSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
-    else key = grounded ? { n: 'nLight', s: 'sLight', d: 'dLight' }[aim] : { n: 'nAir', s: 'sAir', d: 'dAir' }[aim];
+    const key = this.moveKey(aim, grounded, heavy);
     let m = mv[key];
     if (!m) return;
     // coup de côté : on se tourne d'abord du côté poussé
@@ -3008,7 +3020,7 @@ class GameScene extends Phaser.Scene {
   }
 
   bookLand(pl, tgt, d, now) {
-    const sp = (pl.def.moves.dSig || pl.def.moves.down).book;
+    const sp = Object.values(pl.def.moves).find((m) => m && m.book).book;
     if (this.over || pl.stocks <= 0 || !sp) return;
     const x = d.tx;
     const y = L.baseY - 40 + sp.oy;
@@ -4412,22 +4424,29 @@ Object.assign(GameScene.prototype, {
 });
 
 // ===========================================================================
-// COMMANDES « À LA BRAWLHALLA » : deux boutons d'attaque.
-//  - LÉGER : coups rapides qui s'enchaînent (nLight / sLight / dLight au sol, nAir / sAir / dAir en l'air)
-//  - LOURD : les gros coups signature (nSig / sSig / dSig au sol) ; en l'air : coup de retour (rec, une fois par saut)
-//    ou piqué (gp, LOURD + bas)
+// COMMANDES « À LA BRAWLHALLA » : deux boutons d'attaque, trois directions (AVANT, HAUT, BAS).
+//  - LÉGER : au sol sLight (avant, ou sans direction), uLight (haut), dLight (bas) ;
+//            en l'air sAir (avant), uAir (haut), dAir (bas). Rapides, faits pour s'enchaîner.
+//  - LOURD : au sol sSig (avant), uSig (haut), dSig (bas) ;
+//            en l'air seulement rec (LOURD + haut / avant / sans direction : coup vers le haut, une fois par saut)
+//            et gp (LOURD + bas : coup de pied plongeant).
 // Plus de coup « arrière » : pousser le joystick d'un côté fait se tourner et frapper de ce côté.
-// Options des coups légers : combo (avantage garanti en ms après le coup, pour enchaîner), pop (petit envol vertical
-// garanti, pour relancer en l'air : léger bas -> saut -> léger en l'air).
-// Ce fichier reprend les coups existants de chaque perso et ajoute les coups légers qui manquaient.
+// COMBOS : un coup léger qui touche peut être coupé tout de suite par un autre léger ou par un lourd (finisseur).
+// Options : light (coup léger), combo (avantage garanti en ms), pop (petit envol garanti, pour relancer en l'air).
 // ===========================================================================
 (() => {
   const L = (o) => Object.assign({ type: 'melee', startup: 70, active: 100, total: 300, ox: 54, oy: -4, w: 82, h: 52, dmg: 6, kb: 150, ks: 2.6, ang: -0.35, stun: 170, combo: 130 }, o);
   // léger bas : lance l'adversaire un peu en l'air, pour enchaîner en l'air
   const D = (o) => L(Object.assign({ startup: 70, active: 100, total: 330, w: 96, h: 34, ox: 50, oy: 24, dmg: 5, kb: 110, ks: 1.4, ang: -1.38, stun: 220, pop: 560, combo: 330 }, o));
+  // léger haut : frappe au-dessus de soi et soulève un peu
+  const U = (o) => L(Object.assign({ startup: 70, active: 110, total: 320, w: 80, h: 92, ox: 22, oy: -52, dmg: 5, kb: 130, ks: 1.6, ang: -1.42, stun: 210, pop: 500, combo: 280 }, o));
   // léger en l'air vers le bas : petit coup qui pique (sans plongeon)
   const DA = (o) => L(Object.assign({ startup: 70, active: 120, total: 360, w: 62, h: 62, ox: 10, oy: 44, dmg: 6, kb: 210, ks: 4, ang: 1.2, stun: 170, combo: 120 }, o));
+  // ancien coup aérien tout autour -> léger en l'air vers le haut
+  const UA = (m, extra) => Object.assign({}, m, { oy: (m.oy || 0) - 28, h: Math.max(m.h || 80, 96), ang: -1.32, combo: 140 }, extra || {});
   const light = (m, extra) => Object.assign({}, m, { combo: m.combo || 120 }, extra || {});
+  // coup de pied plongeant générique (LOURD + bas en l'air)
+  const GP = (o) => Object.assign({ type: 'melee', startup: 80, active: 220, total: 580, w: 64, h: 72, ox: 8, oy: 50, dmg: 10, kb: 320, ks: 7, ang: 1.15, stun: 210, dive: 820 }, o);
   const K = {};
   const O = {};
   for (const id of Object.keys(CHARS)) O[id] = CHARS[id].moves;
@@ -4436,130 +4455,132 @@ Object.assign(GameScene.prototype, {
   {
     const o = O.toro;
     K.toro = {
-      nLight: light(o.neutral),
-      sLight: L({ pose: 'rkick', w: 92, h: 40, ox: 60, oy: 6, lunge: 260, fx: { cres: 'cres_fire', s: 3, ang: -10, ghosts: 1 } }),
+      sLight: light(o.neutral), // JAB x3
+      uLight: U({ pose: 'up', fx: { cres: 'cres_fire', s: 3, ang: -90, flames: 3 } }),
       dLight: D({ pose: 'sweep', fx: { cres: 'cres_fire', s: 3.4, ang: 18, dust: true } }),
-      nAir: light(o.nAir),
       sAir: light(o.fwdAir),
+      uAir: UA(o.nAir),
       dAir: DA({ pose: 'stomp', fx: { cres: 'cres_fire', s: 3, ang: 90 } }),
-      nSig: o.up,
-      sSig: o.forward,
+      uSig: o.up, // DRAGON
+      sSig: o.forward, // POING FEU
       dSig: Object.assign({}, o.down, { startup: 150, active: 130, total: 560, dmg: 11, kb: 330, ks: 8, ang: -0.5, stun: 220, fx: { cres: 'cres_fire', s: 4.6, ang: 18, flames: 8, dust: true } }),
-      rec: o.upAir,
-      gp: o.downAir,
+      rec: o.upAir, // FUSÉE (uppercut)
+      gp: o.downAir, // PIÉTINEMENT
     };
-    CHARS.toro.help = ['LOURD     DRAGON', 'LOURD+COTE POING FEU', 'LOURD+BAS BALAYAGE', 'AIR LOURD FUSEE', 'AIR LOURD+BAS PIETINE'];
+    CHARS.toro.help = ['LOURD+HAUT DRAGON', 'LOURD      POING FEU', 'LOURD+BAS  BALAYAGE', 'AIR LOURD  FUSEE', 'AIR LRD+BAS PIETINE'];
   }
   // ---------------- ASTRA ----------------
   {
     const o = O.astra;
     K.astra = {
-      nLight: o.neutral,
-      sLight: L({ pose: 'cast', lunge: 200, fx: { rune: true } }),
+      sLight: o.neutral, // ORBE
+      uLight: U({ pose: 'castUp', fx: { rune: true } }),
       dLight: D({ pose: 'castDown', fx: { rune: true } }),
-      nAir: light(o.nAir),
       sAir: Object.assign({}, o.neutral, { total: 360 }),
+      uAir: UA(o.nAir),
       dAir: o.downAir,
-      nSig: o.up,
-      sSig: o.forward,
-      dSig: o.down,
+      uSig: o.up, // COMÈTE
+      sSig: o.forward, // SPHÈRE
+      dSig: o.down, // MINE
       rec: o.upAir,
-      gp: { type: 'melee', pose: 'castDown', startup: 80, active: 220, total: 560, w: 64, h: 70, ox: 8, oy: 50, dmg: 9, kb: 300, ks: 6.5, ang: 1.15, stun: 200, dive: 720, fx: { rune: true } },
+      gp: GP({ pose: 'castDown', dmg: 9, kb: 300, ks: 6.5, dive: 720, fx: { rune: true } }),
     };
-    CHARS.astra.help = ['LEGER     ORBE', 'LOURD     COMETE', 'LOURD+COTE SPHERE', 'LOURD+BAS MINE', 'AIR LOURD ETOILE'];
+    CHARS.astra.help = ['LEGER      ORBE', 'LOURD+HAUT COMETE', 'LOURD      SPHERE', 'LOURD+BAS  MINE', 'AIR LOURD  ETOILE'];
   }
   // ---------------- GROM ----------------
   {
     const o = O.grom;
     K.grom = {
-      nLight: light(o.neutral, { dmg: 6 }),
-      sLight: Object.assign({}, o.back, { total: 720, proj: Object.assign({}, o.back.proj, { stun: 280 }) }), // GRAPPIN
+      sLight: light(o.neutral, { dmg: 6, combo: 240, kb: 60, ks: 0.8 }), // CLAQUE (garde l'adversaire près, pour le SUPLEX)
+      uLight: U({ pose: 'up', fx: { dust: true } }),
       dLight: D({ pose: 'slam', fx: { dust: true } }),
-      nAir: light(o.nAir),
-      sAir: o.back, // le grappin marche aussi en l'air (et ramène au bord)
-      dAir: light(o.fwdAir),
-      nSig: o.up,
+      sAir: Object.assign({}, o.back, { total: 720, proj: Object.assign({}, o.back.proj, { stun: 280 }) }), // GRAPPIN (en l'air, ramène au bord)
+      uAir: UA(o.nAir),
+      dAir: light(o.fwdAir), // PLAQUAGE
+      uSig: o.up, // BÉLIER
       sSig: Object.assign({}, o.forward, { throw: Object.assign({}, o.forward.throw, { dmg: 11, kb: 360 }) }), // SUPLEX
       dSig: o.down, // SÉISME
       rec: o.upAir,
       gp: o.downAir,
     };
-    CHARS.grom.help = ['LEGER+COTE GRAPPIN', 'LOURD     BELIER', 'LOURD+COTE SUPLEX', 'LOURD+BAS SEISME', 'AIR LOURD+BAS PLAQUAGE'];
+    CHARS.grom.help = ['AIR LEGER  GRAPPIN', 'LOURD+HAUT BELIER', 'LOURD      SUPLEX', 'LOURD+BAS  SEISME', 'AIR LRD+BAS PIETINE'];
   }
   // ---------------- DEADLULU ----------------
   {
     const o = O.deadlulu;
     K.deadlulu = {
-      nLight: o.neutral, // PASTIS
-      sLight: L({ pose: 'guitar', active: 110, w: 72, h: 52, oy: -4, dmg: 6, kb: 160, lunge: 180, fx: { cres: 'cres_wood', s: 2.8, ang: 0, notes: true } }),
+      sLight: o.neutral, // PASTIS
+      uLight: U({ pose: 'guitar', w: 96, oy: -46, fx: { cres: 'cres_wood', s: 3, ang: -70, notes: true } }), // GUITARE vers le haut
       dLight: D({ pose: 'rkick', fx: { cres: 'cres_wood', s: 3, ang: 15 } }),
-      nAir: light(o.nAir),
       sAir: light(o.fwdAir),
+      uAir: UA(o.nAir),
       dAir: DA({ pose: 'plunge', fx: { cres: 'cres_wood', s: 3, ang: 90 } }),
-      nSig: o.back, // OBJECTION !
+      uSig: o.down, // CODE PÉNAL (il pointe le ciel)
       sSig: o.forward, // GUITARE+
-      dSig: o.down, // CODE PÉNAL
+      dSig: o.back, // OBJECTION !
       rec: o.upAir, // JAMBE FEU
-      gp: o.downAir,
+      gp: o.downAir, // PLONGEON
     };
-    CHARS.deadlulu.help = ['LEGER     PASTIS', 'LOURD     OBJECTION !', 'LOURD+COTE GUITARE+', 'LOURD+BAS CODE PENAL', 'AIR LOURD JAMBE FEU'];
+    CHARS.deadlulu.help = ['LEGER      PASTIS', 'LOURD+HAUT CODE PENAL', 'LOURD      GUITARE+', 'LOURD+BAS  OBJECTION !', 'AIR LOURD  JAMBE FEU'];
   }
   // ---------------- DENODOOM ----------------
   {
     const o = O.denodoom;
     K.denodoom = {
-      nLight: o.neutral, // PISTOLETS
-      sLight: light(o.forward, { dmg: 6, kb: 200, ks: 3 }), // SABRE
+      sLight: o.neutral, // PISTOLETS
+      uLight: U({ pose: 'saber', w: 96, fx: { cres: 'cres_steel', s: 3, ang: -80 } }), // SABRE vers le haut
       dLight: D({ pose: 'pointDown', fx: { dust: true } }),
-      nAir: light(o.nAir),
       sAir: light(o.fwdAir),
+      uAir: UA(o.nAir),
       dAir: DA({ pose: 'plungePan', fx: { flames: 3 } }),
-      nSig: o.up, // AIGLE
+      uSig: o.up, // AIGLE
       sSig: o.back, // HANDBALL (LOURD tenu = charge)
       dSig: o.down, // HERMINE
       rec: o.upAir,
       gp: o.downAir, // POÊLE
     };
-    CHARS.denodoom.help = ['LEGER     PISTOLETS', 'LOURD     AIGLE', 'LOURD+COTE HANDBALL', 'LOURD+BAS HERMINE', 'AIR LOURD+BAS POELE'];
+    CHARS.denodoom.help = ['LEGER      PISTOLETS', 'LOURD+HAUT AIGLE', 'LOURD      HANDBALL', 'LOURD+BAS  HERMINE', 'AIR LRD+BAS POELE'];
   }
   // ---------------- NINI ----------------
   {
     const o = O.nini;
     K.nini = {
-      nLight: light(o.neutral), // GRIFFES
-      sLight: L({ pose: 'claw', w: 84, h: 58, ox: 58, oy: -6, dmg: 7, kb: 170, lunge: 240, fx: { cres: 'cres_pink', s: 3, ang: 0 } }),
-      dLight: D({ pose: 'castUp', w: 96, h: 64, ox: 40, oy: 10, dmg: 6, pop: 580, fx: { peony: true } }), // PIVOINE qui éclot au sol
-      nAir: light(o.nAir), // PÉTALES
-      sAir: light(o.bAir, { dmg: 6, kb: 480 }), // BOURRASQUE
+      sLight: light(o.neutral), // GRIFFES (Scarlett)
+      uLight: UA(o.nAir, { pose: 'castUp', combo: 260, pop: 480 }), // PÉTALES au-dessus d'elle
+      dLight: D({ pose: 'castUp', w: 96, h: 64, ox: 40, oy: 10, dmg: 6, pop: 580, fx: { peony: true } }), // petite PIVOINE au sol
+      sAir: o.back, // COUP DE FOUDRE (en l'air : ralentit)
+      uAir: light(o.bAir, { retreat: 0, oy: -50, h: 100, ox: 20, ang: -1.4, kb: 300, dmg: 6, fx: { wind: 'up' } }), // BOURRASQUE vers le haut
       dAir: DA({ pose: 'claw', fx: { cres: 'cres_pink', s: 3, ang: 70 } }),
-      nSig: o.back, // COUP DE FOUDRE
+      uSig: o.up, // PIVOINE
       sSig: o.forward, // BOND DU CHAT
       dSig: o.down, // CORGI
       rec: o.upAir, // AUTANT EN EMPORTE LE VENT
       gp: o.downAir, // VALISE
     };
-    CHARS.nini.help = ['LEGER+BAS PIVOINE', 'LOURD     COUP DE FOUDRE', 'LOURD+COTE BOND DU CHAT', 'LOURD+BAS CORGI', 'AIR LOURD+BAS VALISE', 'PASSIF    COLERE'];
+    CHARS.nini.help = ['AIR LEGER  COUP DE FOUDRE', 'LOURD+HAUT PIVOINE', 'LOURD      BOND DU CHAT', 'LOURD+BAS  CORGI', 'AIR LRD+BAS VALISE', 'PASSIF     COLERE'];
   }
   // ---------------- ADIEULESCURE ----------------
   {
     const o = O.adieulescure;
     K.adieulescure = {
-      nLight: light(o.neutral), // PASSE + TÊTE
-      sLight: L({ pose: 'volley', w: 92, h: 36, ox: 52, oy: 22, dmg: 7, kb: 170, lunge: 340, fx: { dust: true, ghosts: 1 } }), // TACLE
-      dLight: D({ pose: 'drink', w: 80, h: 80, ox: 20, oy: -20, pop: 580, fx: { foam: true } }), // IPA : la mousse soulève
-      nAir: light(o.nAir, { dmg: 8, kb: 260 }), // VIOLON
+      sLight: light(o.neutral), // PASSE + TÊTE
+      uLight: Object.assign({}, o.back, { light: true }), // CONTRÔLE de la poitrine
+      dLight: D({ pose: 'volley', w: 92, h: 36, ox: 52, oy: 22, dmg: 6, lunge: 300, fx: { dust: true, ghosts: 1 } }), // TACLE qui fait décoller
       sAir: L({ pose: 'volley', startup: 90, active: 110, total: 420, w: 96, h: 46, ox: 60, oy: 8, dmg: 10, kb: 340, ks: 8, ang: -0.45, stun: 200, combo: 0, fx: { donkey: true, ghosts: 2 } }), // RUADE
+      uAir: UA(o.nAir, { dmg: 8, kb: 260 }), // VIOLON
       dAir: Object.assign({}, o.fwdAir, { proj: Object.assign({}, o.fwdAir.proj, { vx: 260, vy: 420, ox: 12, oy: 24 }) }), // TOMATE vers le bas
-      nSig: o.back, // CONTRÔLE
+      uSig: o.up, // IPA
       sSig: Object.assign({}, o.forward, { dmg: 12, kb: 340, ks: 8.6 }), // ÉCHAPPÉE
       dSig: o.down, // CTRL+Z
       rec: o.upAir, // ÉPERONS
-      gp: o.downAir, // CTRL+Z en l'air
+      gp: GP({ pose: 'kick', fx: { dust: true, ghosts: 2 } }), // CRAMPONS
     };
-    CHARS.adieulescure.help = ['LEGER+BAS IPA', 'LOURD     CONTROLE', 'LOURD+COTE ECHAPPEE', 'LOURD+BAS CTRL+Z', 'AIR LEGER RUADE/TOMATE'];
+    CHARS.adieulescure.help = ['LEGER+HAUT CONTROLE', 'LOURD+HAUT IPA', 'LOURD      ECHAPPEE', 'LOURD+BAS  CTRL+Z', 'AIR LRD+BAS CRAMPONS'];
   }
 
+  const LIGHTS = ['sLight', 'uLight', 'dLight', 'sAir', 'uAir', 'dAir'];
   for (const id of Object.keys(K)) {
+    for (const k of LIGHTS) if (K[id][k]) K[id][k] = Object.assign({}, K[id][k], { light: true });
     CHARS[id].moves = K[id];
     CHARS[id].jumps = 3; // un saut au sol + deux en l'air
     CHARS[id].speed = Math.round(CHARS[id].speed * 1.12);
@@ -6923,43 +6944,43 @@ const BOT_LV = [
 // dx (distance horizontale à la cible, en px), dy (cible - bot, négatif = cible au-dessus), w (poids du choix)
 const BOT_MOVES = {
   toro: [
-    ['nLight', [0, 90], [-60, 50], 4], ['sLight', [40, 150], [-40, 40], 3], ['dLight', [10, 110], [-20, 60], 2],
-    ['nSig', [0, 90], [-180, -10], 2], ['sSig', [60, 170], [-50, 50], 2], ['dSig', [30, 150], [-20, 60], 1.5],
-    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [40, 160], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 2], ['gp', [0, 70], [60, 260], 1],
+    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 80], [-170, -20], 2], ['dLight', [10, 110], [-20, 60], 2],
+    ['uSig', [0, 90], [-200, -10], 2], ['sSig', [60, 170], [-50, 50], 2], ['dSig', [30, 150], [-20, 60], 1.5],
+    ['sAir', [30, 160], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 2], ['gp', [0, 70], [60, 260], 1],
   ],
   astra: [
-    ['nLight', [140, 600], [-60, 60], 4], ['sLight', [0, 110], [-50, 50], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['nSig', [60, 320], [-260, -60], 2], ['sSig', [200, 650], [-60, 60], 1.5], ['dSig', [40, 230], [-20, 60], 1],
-    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [140, 600], [-80, 80], 2], ['dAir', [60, 300], [40, 320], 2],
+    ['sLight', [140, 600], [-60, 60], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['uSig', [60, 320], [-260, -60], 2], ['sSig', [200, 650], [-60, 60], 1.5], ['dSig', [40, 230], [-20, 60], 1],
+    ['sAir', [140, 600], [-80, 80], 2], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [60, 300], [40, 320], 2],
   ],
   grom: [
-    ['nLight', [0, 95], [-60, 50], 3], ['sLight', [180, 420], [-50, 50], 1, { hook: true }], ['dLight', [0, 110], [-20, 60], 2],
-    ['nSig', [0, 90], [-180, -20], 2], ['sSig', [0, 85], [-50, 40], 3, { grab: true }], ['dSig', [0, 120], [-20, 40], 1.5, { tgtGround: true }],
-    ['nAir', [0, 100], [-70, 70], 3], ['dAir', [30, 120], [-20, 120], 2], ['gp', [0, 60], [30, 220], 1.5],
+    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 80], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['uSig', [0, 90], [-180, -20], 2], ['sSig', [0, 85], [-50, 40], 3, { grab: true }], ['dSig', [0, 120], [-20, 40], 1.5, { tgtGround: true }],
+    ['sAir', [160, 420], [-60, 60], 1, { hook: true }], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [30, 120], [-20, 120], 2], ['gp', [0, 60], [30, 220], 1.5],
   ],
   deadlulu: [
-    ['nLight', [110, 420], [-60, 60], 4], ['sLight', [0, 110], [-50, 50], 3], ['dLight', [0, 110], [-20, 60], 2],
-    ['sSig', [50, 150], [-60, 50], 2], ['dSig', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
-    ['nAir', [0, 100], [-70, 70], 3], ['sAir', [30, 140], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
+    ['sLight', [110, 420], [-60, 60], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['uSig', [180, 320], [-40, 60], 1.5, { tgtGround: true }], ['sSig', [50, 150], [-60, 50], 2],
+    ['sAir', [30, 140], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
   ],
   denodoom: [
-    ['nLight', [40, 260], [-50, 50], 3], ['sLight', [30, 140], [-50, 50], 3], ['dLight', [0, 110], [-20, 60], 2],
-    ['nSig', [0, 120], [-320, -60], 2], ['sSig', [250, 620], [-50, 50], 1, { charge: true }], ['dSig', [90, 170], [-40, 60], 1.5, { tgtGround: true }],
-    ['nAir', [0, 100], [-70, 70], 3], ['sAir', [30, 140], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
+    ['sLight', [40, 260], [-50, 50], 3], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['uSig', [0, 120], [-320, -60], 2], ['sSig', [250, 620], [-50, 50], 1, { charge: true }], ['dSig', [90, 170], [-40, 60], 1.5, { tgtGround: true }],
+    ['sAir', [30, 140], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
   ],
   nini: [
-    ['nLight', [0, 95], [-60, 50], 4], ['sLight', [40, 150], [-50, 50], 2.5], ['dLight', [0, 110], [-20, 60], 2],
-    ['nSig', [160, 520], [-50, 50], 1.2, { tgtGround: true }], ['sSig', [50, 170], [-50, 50], 2], ['dSig', [160, 600], [-40, 60], 1.2, { tgtGround: true }],
-    ['nAir', [0, 95], [-70, 70], 3], ['sAir', [30, 130], [-60, 60], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 80], [40, 260], 1.5],
+    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
+    ['uSig', [0, 90], [-200, -20], 2], ['sSig', [50, 170], [-50, 50], 2], ['dSig', [160, 600], [-40, 60], 1.2, { tgtGround: true }],
+    ['sAir', [160, 520], [-60, 60], 1, { tgtGround: true }], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 80], [40, 260], 1.5],
   ],
   adieulescure: [
-    ['nLight', [0, 90], [-50, 60], 4], ['sLight', [40, 200], [-30, 50], 3], ['dLight', [0, 100], [-20, 60], 2],
-    ['sSig', [60, 260], [-50, 50], 2],
-    ['nAir', [0, 90], [-70, 70], 3], ['sAir', [20, 120], [-50, 50], 2], ['dAir', [60, 260], [40, 260], 1.5],
+    ['sLight', [0, 90], [-50, 60], 4], ['dLight', [30, 200], [-30, 50], 2.5],
+    ['uSig', [0, 90], [-200, -20], 2], ['sSig', [60, 260], [-50, 50], 2],
+    ['sAir', [20, 120], [-50, 50], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [60, 260], [40, 260], 1.5], ['gp', [0, 60], [60, 260], 1],
   ],
 };
-const BOT_AIR = { nAir: 1, sAir: 1, dAir: 1, rec: 1, gp: 1 };
-const BOT_HEAVY = { nSig: 1, sSig: 1, dSig: 1, rec: 1, gp: 1 };
+const BOT_AIR = { uAir: 1, sAir: 1, dAir: 1, rec: 1, gp: 1 };
+const BOT_HEAVY = { uSig: 1, sSig: 1, dSig: 1, rec: 1, gp: 1 };
 for (const id in BOT_MOVES)
   BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], heavy: !!BOT_HEAVY[k] }, ex || {}));
 const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90 };
@@ -7057,10 +7078,11 @@ Object.assign(GameScene.prototype, {
       const approaching = Math.sign(p.vx || 0) === Math.sign(pdx) || (p.spec.kind === 'book' && Math.abs(pdx) < 110);
       if (approaching && Math.abs(pdx) < 220 && Math.abs(p.y - s.y) < 120 && now - p.born >= lv.react * 0.5) {
         bot.botSeenProj = p.id;
-        const cm = bot.def.moves.nSig;
+        const cm = bot.def.moves.uLight;
         if (cm && cm.type === 'catch' && grounded && !bot.atk && now > bot.cdUntil && Math.random() < lv.dodge * 0.7) {
           i.sx = dir * 0.35;
-          i.heavy = true;
+          i.sy = -1;
+          i.attack = true;
           return i;
         }
         if (Math.random() < lv.dodge) {
@@ -7097,8 +7119,13 @@ Object.assign(GameScene.prototype, {
 
     // l'adversaire est charmé : on en profite avec un coup fort
     if (tgt.charmUntil > now && !bot.atk && now > bot.cdUntil && adx < 200) {
-      const o = grounded ? { k: adx < 90 ? 'nSig' : 'sSig' } : { k: 'sAir', air: true };
+      const o = grounded ? { k: adx < 90 ? 'uSig' : 'sSig' } : { k: 'sAir', air: true };
       return this.botUse(bot, i, o, dir, { acc: 1 });
+    }
+    // combo : un léger vient de toucher -> on finit par un lourd (coupe le léger)
+    if (bot.atk && bot.atk.landed && bot.atk.m.light && now >= bot.atk.landed + 40 && !bot.atk.cancels && Math.random() < lv.acc * 0.5) {
+      const k = grounded ? (dy < -60 ? 'uSig' : 'sSig') : dy > 40 ? 'gp' : 'rec';
+      if (bot.def.moves[k] && this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: !grounded }, dir, { acc: 1 });
     }
     // combo : l'adversaire est sonné juste au-dessus -> on saute et on enchaîne en l'air
     if (now < tgt.stunUntil && adx < 120 && !bot.atk && now > bot.cdUntil && Math.random() < lv.acc) {
@@ -7108,7 +7135,7 @@ Object.assign(GameScene.prototype, {
         return i;
       }
       if (!grounded && Math.abs(dy) < 90) {
-        const k = adx > 60 ? 'sAir' : 'nAir';
+        const k = adx > 60 ? 'sAir' : 'uAir';
         if (this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: true }, dir, lv);
       }
     }
@@ -7150,15 +7177,16 @@ Object.assign(GameScene.prototype, {
   botUse(bot, i, o, dir, lv) {
     let k = o.k;
     // erreur de précision : mauvais coup de temps en temps
-    if (Math.random() > lv.acc) k = (o.air ? ['nAir', 'sAir', 'dAir'] : ['nLight', 'sLight', 'dLight', 'nSig'])[Math.floor(Math.random() * (o.air ? 3 : 4))];
+    if (Math.random() > lv.acc) k = (o.air ? ['uAir', 'sAir', 'dAir'] : ['sLight', 'uLight', 'dLight', 'sSig'])[Math.floor(Math.random() * (o.air ? 3 : 4))];
     const heavy = !!BOT_HEAVY[k];
     i.attack = !heavy;
     i.heavy = heavy;
     i.sy = 0;
-    const a = k[0] === 'n' || k === 'rec' ? 'n' : k[0] === 's' ? 's' : 'd';
-    // neutre/bas : un léger mouvement vers la cible pour se tourner vers elle (sans en faire un coup de côté)
+    const a = k[0] === 'u' || k === 'rec' ? 'u' : k[0] === 's' ? 's' : 'd';
+    // haut/bas : un léger mouvement vers la cible pour se tourner vers elle
     i.sx = a === 's' ? dir : dir * 0.35;
     if (a === 'd' || k === 'gp') i.sy = 1;
+    if (a === 'u') i.sy = -1;
     if (o.charge) bot.botCharge = 200 + Math.random() * 800;
     bot.botBlockPrev = false;
     return i;
@@ -7178,17 +7206,6 @@ Object.assign(GameScene.prototype, {
       i.sx = -side;
       i.sy = 0;
       return;
-    }
-    // AdieuLescure : CTRL+Z pour revenir là où il était (s'il était plus près du terrain)
-    if (bot.def.rewind && !bot.atk && now > bot.cdUntil && now >= (bot.moveCd.ctrlz || 0) && bot.zn >= 6) {
-      const j = bot.zn < 10 ? 0 : bot.zi || 0;
-      const back = (bot['zx' + j] - edgeX) * side;
-      if (back < out - 120 && Math.random() < 0.3 * lv.escape + 0.1) {
-        i.heavy = true; // LOURD + bas en l'air = CTRL+Z
-        i.sy = 1;
-        i.sx = 0;
-        return;
-      }
     }
     if (b.velocity.y > -80) {
       if (bot.jumps > 0 && now - bot.lastJump > 220 && (below || out > 160)) i.jump = true;
@@ -7543,6 +7560,10 @@ Object.assign(GameScene.prototype, {
   },
 });
 
+// Musique du DÉSERT : fichier MIDI « Dune - chiptune fighter » fourni par Noah, converti en notes
+// pistes : [début, durée, note, force] en ticks (128 par temps), à 160 BPM ; intro une fois, puis boucle mesures 12 à 43
+const DUNE_MIDI = {"tpb":128,"bpm":160,"loop":24064,"loopStart":5632,"loopEnd":22016,"names":["lead","arp","bass","drums"],"tracks":[[0,228,70,111,256,228,68,111,512,110,69,111,640,110,65,111,768,110,68,111,896,228,69,111,1152,110,70,111,1280,110,68,111,1408,1052,69,111,2560,110,72,111,2688,816,72,111,3584,110,70,111,3712,816,70,111,4608,699,69,111,5376,228,69,111,5632,103,62,107,5760,103,69,107,5888,103,73,107,6016,103,74,107,6144,103,69,107,6272,103,73,107,6400,103,74,107,6528,103,81,107,6656,103,62,107,6784,103,70,107,6912,103,69,107,7040,103,66,107,7168,103,69,107,7296,103,70,107,7424,103,73,107,7552,103,74,107,7680,103,63,107,7808,103,67,107,7936,103,74,107,8064,103,75,107,8192,103,67,107,8320,103,70,107,8448,103,78,107,8576,103,79,107,8704,103,63,107,8832,103,67,107,8960,103,70,107,9088,103,69,107,9216,103,70,107,9344,103,75,107,9472,103,79,107,9600,103,81,107,9728,103,62,107,9856,103,69,107,9984,103,73,107,10112,103,74,107,10240,103,69,107,10368,103,73,107,10496,103,74,107,10624,103,81,107,10752,103,62,107,10880,103,70,107,11008,103,69,107,11136,103,66,107,11264,103,69,107,11392,103,70,107,11520,103,73,107,11648,103,74,107,11776,103,63,107,11904,103,67,107,12032,103,74,107,12160,103,75,107,12288,103,67,107,12416,103,70,107,12544,103,78,107,12672,103,79,107,12800,103,63,107,12928,103,67,107,13056,103,70,107,13184,103,69,107,13312,103,70,107,13440,103,75,107,13568,103,79,107,13696,103,81,107,13824,463,81,120,14848,463,74,120,15360,463,75,120,15872,463,82,120,16384,463,75,120,16896,463,85,120,17408,463,86,120,17920,463,81,120,18944,463,74,120,19456,463,75,120,19968,463,82,120,20480,463,75,120,20992,463,85,111,20992,463,90,111,20992,463,94,111,21504,345,86,111,21504,345,91,111,21504,345,94,111,21888,51,86,111,21888,51,91,111,21888,51,94,111,21952,51,86,111,21952,51,91,111,21952,51,94,111,22016,1884,86,120],[0,27,74,49,32,27,86,49,64,27,74,49,96,27,86,49,128,27,74,49,160,27,86,49,192,27,74,49,224,27,86,49,256,27,74,50,288,27,86,50,320,27,74,50,352,27,86,50,384,27,74,50,416,27,86,50,448,27,74,50,480,27,86,50,512,27,74,52,544,27,86,52,576,27,74,52,608,27,86,52,640,27,74,52,672,27,86,52,704,27,74,52,736,27,86,52,768,27,74,53,800,27,86,53,832,27,74,53,864,27,86,53,896,27,74,53,928,27,86,53,960,27,74,53,992,27,86,53,1024,27,74,54,1056,27,86,54,1088,27,74,54,1120,27,86,54,1152,27,74,54,1184,27,86,54,1216,27,74,54,1248,27,86,54,1280,27,74,56,1312,27,86,56,1344,27,74,56,1376,27,86,56,1408,27,74,56,1440,27,86,56,1472,27,74,56,1504,27,86,56,1536,27,74,57,1568,27,86,57,1600,27,74,57,1632,27,86,57,1664,27,74,57,1696,27,86,57,1728,27,74,57,1760,27,86,57,1792,27,74,59,1824,27,86,59,1856,27,74,59,1888,27,86,59,1920,27,74,59,1952,27,86,59,1984,27,74,59,2016,27,86,59,2048,27,74,60,2080,27,86,60,2112,27,74,60,2144,27,86,60,2176,27,74,60,2208,27,86,60,2240,27,74,60,2272,27,86,60,2304,27,74,62,2336,27,86,62,2368,27,74,62,2400,27,86,62,2432,27,74,62,2464,27,86,62,2496,27,74,62,2528,27,86,62,2560,27,74,63,2592,27,86,63,2624,27,74,63,2656,27,86,63,2688,27,74,63,2720,27,86,63,2752,27,74,63,2784,27,86,63,2816,27,74,65,2848,27,86,65,2880,27,74,65,2912,27,86,65,2944,27,74,65,2976,27,86,65,3008,27,74,65,3040,27,86,65,3072,27,74,66,3104,27,86,66,3136,27,74,66,3168,27,86,66,3200,27,74,66,3232,27,86,66,3264,27,74,66,3296,27,86,66,3328,27,74,68,3360,27,86,68,3392,27,74,68,3424,27,86,68,3456,27,74,68,3488,27,86,68,3520,27,74,68,3552,27,86,68,3584,27,74,69,3616,27,86,69,3648,27,74,69,3680,27,86,69,3712,27,74,69,3744,27,86,69,3776,27,74,69,3808,27,86,69,3840,27,74,71,3872,27,86,71,3904,27,74,71,3936,27,86,71,3968,27,74,71,4000,27,86,71,4032,27,74,71,4064,27,86,71,4096,27,74,72,4128,27,86,72,4160,27,74,72,4192,27,86,72,4224,27,74,72,4256,27,86,72,4288,27,74,72,4320,27,86,72,4352,27,74,74,4384,27,86,74,4416,27,74,74,4448,27,86,74,4480,27,74,74,4512,27,86,74,4544,27,74,74,4576,27,86,74,4608,27,74,75,4640,27,86,75,4672,27,74,75,4704,27,86,75,4736,27,74,75,4768,27,86,75,4800,27,74,75,4832,27,86,75,4864,27,74,77,4896,27,86,77,4928,27,74,77,4960,27,86,77,4992,27,74,77,5024,27,86,77,5056,27,74,77,5088,27,86,77,5120,27,74,78,5152,27,86,78,5184,27,74,78,5216,27,86,78,5248,27,74,78,5280,27,86,78,5312,27,74,78,5344,27,86,78,5376,27,74,80,5408,27,86,80,5440,27,74,80,5472,27,86,80,5504,27,74,80,5536,27,86,80,5568,27,74,80,5600,27,86,80,5696,51,62,73,5824,51,69,73,5952,51,73,73,6080,51,74,73,6208,51,69,73,6336,51,73,73,6464,51,74,73,6592,51,81,73,6720,51,62,73,6848,51,70,73,6976,51,69,73,7104,51,66,73,7232,51,69,73,7360,51,70,73,7488,51,73,73,7616,51,74,73,7744,51,63,73,7872,51,67,73,8000,51,74,73,8128,51,75,73,8256,51,67,73,8384,51,70,73,8512,51,78,73,8640,51,79,73,8768,51,63,73,8896,51,67,73,9024,51,70,73,9152,51,69,73,9280,51,70,73,9408,51,75,73,9536,51,79,73,9664,51,81,73,9792,51,62,73,9920,51,69,73,10048,51,73,73,10176,51,74,73,10304,51,69,73,10432,51,73,73,10560,51,74,73,10688,51,81,73,10816,51,62,73,10944,51,70,73,11072,51,69,73,11200,51,66,73,11328,51,69,73,11456,51,70,73,11584,51,73,73,11712,51,74,73,11840,51,63,73,11968,51,67,73,12096,51,74,73,12224,51,75,73,12352,51,67,73,12480,51,70,73,12608,51,78,73,12736,51,79,73,12864,51,63,73,12992,51,67,73,13120,51,70,73,13248,51,69,73,13376,51,70,73,13504,51,75,73,13632,51,79,73,13760,51,81,73,13824,103,62,90,13952,103,69,90,14080,103,73,90,14208,103,74,90,14336,103,69,90,14464,103,73,90,14592,103,74,90,14720,103,81,90,14848,103,62,90,14976,103,70,90,15104,103,69,90,15232,103,66,90,15360,103,69,90,15488,103,70,90,15616,103,73,90,15744,103,74,90,15872,103,63,90,16000,103,67,90,16128,103,74,90,16256,103,75,90,16384,103,67,90,16512,103,70,90,16640,103,78,90,16768,103,79,90,16896,103,63,90,17024,103,67,90,17152,103,70,90,17280,103,69,90,17408,103,70,90,17536,103,75,90,17664,103,79,90,17792,103,81,90,17920,103,62,90,18048,103,69,90,18176,103,73,90,18304,103,74,90,18432,103,69,90,18560,103,73,90,18688,103,74,90,18816,103,81,90,18944,103,62,90,19072,103,70,90,19200,103,69,90,19328,103,66,90,19456,103,69,90,19584,103,70,90,19712,103,73,90,19840,103,74,90,19968,103,63,90,20096,103,67,90,20224,103,74,90,20352,103,75,90,20480,103,67,90,20608,103,70,90,20736,103,78,90,20864,103,79,90,20992,103,63,90,21120,103,67,90,21248,103,70,90,21376,103,69,90,21504,103,70,90,21632,103,75,90,21760,103,79,90,21888,103,81,90,22016,1884,74,86],[2048,463,38,120,2560,110,48,120,2688,816,48,120,3584,110,46,120,3712,816,46,120,4608,699,45,120,5376,228,45,120,5632,51,38,120,5696,51,38,120,5760,51,50,120,5824,51,38,120,5888,51,38,120,5952,51,50,120,6016,51,45,120,6080,51,50,120,6144,51,38,120,6208,51,38,120,6272,51,50,120,6336,51,38,120,6400,51,38,120,6464,51,50,120,6528,51,45,120,6592,51,50,120,6656,51,38,120,6720,51,38,120,6784,51,50,120,6848,51,38,120,6912,51,38,120,6976,51,50,120,7040,51,45,120,7104,51,50,120,7168,51,38,120,7232,51,38,120,7296,51,50,120,7360,51,38,120,7424,51,38,120,7488,51,50,120,7552,51,45,120,7616,51,50,120,7680,51,39,120,7744,51,39,120,7808,51,51,120,7872,51,39,120,7936,51,39,120,8000,51,51,120,8064,51,46,120,8128,51,51,120,8192,51,39,120,8256,51,39,120,8320,51,51,120,8384,51,39,120,8448,51,39,120,8512,51,51,120,8576,51,46,120,8640,51,51,120,8704,51,39,120,8768,51,39,120,8832,51,51,120,8896,51,39,120,8960,51,39,120,9024,51,51,120,9088,51,46,120,9152,51,51,120,9216,51,39,120,9280,51,39,120,9344,51,51,120,9408,51,39,120,9472,51,39,120,9536,51,51,120,9600,51,46,120,9664,51,51,120,9728,51,38,120,9792,51,38,120,9856,51,50,120,9920,51,38,120,9984,51,38,120,10048,51,50,120,10112,51,45,120,10176,51,50,120,10240,51,38,120,10304,51,38,120,10368,51,50,120,10432,51,38,120,10496,51,38,120,10560,51,50,120,10624,51,45,120,10688,51,50,120,10752,51,38,120,10816,51,38,120,10880,51,50,120,10944,51,38,120,11008,51,38,120,11072,51,50,120,11136,51,45,120,11200,51,50,120,11264,51,38,120,11328,51,38,120,11392,51,50,120,11456,51,38,120,11520,51,38,120,11584,51,50,120,11648,51,45,120,11712,51,50,120,11776,51,39,120,11840,51,39,120,11904,51,51,120,11968,51,39,120,12032,51,39,120,12096,51,51,120,12160,51,46,120,12224,51,51,120,12288,51,39,120,12352,51,39,120,12416,51,51,120,12480,51,39,120,12544,51,39,120,12608,51,51,120,12672,51,46,120,12736,51,51,120,12800,51,39,120,12864,51,39,120,12928,51,51,120,12992,51,39,120,13056,51,39,120,13120,51,51,120,13184,51,46,120,13248,51,51,120,13312,51,39,120,13376,51,39,120,13440,51,51,120,13504,51,39,120,13568,51,39,120,13632,51,51,120,13696,51,46,120,13760,51,51,120,13824,51,50,120,13888,51,57,120,13952,51,62,120,14016,51,57,120,14080,51,65,120,14144,51,62,120,14208,51,57,120,14272,51,50,120,14336,51,50,120,14400,51,57,120,14464,51,62,120,14528,51,57,120,14592,51,65,120,14656,51,62,120,14720,51,57,120,14784,51,50,120,14848,51,50,120,14912,51,57,120,14976,51,62,120,15040,51,57,120,15104,51,66,120,15168,51,62,120,15232,51,57,120,15296,51,50,120,15360,51,66,120,15424,51,57,120,15488,51,62,120,15552,51,57,120,15616,51,66,120,15680,51,62,120,15744,51,57,120,15808,51,53,120,15872,51,51,120,15936,51,58,120,16000,51,63,120,16064,51,58,120,16128,51,67,120,16192,51,63,120,16256,51,58,120,16320,51,51,120,16384,51,51,120,16448,51,58,120,16512,51,63,120,16576,51,58,120,16640,51,67,120,16704,51,63,120,16768,51,58,120,16832,51,51,120,16896,51,51,120,16960,51,58,120,17024,51,63,120,17088,51,58,120,17152,51,67,120,17216,51,63,120,17280,51,58,120,17344,51,51,120,17408,51,67,120,17472,51,58,120,17536,51,63,120,17600,51,58,120,17664,51,67,120,17728,51,63,120,17792,51,51,120,17856,51,51,120,17920,51,50,120,17984,51,57,120,18048,51,62,120,18112,51,57,120,18176,51,65,120,18240,51,62,120,18304,51,57,120,18368,51,50,120,18432,51,50,120,18496,51,57,120,18560,51,62,120,18624,51,57,120,18688,51,65,120,18752,51,62,120,18816,51,57,120,18880,51,50,120,18944,51,50,120,19008,51,57,120,19072,51,62,120,19136,51,57,120,19200,51,66,120,19264,51,62,120,19328,51,57,120,19392,51,50,120,19456,51,66,120,19520,51,57,120,19584,51,62,120,19648,51,57,120,19712,51,66,120,19776,51,62,120,19840,51,57,120,19904,51,53,120,19968,51,51,120,20032,51,58,120,20096,51,63,120,20160,51,58,120,20224,51,67,120,20288,51,63,120,20352,51,58,120,20416,51,51,120,20480,51,51,120,20544,51,58,120,20608,51,63,120,20672,51,58,120,20736,51,67,120,20800,51,63,120,20864,51,58,120,20928,51,51,120,20992,51,51,120,21056,51,58,120,21120,51,63,120,21184,51,58,120,21248,51,67,120,21312,51,63,120,21376,51,58,120,21440,51,51,120,21504,51,67,120,21568,51,58,120,21632,51,63,120,21696,51,58,120,21760,51,67,120,21824,51,63,120,21888,51,51,120,21952,51,51,120,22016,1884,38,120],[0,30,42,77,128,30,42,77,256,30,42,77,384,30,42,77,512,30,42,77,640,30,42,77,768,30,42,77,896,30,42,77,1024,30,42,77,1152,30,42,77,1280,30,42,77,1408,30,42,77,1536,30,42,77,1664,30,42,77,1792,30,42,77,1920,30,42,77,2048,30,36,120,2048,30,42,86,2112,30,42,69,2176,30,42,86,2240,30,42,69,2304,30,36,120,2304,30,42,86,2368,30,42,69,2432,30,42,86,2496,30,42,69,2560,30,36,120,2560,30,42,86,2624,30,42,69,2688,30,42,86,2752,30,42,69,2816,30,36,120,2816,30,42,86,2880,30,42,69,2944,30,42,86,3008,30,42,69,3072,30,36,120,3072,30,42,86,3136,30,42,69,3200,30,42,86,3264,30,42,69,3328,30,36,120,3328,30,42,86,3392,30,42,69,3456,30,42,86,3520,30,42,69,3584,30,36,120,3584,30,42,86,3648,30,42,69,3712,30,42,86,3776,30,42,69,3840,30,36,120,3840,30,42,86,3904,30,42,69,3968,30,42,86,4032,30,42,69,4096,30,36,111,4096,30,42,77,4160,30,42,77,4224,30,36,111,4224,30,38,103,4224,30,42,77,4288,30,42,77,4352,30,36,111,4352,30,42,77,4416,30,42,77,4480,30,36,111,4480,30,38,103,4480,30,42,77,4544,30,42,77,4608,30,36,120,4608,30,38,64,4672,30,38,71,4736,30,38,78,4800,30,38,85,4864,30,38,91,4928,30,38,98,4992,30,38,105,5056,30,38,112,5120,30,36,120,5120,30,38,64,5152,30,38,68,5184,30,38,71,5216,30,38,74,5248,30,38,78,5280,30,38,81,5312,30,38,85,5344,30,38,88,5376,30,38,91,5408,30,38,95,5440,30,38,98,5472,30,38,102,5504,30,38,105,5536,30,38,108,5568,30,38,112,5600,30,38,115,5632,30,36,120,5632,30,42,81,5632,30,49,111,5696,30,42,64,5760,30,38,111,5760,30,42,81,5824,30,36,107,5824,30,42,64,5888,30,42,81,5952,30,36,107,5952,30,42,64,6016,30,38,111,6016,30,42,81,6080,30,46,64,6144,30,36,120,6144,30,42,81,6208,30,42,64,6272,30,38,111,6272,30,42,81,6336,30,36,107,6336,30,42,64,6400,30,42,81,6464,30,36,107,6464,30,42,64,6528,30,38,111,6528,30,42,81,6592,30,46,64,6656,30,36,120,6656,30,42,81,6720,30,42,64,6784,30,38,111,6784,30,42,81,6848,30,36,107,6848,30,42,64,6912,30,42,81,6976,30,36,107,6976,30,42,64,7040,30,38,111,7040,30,42,81,7104,30,46,64,7168,30,36,120,7168,30,42,81,7232,30,42,64,7296,30,38,111,7296,30,42,81,7360,30,36,107,7360,30,42,64,7424,30,42,81,7488,30,36,107,7488,30,42,64,7552,30,38,86,7552,30,42,81,7584,30,38,94,7616,30,38,103,7616,30,42,64,7648,30,38,111,7680,30,36,120,7680,30,42,81,7744,30,42,64,7808,30,38,111,7808,30,42,81,7872,30,36,107,7872,30,42,64,7936,30,42,81,8000,30,36,107,8000,30,42,64,8064,30,38,111,8064,30,42,81,8128,30,46,64,8192,30,36,120,8192,30,42,81,8256,30,42,64,8320,30,38,111,8320,30,42,81,8384,30,36,107,8384,30,42,64,8448,30,42,81,8512,30,36,107,8512,30,42,64,8576,30,38,111,8576,30,42,81,8640,30,46,64,8704,30,36,120,8704,30,42,81,8768,30,42,64,8832,30,38,111,8832,30,42,81,8896,30,36,107,8896,30,42,64,8960,30,42,81,9024,30,36,107,9024,30,42,64,9088,30,38,111,9088,30,42,81,9152,30,46,64,9216,30,36,120,9216,30,42,81,9280,30,42,64,9344,30,38,111,9344,30,42,81,9408,30,36,107,9408,30,42,64,9472,30,42,81,9536,30,36,107,9536,30,42,64,9600,30,38,86,9600,30,42,81,9632,30,38,94,9664,30,38,103,9664,30,42,64,9696,30,38,111,9728,30,36,120,9728,30,42,81,9728,30,49,111,9792,30,42,64,9856,30,38,111,9856,30,42,81,9920,30,36,107,9920,30,42,64,9984,30,42,81,10048,30,36,107,10048,30,42,64,10112,30,38,111,10112,30,42,81,10176,30,46,64,10240,30,36,120,10240,30,42,81,10304,30,42,64,10368,30,38,111,10368,30,42,81,10432,30,36,107,10432,30,42,64,10496,30,42,81,10560,30,36,107,10560,30,42,64,10624,30,38,111,10624,30,42,81,10688,30,46,64,10752,30,36,120,10752,30,42,81,10816,30,42,64,10880,30,38,111,10880,30,42,81,10944,30,36,107,10944,30,42,64,11008,30,42,81,11072,30,36,107,11072,30,42,64,11136,30,38,111,11136,30,42,81,11200,30,46,64,11264,30,36,120,11264,30,42,81,11328,30,42,64,11392,30,38,111,11392,30,42,81,11456,30,36,107,11456,30,42,64,11520,30,42,81,11584,30,36,107,11584,30,42,64,11648,30,38,86,11648,30,42,81,11680,30,38,94,11712,30,38,103,11712,30,42,64,11744,30,38,111,11776,30,36,120,11776,30,42,81,11840,30,42,64,11904,30,38,111,11904,30,42,81,11968,30,36,107,11968,30,42,64,12032,30,42,81,12096,30,36,107,12096,30,42,64,12160,30,38,111,12160,30,42,81,12224,30,46,64,12288,30,36,120,12288,30,42,81,12352,30,42,64,12416,30,38,111,12416,30,42,81,12480,30,36,107,12480,30,42,64,12544,30,42,81,12608,30,36,107,12608,30,42,64,12672,30,38,111,12672,30,42,81,12736,30,46,64,12800,30,36,120,12800,30,42,81,12864,30,42,64,12928,30,38,111,12928,30,42,81,12992,30,36,107,12992,30,42,64,13056,30,42,81,13120,30,36,107,13120,30,42,64,13184,30,38,111,13184,30,42,81,13248,30,46,64,13312,30,36,120,13312,30,38,64,13312,30,42,81,13344,30,38,68,13376,30,38,71,13376,30,42,64,13408,30,38,74,13440,30,38,78,13440,30,42,81,13472,30,38,81,13504,30,36,107,13504,30,38,85,13504,30,42,64,13536,30,38,88,13568,30,38,91,13568,30,42,81,13600,30,38,95,13632,30,36,107,13632,30,38,98,13632,30,42,64,13664,30,38,102,13696,30,38,105,13696,30,42,81,13728,30,38,108,13760,30,38,112,13760,30,42,64,13792,30,38,115,13824,30,36,120,13824,30,42,77,13824,30,49,120,13856,30,42,53,13888,30,42,64,13920,30,42,53,13952,30,38,115,13952,30,42,77,13984,30,42,53,14016,30,36,107,14016,30,42,64,14048,30,42,53,14080,30,42,77,14112,30,42,53,14144,30,36,107,14144,30,42,64,14176,30,42,53,14208,30,38,115,14208,30,42,77,14240,30,42,53,14272,30,42,64,14304,30,42,53,14336,30,36,120,14336,30,42,77,14368,30,42,53,14400,30,42,64,14432,30,42,53,14464,30,38,115,14464,30,42,77,14496,30,42,53,14528,30,36,107,14528,30,42,64,14560,30,42,53,14592,30,42,77,14624,30,42,53,14656,30,36,107,14656,30,42,64,14688,30,42,53,14720,30,38,115,14720,30,42,77,14752,30,42,53,14784,30,42,64,14816,30,42,53,14848,30,36,120,14848,30,42,77,14880,30,42,53,14912,30,42,64,14944,30,42,53,14976,30,38,115,14976,30,42,77,15008,30,42,53,15040,30,36,107,15040,30,42,64,15072,30,42,53,15104,30,42,77,15136,30,42,53,15168,30,36,107,15168,30,42,64,15200,30,42,53,15232,30,38,115,15232,30,42,77,15264,30,42,53,15296,30,42,64,15328,30,42,53,15360,30,36,120,15360,30,42,77,15392,30,42,53,15424,30,42,64,15456,30,42,53,15488,30,38,115,15488,30,42,77,15520,30,42,53,15552,30,36,107,15552,30,42,64,15584,30,42,53,15616,30,42,77,15648,30,42,53,15680,30,36,107,15680,30,42,64,15712,30,42,53,15744,30,38,115,15744,30,42,77,15776,30,42,53,15808,30,42,64,15840,30,42,53,15872,30,36,120,15872,30,42,77,15904,30,42,53,15936,30,42,64,15968,30,42,53,16000,30,38,115,16000,30,42,77,16032,30,42,53,16064,30,36,107,16064,30,42,64,16096,30,42,53,16128,30,42,77,16160,30,42,53,16192,30,36,107,16192,30,42,64,16224,30,42,53,16256,30,38,115,16256,30,42,77,16288,30,42,53,16320,30,42,64,16352,30,42,53,16384,30,36,120,16384,30,42,77,16416,30,42,53,16448,30,42,64,16480,30,42,53,16512,30,38,115,16512,30,42,77,16544,30,42,53,16576,30,36,107,16576,30,42,64,16608,30,42,53,16640,30,42,77,16672,30,42,53,16704,30,36,107,16704,30,42,64,16736,30,42,53,16768,30,38,115,16768,30,42,77,16800,30,42,53,16832,30,42,64,16864,30,42,53,16896,30,36,120,16896,30,42,77,16928,30,42,53,16960,30,42,64,16992,30,42,53,17024,30,38,115,17024,30,42,77,17056,30,42,53,17088,30,36,107,17088,30,42,64,17120,30,42,53,17152,30,42,77,17184,30,42,53,17216,30,36,107,17216,30,42,64,17248,30,42,53,17280,30,38,115,17280,30,42,77,17312,30,42,53,17344,30,42,64,17376,30,42,53,17408,30,36,120,17408,30,42,77,17440,30,42,53,17472,30,42,64,17504,30,42,53,17536,30,38,115,17536,30,42,77,17568,30,42,53,17600,30,36,107,17600,30,42,64,17632,30,42,53,17664,30,38,77,17696,30,38,81,17728,30,36,107,17728,30,38,84,17760,30,38,88,17792,30,38,92,17824,30,38,96,17856,30,38,99,17888,30,38,103,17920,30,36,120,17920,30,42,77,17920,30,49,120,17952,30,42,53,17984,30,42,64,18016,30,42,53,18048,30,38,115,18048,30,42,77,18080,30,42,53,18112,30,36,107,18112,30,42,64,18144,30,42,53,18176,30,42,77,18208,30,42,53,18240,30,36,107,18240,30,42,64,18272,30,42,53,18304,30,38,115,18304,30,42,77,18336,30,42,53,18368,30,42,64,18400,30,42,53,18432,30,36,120,18432,30,42,77,18464,30,42,53,18496,30,42,64,18528,30,42,53,18560,30,38,115,18560,30,42,77,18592,30,42,53,18624,30,36,107,18624,30,42,64,18656,30,42,53,18688,30,42,77,18720,30,42,53,18752,30,36,107,18752,30,42,64,18784,30,42,53,18816,30,38,115,18816,30,42,77,18848,30,42,53,18880,30,42,64,18912,30,42,53,18944,30,36,120,18944,30,42,77,18976,30,42,53,19008,30,42,64,19040,30,42,53,19072,30,38,115,19072,30,42,77,19104,30,42,53,19136,30,36,107,19136,30,42,64,19168,30,42,53,19200,30,42,77,19232,30,42,53,19264,30,36,107,19264,30,42,64,19296,30,42,53,19328,30,38,115,19328,30,42,77,19360,30,42,53,19392,30,42,64,19424,30,42,53,19456,30,36,120,19456,30,42,77,19488,30,42,53,19520,30,42,64,19552,30,42,53,19584,30,38,115,19584,30,42,77,19616,30,42,53,19648,30,36,107,19648,30,42,64,19680,30,42,53,19712,30,42,77,19744,30,42,53,19776,30,36,107,19776,30,42,64,19808,30,42,53,19840,30,38,77,19872,30,38,84,19904,30,38,92,19936,30,38,99,19968,30,36,120,19968,30,42,77,20000,30,42,53,20032,30,42,64,20064,30,42,53,20096,30,38,115,20096,30,42,77,20128,30,42,53,20160,30,36,107,20160,30,42,64,20192,30,42,53,20224,30,42,77,20256,30,42,53,20288,30,36,107,20288,30,42,64,20320,30,42,53,20352,30,38,115,20352,30,42,77,20384,30,42,53,20416,30,42,64,20448,30,42,53,20480,30,36,120,20480,30,42,77,20512,30,42,53,20544,30,42,64,20576,30,42,53,20608,30,38,115,20608,30,42,77,20640,30,42,53,20672,30,36,107,20672,30,42,64,20704,30,42,53,20736,30,42,77,20768,30,42,53,20800,30,36,107,20800,30,42,64,20832,30,42,53,20864,30,38,115,20864,30,42,77,20896,30,42,53,20928,30,42,64,20960,30,42,53,20992,30,36,120,20992,30,42,77,21024,30,42,53,21056,30,42,64,21088,30,42,53,21120,30,38,115,21120,30,42,77,21152,30,42,53,21184,30,36,107,21184,30,42,64,21216,30,42,53,21248,30,42,77,21280,30,42,53,21312,30,36,107,21312,30,42,64,21344,30,42,53,21376,30,38,115,21376,30,42,77,21408,30,42,53,21440,30,42,64,21472,30,42,53,21504,30,36,120,21504,30,42,77,21536,30,42,53,21568,30,42,64,21600,30,42,53,21632,30,38,115,21632,30,42,77,21664,30,42,53,21696,30,36,107,21696,30,42,64,21728,30,42,53,21760,30,42,77,21792,30,42,53,21824,30,36,107,21824,30,42,64,21856,30,42,53,21888,30,38,115,21888,30,42,77,21920,30,42,53,21952,30,42,64,21984,30,42,53,22016,30,36,120,22016,30,38,111,22016,30,49,120]]};
+
 // ===========================================================================
 // MUSIQUE ET BRUITAGES (tout est synthétisé dans le navigateur : aucun fichier à télécharger)
 //  - MUSIC : petit séquenceur (4 voix + batterie) qui joue des morceaux originaux écrits note par note
@@ -7832,8 +7853,8 @@ const SONGS = {
     drums: { k: 'x...x...x...x...', s: '....x.......x...', h: '..x...x...x...x.' },
     form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 4, lead: false, drums: 'none' }, { bars: 8 }],
   },
-  // DÉSERT : mode « phrygien dominant » sur ré, percussions sèches, bourdon
-  desert: {
+  // ancien morceau du désert (remplacé par le MIDI de Noah, gardé en secours)
+  desertOld: {
     bpm: 108, bassOct: 2, arpOct: 4, padOct: 3, lead: 'triangle', leadVol: 0.2, drone: true,
     chords: ['D', 'D', 'Eb', 'D', 'Cm', 'Cm', 'Eb', 'D'],
     bass: '1 . . . 1 . 8 . 1 . . . 5 . 8 .',
@@ -7852,6 +7873,8 @@ const SONGS = {
     form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 4, lead: false }, { bars: 8 }],
   },
 };
+if (typeof DUNE_MIDI !== 'undefined') SONGS.desert = { midi: DUNE_MIDI };
+else SONGS.desert = SONGS.desertOld;
 const JINGLES = {
   win: { bpm: 150, notes: 'C5 E5 G5 C6 - - E6 - - - - - - - - -', chord: [60, 64, 67, 72] },
   lose: { bpm: 90, notes: 'G4 - F4 - D4 - - - C4 - - - - - - -', chord: [48, 55, 58] },
@@ -7895,6 +7918,12 @@ const MUSIC = {
     const send = ctx.createGain();
     send.gain.value = 0.35;
     bus.connect(send).connect(AUDIO.revIn);
+    if (song.midi) {
+      const M = song.midi;
+      this.cur = { id: this.want, song, bus, midi: M, t0: ctx.currentTime + 0.1, spt: 60 / M.bpm / M.tpb, ptr: M.tracks.map(() => 0) };
+      this.tempoMul = 1;
+      return;
+    }
     // section, mesure dans la section, pas
     const plan = [];
     song.form.forEach((f) => { for (let i = 0; i < f.bars; i++) plan.push(f); });
@@ -7908,6 +7937,7 @@ const MUSIC = {
     if (this.want && !this.cur) this.start();
     const c = this.cur;
     if (!c) return;
+    if (c.midi) return this.tickMidi(c, ctx);
     const song = c.song;
     const stepDur = 60 / (song.bpm * this.tempoMul) / 4;
     if (c.t < ctx.currentTime - 0.3) c.t = ctx.currentTime + 0.05; // l'onglet était en pause
@@ -7920,6 +7950,59 @@ const MUSIC = {
         c.bar = (c.bar + 1) % c.plan.length;
       }
     }
+  },
+  // lecture d'un MIDI : on programme les notes qui commencent dans les 150 ms à venir, puis on reboucle
+  tickMidi(c, ctx) {
+    const M = c.midi;
+    const spt = 60 / (M.bpm * this.tempoMul) / M.tpb;
+    if (spt !== c.spt) {
+      // changement de tempo (mort subite) : on garde la position actuelle dans le morceau
+      const tick = (ctx.currentTime - c.t0) / c.spt;
+      c.t0 = ctx.currentTime - tick * spt;
+      c.spt = spt;
+    }
+    if (ctx.currentTime - c.t0 > M.loop * spt + 1) c.t0 = ctx.currentTime + 0.05; // l'onglet était en pause
+    const horizon = ctx.currentTime + 0.15;
+    const end = M.loopEnd || M.loop, start = M.loopStart || 0;
+    for (;;) {
+      let any = false;
+      M.tracks.forEach((tr, ti) => {
+        while (c.ptr[ti] < tr.length && tr[c.ptr[ti]] < end) {
+          const i = c.ptr[ti];
+          const t = c.t0 + tr[i] * spt;
+          if (t > horizon) break;
+          if (t >= ctx.currentTime - 0.05) this.midiNote(M.names[ti], tr[i + 2], t, Math.min(tr[i + 1], end - tr[i]) * spt, tr[i + 3] / 127, c.bus);
+          c.ptr[ti] += 4;
+          any = true;
+        }
+      });
+      // fin de la boucle : on repart au début du thème (l'intro ne se joue qu'une fois)
+      if (c.t0 + end * spt <= horizon) {
+        c.t0 += (end - start) * spt;
+        c.ptr = M.tracks.map((tr) => {
+          let i = 0;
+          while (i < tr.length && tr[i] < start) i += 4;
+          return i;
+        });
+        continue;
+      }
+      if (!any) break;
+    }
+  },
+  midiNote(kind, note, t, dur, v, bus) {
+    if (kind === 'drums') {
+      if (note === 36) this.drum('kick', t, bus);
+      else if (note === 38 || note === 40) this.drum('snare', t, bus);
+      else if (note === 42 || note === 44) this.drum('hat', t, bus, 0.5 + v);
+      else if (note === 46) this.drum('ohat', t, bus);
+      else if (note === 49 || note === 57) this.drum('crash', t, bus);
+      else this.drum('tek', t, bus);
+      return;
+    }
+    const hz = hzOf(note);
+    if (kind === 'lead') this.voice('lead', hz, t, Math.max(dur, 0.05), bus, 1, { lead: 'square', leadVol: 0.05 + 0.07 * v });
+    else if (kind === 'arp') this.voice('arp', hz, t, Math.max(dur, 0.04), bus, 0.6 + 1.6 * v);
+    else this.voice('bass', hz, t, Math.max(dur, 0.06), bus);
   },
   stepAt(c, t, sd) {
     const song = c.song, sec = c.plan[c.bar], s = c.step;
@@ -8010,6 +8093,8 @@ const MUSIC = {
     if (kind === 'snare') { f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; dur = 0.16; vol = 0.2; }
     else if (kind === 'hat') { f.type = 'highpass'; f.frequency.value = 7500; dur = 0.035; vol = 0.05 * (k || 1); }
     else if (kind === 'tek') { f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 3; dur = 0.05; vol = 0.16; }
+    else if (kind === 'ohat') { f.type = 'highpass'; f.frequency.value = 6500; dur = 0.22; vol = 0.06; }
+    else if (kind === 'crash') { f.type = 'highpass'; f.frequency.value = 4000; dur = 1.1; vol = 0.09; }
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g);

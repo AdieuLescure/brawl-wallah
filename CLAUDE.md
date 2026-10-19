@@ -33,16 +33,20 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
     projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
-  - `kits.js` : commandes À LA BRAWLHALLA. Deux boutons d'attaque : LÉGER (`nLight`/`sLight`/`dLight` au sol,
-    `nAir`/`sAir`/`dAir` en l'air) et LOURD (`nSig`/`sSig`/`dSig` au sol ; en l'air `rec` = coup de retour, `gp` = LOURD+bas).
-    Haut = neutre, plus de coup arrière (on se tourne du côté poussé). Coups légers : `combo` (avantage garanti en ms) et
-    `pop` (petit envol) pour les vrais combos (léger bas -> saut -> léger en l'air). Ce fichier remappe les anciens coups.
+  - `kits.js` : commandes À LA BRAWLHALLA. Deux boutons d'attaque, trois directions (AVANT/sans direction, HAUT, BAS).
+    LÉGER : `sLight`/`uLight`/`dLight` au sol, `sAir`/`uAir`/`dAir` en l'air. LOURD : `sSig`/`uSig`/`dSig` au sol ;
+    en l'air seulement `rec` (LOURD + haut/avant : coup vers le haut = retour) et `gp` (LOURD + bas : coup de pied plongeant).
+    Pas de coup arrière (on se tourne du côté poussé). COMBOS : un léger qui touche (`atk.landed`) peut être annulé tout
+    de suite par un autre léger ou par un lourd (finisseur), 4 annulations max ; `combo` (avantage garanti en ms) et
+    `pop` (petit envol). Ce fichier remappe les anciens coups (`neutral`, `forward`, `up`, `down`, `back`, `nAir`…).
   - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
     aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
     temps (`run0, run2, run1, run3`). Ne touche jamais la simulation.
   - `extras.js` : vibration, indicateurs hors écran, réglages, entraînement, bouton quitter
-  - `audio.js` : son 100 % synthétisé (aucun fichier). `SFX.play(nom)` = bruitages en couches + réverbération ;
+  - `music_dune.js` : la musique du désert, convertie depuis le MIDI de Noah (`DUNE_MIDI`, 4 pistes : lead, arp,
+    basse, batterie). Intro (mesures 1-11) une fois, puis boucle des mesures 12-43 (`loopStart`/`loopEnd`).
+  - `audio.js` : son 100 % synthétisé (aucun fichier ; le désert joue `DUNE_MIDI` via `tickMidi`). `SFX.play(nom)` = bruitages en couches + réverbération ;
     `MUSIC` = séquenceur avec 3 morceaux originaux (`menu`, `night`, `desert`, notes écrites dans `SONGS`), jingles
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
@@ -61,10 +65,11 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - La simulation doit rester **déterministe** (en ligne, les deux téléphones rejouent la même partie) :
   pas de `Math.random()` ni de temps réel dans la logique, seulement pour les effets visuels et les bots hors ligne.
   Tout état de jeu d'un joueur doit être un champ simple (nombre, booléen, texte) pour être sauvegardé par `snapshot()`.
-- Défense façon Brawlhalla : pas de garde. Esquive au sol sur place (recharge 1 s), ESQUIVE + côté au sol = SPRINT
-  (sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
+- Défense façon Brawlhalla : pas de garde. Esquive au sol sur place (recharge 1 s), ESQUIVE + côté au sol = SPRINT (1,9 × la vitesse,
+  sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
   après un coup qui touche (2 au sol, 1 en l'air).
-- 3 sauts (sol + 2 en l'air). Coup de retour = LOURD en l'air, une fois par saut, SANS chute impuissante.
+- 3 sauts (sol + 2 en l'air). Coup de retour = LOURD (+ haut) en l'air, une fois par saut, SANS chute impuissante ;
+  LOURD + bas en l'air = coup de pied plongeant.
   Rebord automatique. Être touché rend un saut. On regarde du côté où l'on pousse le joystick.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
   et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`

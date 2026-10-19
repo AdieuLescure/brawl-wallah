@@ -199,7 +199,7 @@ const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esqu
 const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
-const HELP_TXT = "LEGER = COUPS RAPIDES QUI S'ENCHAINENT\nLOURD = GROS COUPS DU PERSO\n(+ JOYSTICK : COTE OU BAS)\n\nEN L'AIR : LOURD = COUP DE RETOUR\nLOURD + BAS = PIQUE\n\nSAUT x3 (SOL + 2 EN L'AIR)\nESQUIVE + COTE AU SOL = SPRINT\nAPRES UN COUP QUI TOUCHE :\nESQUIVE = POURSUITE\n\nCOMBO : LEGER BAS, SAUT, LEGER";
+const HELP_TXT = "LEGER / LOURD + JOYSTICK :\nAVANT, HAUT OU BAS\n\nEN L'AIR : LOURD + HAUT = COUP DE RETOUR\nLOURD + BAS = COUP DE PIED PLONGEANT\n\nCOMBO : DES LEGERS QUI TOUCHENT,\nPUIS UN LOURD POUR FINIR\n(LEGER BAS, SAUT, LEGER EN L'AIR...)\n\nSAUT x3 - ESQUIVE + COTE = SPRINT\nAPRES UN COUP : ESQUIVE = POURSUITE";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -1330,12 +1330,18 @@ class GameScene extends Phaser.Scene {
     return i === 0 ? this.p1 : this.p2;
   }
 
+  // trois directions : avant ('s', aussi sans direction), haut ('u'), bas ('d')
   aimOf(pl, inp) {
     const { sx, sy } = inp;
-    if (hyp(sx, sy) < 0.4) return 'n';
-    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'n'; // haut = neutre (comme Brawlhalla)
+    if (hyp(sx, sy) < 0.4) return 's';
+    if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'u';
     if (sy > 0.55 && sy >= Math.abs(sx) * 0.8) return 'd';
     return 's';
+  }
+
+  moveKey(aim, grounded, heavy) {
+    if (heavy) return grounded ? { u: 'uSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
+    return grounded ? { u: 'uLight', s: 'sLight', d: 'dLight' }[aim] : { u: 'uAir', s: 'sAir', d: 'dAir' }[aim];
   }
 
   step(pl, other, now, dt, inp) {
@@ -1425,7 +1431,7 @@ class GameScene extends Phaser.Scene {
           pl.dashCd = now + 350;
           pl.rollDir = Math.sign(inp.sx);
           pl.facing = pl.rollDir;
-          pl.rollUntil = now + 170;
+          pl.rollUntil = now + 210;
           pl.sprintDir = pl.rollDir;
           this.dust(s.x, b.bottom, -pl.rollDir, 4, def.fx);
           this.sfx('dodge');
@@ -1464,7 +1470,7 @@ class GameScene extends Phaser.Scene {
         const charging = !!(pl.atk && pl.atk.charging);
         const moveLocked = (pl.atk && !charging && now < pl.atk.moveLock) || (spotLock && grounded);
         if (rolling && !pl.atk) {
-          s.setVelocityX(pl.rollDir * def.speed * 2.6);
+          s.setVelocityX(pl.rollDir * def.speed * 1.9);
         } else if (!moveLocked) {
           let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1) * (pl.sprintDir ? 1.35 : 1);
           if (charging) spd *= pl.atk.m.walk || 0;
@@ -1500,14 +1506,21 @@ class GameScene extends Phaser.Scene {
         const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now;
         if ((wantL || wantH) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0)) && !pl.helpless) {
           const a0 = pl.atk;
-          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && this.aimOf(pl, inp) === 'n') {
+          const aim = this.aimOf(pl, inp);
+          // COMBO : un coup léger qui a touché peut être coupé par un autre léger (différent) ou par un lourd
+          const nextKey = this.moveKey(aim, grounded, wantH);
+          const cancel = a0 && a0.landed && a0.m.light && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 4 && (wantH || nextKey !== a0.key) && pl.def.moves[nextKey];
+          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && aim === 's') {
             pl.bufAtk = 0;
             this.startChain(pl, now);
-          } else if (now > pl.cdUntil) {
+          } else if (now > pl.cdUntil || cancel) {
             pl.bufAtk = pl.bufHeavy = 0;
             if (rolling) pl.rollUntil = now; // une attaque coupe le sprint
             if (spotLock) pl.dodgeLock = now; // ... et l'esquive de poursuite
-            this.startAttack(pl, this.aimOf(pl, inp), grounded, now, inp, wantH);
+            const n0 = cancel ? (a0.cancels || 0) + 1 : 0;
+            if (cancel) { pl.atk = null; pl.cdUntil = now; }
+            this.startAttack(pl, aim, grounded, now, inp, wantH);
+            if (pl.atk && cancel) pl.atk.cancels = n0;
           }
         }
       } else {
@@ -1599,6 +1612,7 @@ class GameScene extends Phaser.Scene {
         const vGround = vb.blocked.down || vb.touching.down;
         if (now >= other.invulnUntil && other.stocks > 0 && !other.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
           pl.atk.done = true;
+          pl.atk.landed = now;
           const dir = Math.sign(other.sprite.x - s.x) || pl.facing;
           if (m.type === 'grab') this.startGrab(pl, other, m, now);
           else this.applyHit(pl, other, m, now, dir, null, pl.atk.end - now);
@@ -1642,9 +1656,7 @@ class GameScene extends Phaser.Scene {
   // aim : 'n' (neutre ou haut), 's' (côté), 'd' (bas) ; heavy : bouton LOURD
   startAttack(pl, aim, grounded, now, inp, heavy) {
     const mv = pl.def.moves;
-    let key;
-    if (heavy) key = grounded ? { n: 'nSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
-    else key = grounded ? { n: 'nLight', s: 'sLight', d: 'dLight' }[aim] : { n: 'nAir', s: 'sAir', d: 'dAir' }[aim];
+    const key = this.moveKey(aim, grounded, heavy);
     let m = mv[key];
     if (!m) return;
     // coup de côté : on se tourne d'abord du côté poussé
@@ -2048,7 +2060,7 @@ class GameScene extends Phaser.Scene {
   }
 
   bookLand(pl, tgt, d, now) {
-    const sp = (pl.def.moves.dSig || pl.def.moves.down).book;
+    const sp = Object.values(pl.def.moves).find((m) => m && m.book).book;
     if (this.over || pl.stocks <= 0 || !sp) return;
     const x = d.tx;
     const y = L.baseY - 40 + sp.oy;
