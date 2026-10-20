@@ -121,6 +121,11 @@
         const m = atk.m;
         const hitAt = atk.hitAt, act = m.active || 120;
         if (atk.charging) { tsx = 1.05; tsy = 0.96; tang = -pl.facing * 4; }
+        else if (atk.chg && now < hitAt) {
+          // lourd en charge : ramassé, et il tremble de plus en plus
+          tsx = 1.1; tsy = 0.9; tang = -pl.facing * 8; tox = -pl.facing * 4;
+          a.shake = Math.max(a.shake, 0.03 * Math.min(atk.chg / (m.chargeMax || 500), 1) + 0.01);
+        }
         else if (now < hitAt) {
           // préparation : on se ramasse et on recule le buste
           const k = Math.min((now - atk.start) / Math.max(hitAt - atk.start, 1), 1);

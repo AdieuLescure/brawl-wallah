@@ -16,20 +16,20 @@ const NULLOBJ = new Proxy(function () {}, {
 });
 
 // Etat d'un joueur : tous ses champs simples (nombres, booléens, textes) sont sauvegardés, sauf ceux-ci
-const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff']);
+const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff', 'markImg', 'heatFx']);
 const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string';
 
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
 function packInput(i) {
   const q = (v) => Math.max(-127, Math.min(127, Math.round(v * 127))) + 127;
-  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0) | (i.heavy ? 1 << 20 : 0);
+  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0) | (i.heavy ? 1 << 20 : 0) | (i.special ? 1 << 21 : 0);
 }
 function unpackInput(v) {
-  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)) };
+  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)), special: !!(v & (1 << 21)) };
 }
 const NEUTRAL_IN = packInput({});
 // pour prédire : on garde la direction et les boutons maintenus, jamais les « appuis » ponctuels
-const predictFrom = (v) => v & ~((1 << 16) | (1 << 17) | (1 << 20));
+const predictFrom = (v) => v & ~((1 << 16) | (1 << 17) | (1 << 20) | (1 << 21));
 
 function hashStr(s) {
   let h = 2166136261;
@@ -128,7 +128,7 @@ Object.assign(GameScene.prototype, {
     if (sp.kind === 'hook') img.setAngle(p.f * 90);
     else if (sp.kind === 'eagle') img.setAngle(-90).setDepth(27);
     else if (sp.kind === 'ball') img.setDepth(25);
-    else if (sp.kind === 'hermine') img.setOrigin(0.5, 1).setScale(sp.s, sp.s);
+    else if (sp.kind === 'hermine' || sp.kind === 'wall') img.setOrigin(0.5, 1).setScale(sp.s, sp.s);
     else if (sp.kind === 'corgi') img.setFlipX(p.f < 0);
     else if (sp.kind === 'book') img.setDepth(26).setAngle(-12);
     return img;
@@ -215,8 +215,8 @@ Object.assign(GameScene.prototype, {
   },
 
   sampleLocal() {
-    const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, hold: this.btn.heavy.id !== null, block: this.btn.block.id !== null };
-    this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.block = false;
+    const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, special: this.queue.special, hold: this.btn.heavy.id !== null, block: this.btn.block.id !== null };
+    this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.special = this.queue.block = false;
     return packInput(inp);
   },
 

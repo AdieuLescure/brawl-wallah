@@ -56,6 +56,41 @@ PRE = {
                           fid=((9, -6), (14, 1)), nL=((-3, 8), (-5.5, 14)), fL=((5, 7), (7, 14))),
     },
 }
+# coups de la refonte du combat (une posture par coup important)
+MOVES = {
+    'toro': {
+        # DIRECT : grand coup de poing en avançant
+        'cross': dict(P=(24, 43), lean=20, hd=(2, 0), expr='shout', swing=-25, flow=2, nA=((13, 0), (30, -1)), fA=((-3, 8), (1, 3)), fFist='U',
+                      nL=((-8, 5), (-15, 11)), fL=((10, 3), (14, 11))),
+        # CHARGE DU TAUREAU : tête baissée, épaule en avant
+        'charge': dict(P=(26, 45), lean=32, tilt=18, hd=(3, 2), expr='shout', swing=-35, flow=3, nA=((7, 5), (14, 3)), fA=((3, 8), (9, 6)), nFist='R', fFist='R',
+                       nL=((-9, 4), (-17, 8)), fL=((10, 1), (15, 9))),
+    },
+    'deadlulu': {
+        # COUP DE MANCHE : il tient la guitare par la caisse et pique avec le manche
+        'neck': dict(P=(25, 42), lean=16, hd=(2, 0), expr='shout', nA=((8, 4), (14, 5)), fA=((7, 5), (13, 6)), nFist='R', fFist='R',
+                     gtr=((40, 0), (15, 4)), nL=((-7, 6), (-12, 13)), fL=((8, 5), (11, 13))),
+        # POWER CHORD : guitare plantée dans le sol devant lui
+        'chord': dict(P=(27, 45), lean=20, hd=(2, 1), expr='shout', flow=2, nA=((6, 6), (11, 11)), fA=((5, 7), (10, 12)), nFist='D', fFist='D',
+                      gtr=((12, 9), (18, 30)), nL=((-6, 5), (-12, 11)), fL=((8, 3), (11, 11))),
+    },
+    'denodoom': {
+        # FENTE : escrime, bras armé tendu, jambe arrière allongée
+        'lunge': dict(P=(24, 45), lean=18, hd=(2, 1), expr='shout', swing=30, nA=((12, 1), (25, 0)), fA=((-6, 4), (-11, -3)), fFist='U', saber=0,
+                      nL=((-10, 4), (-19, 9)), fL=((11, 2), (15, 11))),
+        # BALAYAGE AU SABRE : accroupi, lame au ras du sol
+        'sweepSaber': dict(P=(27, 48), lean=16, hd=(1, 0), expr='shout', swing=30, nA=((9, 6), (17, 11)), fA=((3, 7), (7, 12)), saber=15, fFist='D',
+                           nL=((-5, 4), (-12, 6)), fL=((9, 2), (13, 9))),
+        # SABRE MONTANT : la lame part vers le ciel
+        'saberUp': dict(P=(28, 40), lean=-8, tilt=-6, expr='shout', swing=20, nA=((8, -3), (13, -12)), fA=((3, 8), (7, 4)), saber=-80,
+                        nL=((-3, 8), (-5, 15)), fL=((6, 5), (9, 12))),
+    },
+    'adieulescure': {
+        # JONGLE : le ballon remonte sur le cou-de-pied
+        'juggle': dict(P=(28, 40), lean=-6, tilt=-4, expr='shout', nA=((-5, 6), (-9, 2)), fA=((5, 6), (10, 3)), nFist='L',
+                       nL=((-2, 8), (-4, 15)), fL=((8, -2), (12, -9)), fRot=-70),
+    },
+}
 # même allure que la garde pour chaque perso (cape, cheveux, ceinture : valeurs neutres)
 EXTRA_KEYS = {'toro': dict(swing=-15, flow=1), 'denodoom': dict(swing=20), 'deadlulu': dict(flow=1), 'adieulescure': {}}
 
@@ -65,4 +100,5 @@ def extra_for(cid):
     for n, d in COMMON.items():
         out[n] = dict(EXTRA_KEYS.get(cid, {}), **d)
     out.update(PRE.get(cid, {}))
+    out.update(MOVES.get(cid, {}))
     return out

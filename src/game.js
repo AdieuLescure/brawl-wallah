@@ -199,7 +199,7 @@ const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esqu
 const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
-const HELP_TXT = "LEGER / LOURD + JOYSTICK :\nAVANT, HAUT OU BAS\n\nEN L'AIR : LOURD + HAUT = COUP DE RETOUR\nLOURD + BAS = COUP DE PIED PLONGEANT\n\nCOMBO : DES LEGERS QUI TOUCHENT,\nPUIS UN LOURD POUR FINIR\n(LEGER BAS, SAUT, LEGER EN L'AIR...)\n\nSAUT x3 - ESQUIVE + COTE = SPRINT\nAPRES UN COUP : ESQUIVE = POURSUITE";
+const HELP_TXT = "LEGER / LOURD / SPECIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLEGER SANS DIRECTION x3 = ENCHAINEMENT\nUN LEGER QUI TOUCHE SE COUPE EN\nLOURD, SPECIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGE\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + COTE = SPRINT";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -522,6 +522,9 @@ class GameScene extends Phaser.Scene {
     circleTex(this, 'btnJump', 24, 'rgba(76,201,240,0.35)', 'rgba(255,255,255,0.8)', 2);
     iconTex(this, 'icoAtk', ['....X....', '.X..X..X.', '..X.X.X..', '...XXX...', 'XXXXXXXXX', '...XXX...', '..X.X.X..', '.X..X..X.', '....X....'], '#ffffff');
     iconTex(this, 'icoJump', ['....X....', '...XXX...', '..XXXXX..', '.XXXXXXX.', '....X....', '....X....', '....X....', '....X....', '....X....'], '#ffffff');
+    // bouton SPÉCIAL (violet) et son icône (étincelle)
+    circleTex(this, 'btnSp', 24, 'rgba(160,110,255,0.38)', 'rgba(255,255,255,0.8)', 2);
+    iconTex(this, 'icoSp', ['....X....', '....X....', '...XXX...', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '..XX.XX..', '.XX...XX.', '.X.....X.'], '#ffffff');
     iconTex(this, 'icoFs', ['XXX...XXX', 'X.......X', 'X.......X', '.........', '.........', '.........', 'X.......X', 'X.......X', 'XXX...XXX'], '#ffffff');
 
     // Effets
@@ -829,6 +832,16 @@ class GameScene extends Phaser.Scene {
       ledgeInvUsed: false,
       bufAtk: 0,
       bufHeavy: 0,
+      bufSp: 0,
+      gcUntil: 0,
+      heat: 0,
+      markUntil: 0,
+      sti: 0,
+      st0: '', st1: '', st2: '', st3: '', st4: '',
+      chargeUsed: false,
+      hornUsed: false,
+      blinkUsed: false,
+      leapUsed: false,
       dashCd: 0,
       sprintDir: 0,
       chaseLeft: 0,
@@ -891,7 +904,7 @@ class GameScene extends Phaser.Scene {
       const gfg = this.add.rectangle(gx, gy, gw, 8 * k, 0x7df9ff).setOrigin(0, 0.5).setDepth(51);
       const air = this.add.rectangle(align === 'left' ? gx + gw + 10 * k : gx - 10 * k, gy, 8 * k, 8 * k, 0xffe9a8).setDepth(51);
       let rfg = null;
-      if (pl.char === 'nini') {
+      if (pl.char === 'nini' || pl.def.heat) {
         const ry = gy + 14 * k;
         this.add.rectangle(gx, ry, gw, 8 * k, 0x000000, 0.55).setOrigin(0, 0.5).setDepth(50).setStrokeStyle(2, 0xffffff, 0.5);
         rfg = this.add.rectangle(gx, ry, 1, 8 * k, 0xff4d8d).setOrigin(0, 0.5).setDepth(51);
@@ -924,13 +937,27 @@ class GameScene extends Phaser.Scene {
       pl.hud.gfg.width = Math.max(pl.hud.gw * gk, 1);
       pl.hud.gfg.setFillStyle(gk >= 1 ? 0x7df9ff : 0x5b6b8c);
       pl.hud.air.setFillStyle(pl.airDodged ? 0x3a3f5c : 0xffe9a8);
-      if (pl.hud.rfg) {
+      if (pl.hud.rfg && pl.def.heat) {
+        const hk = Math.min((pl.heat || 0) / 100, 1);
+        pl.hud.rfg.width = Math.max(pl.hud.gw * hk, 1);
+        pl.hud.rfg.setFillStyle(hk >= 1 ? (Math.floor(now / 120) % 2 ? 0xffd166 : 0xff5a1f) : hk >= 0.25 ? 0xff7b00 : 0x8a4a20);
+      } else if (pl.hud.rfg) {
         const raging = now < pl.rageUntil;
         const rk = raging ? (pl.rageUntil - now) / RAGE_MS : Math.min(pl.rage / RAGE_MAX, 1);
         pl.hud.rfg.width = Math.max(pl.hud.gw * rk, 1);
         pl.hud.rfg.setFillStyle(raging ? (Math.floor(now / 100) % 2 ? 0xff2b2b : 0xffd166) : rk > 0.75 ? 0xff7a45 : 0xff4d8d);
       }
     });
+    // points des spéciales (joueur local) : allumés = prête
+    const me = this.p1 && this.p1.human ? this.p1 : this.p2 && this.p2.human ? this.p2 : null;
+    if (this.spDots && me) {
+      for (const { k, d } of this.spDots) {
+        const m = me.def.moves[k];
+        if (!m) { d.setVisible(false); continue; }
+        const ready = !(m.cd && now < (me.moveCd[m.cdKey || k] || 0)) && !(m.type === 'burst' && (me.heat || 0) < (m.minHeat || 25));
+        d.setVisible(true).setFillStyle(ready ? 0xd8c4ff : 0x3a3f5c);
+      }
+    }
     if (this.timerTxt) {
       if (this.sudden) this.timerTxt.setText('MORT SUBITE').setColor(Math.floor(now / 250) % 2 ? '#ff5a5a' : '#ffffff');
       else if (this.timeLimit) {
@@ -1042,7 +1069,7 @@ class GameScene extends Phaser.Scene {
       const helpY = ty + roleY + (portrait ? (compact ? 28 : 42) : 32);
       const nl = def.help.length;
       let fs;
-      if (portrait) fs = Math.max(8, Math.min(compact ? 12 : 15, Math.floor((ty + ch - 8 - helpY + (cy - ch / 2 - (ty - 14)) * 0) / (nl * 1.85)), Math.floor((cw - (tx - (cx - cw / 2)) - 12) / maxLen)));
+      if (portrait) fs = Math.max(8, Math.min(compact ? 12 : 15, Math.floor((ty + ch - 14 - helpY) / (nl * 2.0)), Math.floor((cw - (tx - (cx - cw / 2)) - 12) / maxLen)));
       else fs = Math.max(6, Math.min(10, Math.floor((cw - 28) / maxLen)));
       const help = this.add
         .text(tx, helpY, def.help.join('\n'), { fontFamily: FONT, fontSize: fs + 'px', color: '#cfd3ff', lineSpacing: Math.round(fs * 0.65) })
@@ -1090,13 +1117,24 @@ class GameScene extends Phaser.Scene {
       this.ctrlObjs.push(img, this.add.image(x, y, ico).setScale(PX * z).setAlpha(0.95).setDepth(D + 1));
       return { key, x, y, r, img, id: null };
     };
-    // 4 boutons comme Brawlhalla : LÉGER (le plus gros, sous le pouce), LOURD, SAUT, ESQUIVE
+    // 5 boutons : LÉGER (le plus gros, sous le pouce), LOURD, SPÉCIAL, SAUT, ESQUIVE
+    const P = L.portrait;
+    const at = (lx, ly, px, py) => (P ? [this.W - px * z, this.H - py * z] : [this.W - lx * z, this.H - ly * z]);
     this.btn = {
-      attack: mkBtn('attack', 'btnAtk', 'icoAtk', this.W - 140 * z, this.H - 150 * z, 84),
-      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy', this.W - 330 * z, this.H - 105 * z, 72),
-      jump: mkBtn('jump', 'btnJump', 'icoJump', this.W - 125 * z, this.H - 335 * z, 64),
-      block: mkBtn('block', 'btnBlk', 'icoBlk', this.W - 295 * z, this.H - 280 * z, 60),
+      attack: mkBtn('attack', 'btnAtk', 'icoAtk', ...at(150, 150, 140, 190), 80),
+      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy', ...at(335, 108, 300, 118), 66),
+      special: mkBtn('special', 'btnSp', 'icoSp', ...at(312, 282, 290, 290), 58),
+      jump: mkBtn('jump', 'btnJump', 'icoJump', ...at(132, 338, 128, 370), 62),
+      block: mkBtn('block', 'btnBlk', 'icoBlk', ...at(490, 132, 268, 450), 56),
     };
+    // 3 points autour du bouton SPÉCIAL : haut, côté, bas (allumés = capacité prête)
+    const sb = this.btn.special;
+    const dr = sb.r + 12;
+    this.spDots = [['uS', 0, -dr], ['nS', SETTINGS.flip ? dr : -dr, 0], ['dS', 0, dr]].map(([k, dx, dy]) => {
+      const d = this.add.circle(sb.x + dx, sb.y + dy, 8 * z, 0x3a3f5c).setStrokeStyle(2, 0x000000, 0.6).setDepth(D + 1);
+      this.ctrlObjs.push(d);
+      return { k, d };
+    });
     this.fsBtn = { x: this.W / 2, y: 40, r: 34 };
     this.ctrlObjs.push(this.add.image(this.fsBtn.x, this.fsBtn.y, 'icoFs').setScale(3).setAlpha(0.6).setDepth(D));
     if (this.buildQuitBtn) this.buildQuitBtn(D);
@@ -1105,7 +1143,7 @@ class GameScene extends Phaser.Scene {
   setupInput() {
     this.input.addPointer(3);
     this.stick = { id: null, ox: 0, oy: 0, sx: 0, sy: 0 };
-    this.queue = { jump: false, attack: false, heavy: false };
+    this.queue = { jump: false, attack: false, heavy: false, special: false };
 
     this.input.on('pointerdown', (p) => {
       if (this.state === 'lobby' || this.state === 'menu' || this.state === 'story') {
@@ -1279,8 +1317,8 @@ class GameScene extends Phaser.Scene {
   inputFor(pl, other, i, now) {
     if (this.netInput) return this.netInput(i, now);
     if (i === 0 && !this.autoP1) {
-      const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, hold: this.btn.heavy.id !== null || !!this.forceHold, block: this.btn.block.id !== null };
-      this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.block = false;
+      const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, special: this.queue.special, hold: this.btn.heavy.id !== null || !!this.forceHold, block: this.btn.block.id !== null };
+      this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.special = this.queue.block = false;
       return inp;
     }
     if (this.training && i === 1) return this.dummyInput(pl, other, now);
@@ -1321,6 +1359,10 @@ class GameScene extends Phaser.Scene {
       if (pl.atk && pl.atk.id === d.aid) this.niniSkillFire(pl, pl.atk.m, d.key, now);
     } else if (t.kind === 'book') {
       this.bookLand(pl, this.pl(1 - d.pi), d, now);
+    } else if (t.kind === 'lunge') {
+      if (pl.atk && pl.atk.id === d.aid) pl.sprite.setVelocityX(pl.facing * pl.atk.m.lunge);
+    } else if (t.kind === 'blink') {
+      if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doBlink(pl, now);
     } else if (t.kind === 'rewind') {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doRewind(pl, now);
     }
@@ -1330,18 +1372,26 @@ class GameScene extends Phaser.Scene {
     return i === 0 ? this.p1 : this.p2;
   }
 
-  // trois directions : avant ('s', aussi sans direction), haut ('u'), bas ('d')
+  // directions : neutre ('n', doigt au centre), avant ('s'), haut ('u'), bas ('d')
+  // haut / bas seulement si on pousse franchement : une diagonale reste « avant »
   aimOf(pl, inp) {
-    const { sx, sy } = inp;
-    if (hyp(sx, sy) < 0.4) return 's';
+    const sx = inp.sx || 0, sy = inp.sy || 0;
+    if (hyp(sx, sy) < 0.4) return 'n';
     if (sy < -0.55 && -sy >= Math.abs(sx) * 0.8) return 'u';
     if (sy > 0.55 && sy >= Math.abs(sx) * 0.8) return 'd';
     return 's';
   }
 
-  moveKey(aim, grounded, heavy) {
-    if (heavy) return grounded ? { u: 'uSig', s: 'sSig', d: 'dSig' }[aim] : aim === 'd' ? 'gp' : 'rec';
-    return grounded ? { u: 'uLight', s: 'sLight', d: 'dLight' }[aim] : { u: 'uAir', s: 'sAir', d: 'dAir' }[aim];
+  // Grammaire commune (voir kits.js) : kind 'L' (léger), 'H' (lourd), 'S' (spéciale)
+  //  au sol  : nL (enchaînement) sL uL dL · sH uH dH (neutre = avant) · nS uS dS
+  //  en l'air: sA uA dA (neutre = avant) · uAH (lourd haut / avant / neutre = retour) dAH (lourd bas) · spéciales (nSA… si elles existent)
+  moveKey(pl, aim, grounded, kind) {
+    if (kind === 'H') return grounded ? { n: 'sH', s: 'sH', u: 'uH', d: 'dH' }[aim] : aim === 'd' ? 'dAH' : 'uAH';
+    if (kind === 'S') {
+      const k = { n: 'nS', s: 'nS', u: 'uS', d: 'dS' }[aim];
+      return !grounded && pl.def.moves[k + 'A'] ? k + 'A' : k;
+    }
+    return grounded ? { n: 'nL', s: 'sL', u: 'uL', d: 'dL' }[aim] : { n: 'sA', s: 'sA', u: 'uA', d: 'dA' }[aim];
   }
 
   step(pl, other, now, dt, inp) {
@@ -1353,8 +1403,9 @@ class GameScene extends Phaser.Scene {
     if (grounded) this.landReset(pl);
     if (def.rewind) this.zRecord(pl, now); // CTRL+Z d'AdieuLescure : on garde la trace de la dernière seconde
     // --- tampon d'entrée : un appui fait un peu trop tôt part dès que c'est possible
-    if (inp.attack) { pl.bufAtk = now + BUF_MS; pl.bufHeavy = 0; }
-    if (inp.heavy) { pl.bufHeavy = now + BUF_MS; pl.bufAtk = 0; }
+    if (inp.attack) { pl.bufAtk = now + BUF_MS; pl.bufHeavy = pl.bufSp = 0; }
+    if (inp.heavy) { pl.bufHeavy = now + BUF_MS; pl.bufAtk = pl.bufSp = 0; }
+    if (inp.special) { pl.bufSp = now + BUF_MS; pl.bufAtk = pl.bufHeavy = 0; }
     if (inp.jump) pl.bufJump = now + BUF_MS;
     const dEdge = !!inp.block && !pl.prevBlock;
     pl.prevBlock = !!inp.block;
@@ -1366,7 +1417,7 @@ class GameScene extends Phaser.Scene {
     if (charmed) {
       const dxc = other.sprite.x - s.x;
       inp = { sx: Math.abs(dxc) > 70 ? Math.sign(dxc) * Math.min(200 / def.speed, 1) : 0, sy: 0, jump: false, attack: false, hold: false, block: false };
-      pl.bufAtk = pl.bufJump = pl.bufDodge = 0;
+      pl.bufAtk = pl.bufHeavy = pl.bufSp = pl.bufJump = pl.bufDodge = 0;
       pl.charmFx = true;
       if (now - (pl.lastHeart || 0) > 260) { pl.lastHeart = now; this.heartFx(s.x + (Math.random() - 0.5) * 30, s.y - 50, 1.4); }
     } else if (pl.charmFx) {
@@ -1410,9 +1461,12 @@ class GameScene extends Phaser.Scene {
       }
       // --- ESQUIVES (façon Brawlhalla) : sur place, sprint (au sol + côté), esquive aérienne, poursuite après un coup
       const free = !stunned && !pl.atk && !pl.grab && !pl.helpless && now >= pl.dodgeLock;
-      if (free && pl.bufDodge >= now && pl.chaseLeft > 0 && now < pl.chaseUntil && !(grounded && Math.abs(inp.sx) > 0.5)) {
+      // un coup LÉGER qui vient de toucher peut être coupé par l'esquive de poursuite
+      const lightHit = !stunned && !pl.grab && pl.atk && pl.atk.landed && pl.atk.m.light && now >= pl.atk.landed + 2 * STEP_MS;
+      if ((free || lightHit) && pl.bufDodge >= now && pl.chaseLeft > 0 && now < pl.chaseUntil && !(grounded && Math.abs(inp.sx) > 0.5)) {
         // ESQUIVE DE POURSUITE : juste après avoir touché, une esquive rapide dans n'importe quelle direction (sauf en
         // arrière), sans recharge : pour coller à l'adversaire et enchaîner
+        if (pl.atk) { pl.atk = null; pl.cdUntil = now; }
         pl.bufDodge = 0;
         pl.chaseLeft--;
         const mag = hyp(inp.sx, inp.sy);
@@ -1456,6 +1510,8 @@ class GameScene extends Phaser.Scene {
             s.setVelocity(b.velocity.x * 0.4, Math.min(b.velocity.y, 0) * 0.3);
             pl.dodgeUntil = pl.invulnUntil = Math.max(pl.invulnUntil, now + 333);
             pl.dodgeLock = now + 333;
+            // GRAVITY CANCEL : juste après une esquive aérienne sur place, une attaque fait le coup du SOL en l'air
+            pl.gcUntil = now + 300;
           }
           this.ghost(pl, 0x9fd8ff);
           this.sfx('dodge');
@@ -1469,8 +1525,13 @@ class GameScene extends Phaser.Scene {
       if (!stunned) {
         const charging = !!(pl.atk && pl.atk.charging);
         const moveLocked = (pl.atk && !charging && now < pl.atk.moveLock) || (spotLock && grounded);
+        const dashing = pl.atk && pl.atk.m.dashV && now >= pl.atk.hitAt && now < pl.atk.hitAt + (pl.atk.m.active || 0);
         if (rolling && !pl.atk) {
           s.setVelocityX(pl.rollDir * def.speed * 1.9);
+        } else if (dashing) {
+          // élan tenu pendant tout le coup (CHARGE DU TAUREAU, ÉCHAPPÉE) ; un lourd chargé va plus loin
+          const f = pl.atk.chg && pl.atk.m.chargeMax ? Math.min(pl.atk.chg / pl.atk.m.chargeMax, 1) : 0;
+          s.setVelocityX(pl.facing * pl.atk.m.dashV * (1 + 0.5 * f));
         } else if (!moveLocked) {
           let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1) * (pl.sprintDir ? 1.35 : 1);
           if (charging) spd *= pl.atk.m.walk || 0;
@@ -1502,24 +1563,35 @@ class GameScene extends Phaser.Scene {
             s.setVelocityY(150);
           }
         } else pl.downHold = 0;
-        // attaque (avec enchaînement possible : on coupe la fin du jab pour le coup suivant)
-        const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now;
-        if ((wantL || wantH) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0)) && !pl.helpless) {
+        // attaque : LÉGER / LOURD / SPÉCIAL + direction
+        const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now, wantS = pl.bufSp >= now;
+        const gc = !grounded && now < (pl.gcUntil || 0);
+        if ((wantL || wantH || wantS) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0) || gc) && !pl.helpless) {
           const a0 = pl.atk;
           const aim = this.aimOf(pl, inp);
-          // COMBO : un coup léger qui a touché peut être coupé par un autre léger (différent) ou par un lourd
-          const nextKey = this.moveKey(aim, grounded, wantH);
-          const cancel = a0 && a0.landed && a0.m.light && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 4 && (wantH || nextKey !== a0.key) && pl.def.moves[nextKey];
-          if (wantL && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < pl.def.moves[a0.chainKey].chain.length && aim === 's') {
+          const kind = wantH ? 'H' : wantS ? 'S' : 'L';
+          const gnd = grounded || gc; // Gravity Cancel : on choisit le coup du sol
+          const nextKey = this.moveKey(pl, aim, gnd, kind);
+          // ENCHAÎNEMENT : LÉGER sans direction pendant le coup = coup suivant de la chaîne (même s'il a raté)
+          const chainLen = a0 && a0.chainKey && pl.def.moves[a0.chainKey] ? (pl.def.moves[a0.chainKey].chain || []).length : 0;
+          const chainNext = kind === 'L' && aim === 'n' && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < chainLen;
+          // COMBO : un léger qui a TOUCHÉ peut être coupé par un autre coup (léger différent, lourd ou spéciale), 3 fois au plus
+          const cancel = !!(a0 && a0.landed && a0.m.light && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 3 && nextKey !== a0.key && pl.def.moves[nextKey]);
+          if (chainNext) {
             pl.bufAtk = 0;
             this.startChain(pl, now);
           } else if (now > pl.cdUntil || cancel) {
-            pl.bufAtk = pl.bufHeavy = 0;
+            pl.bufAtk = pl.bufHeavy = pl.bufSp = 0;
             if (rolling) pl.rollUntil = now; // une attaque coupe le sprint
             if (spotLock) pl.dodgeLock = now; // ... et l'esquive de poursuite
+            if (gc) {
+              // l'attaque met fin à l'esquive
+              pl.gcUntil = 0;
+              if (now < pl.dodgeUntil) pl.dodgeUntil = pl.invulnUntil = now;
+            }
             const n0 = cancel ? (a0.cancels || 0) + 1 : 0;
             if (cancel) { pl.atk = null; pl.cdUntil = now; }
-            this.startAttack(pl, aim, grounded, now, inp, wantH);
+            this.startAttack(pl, nextKey, grounded, now, inp, gc);
             if (pl.atk && cancel) pl.atk.cancels = n0;
           }
         }
@@ -1586,6 +1658,22 @@ class GameScene extends Phaser.Scene {
       }
     } else if (pl.chgBg) this.clearCharge(pl);
 
+    // LOURD CHARGÉ : garder LOURD appuyé retient le coup juste avant qu'il parte (m.chargeMax ms au plus)
+    if (pl.atk && pl.atk.m.chargeMax && !pl.atk.done && !pl.atk.chgShut && now < pl.atk.hitAt && pl.atk.hitAt - now <= STEP_MS + 0.01) {
+      const a = pl.atk;
+      if (inp.hold && (a.chg || 0) < a.m.chargeMax) {
+        a.chg = (a.chg || 0) + STEP_MS;
+        s.setVelocityX(b.velocity.x * 0.85); // on se plante pour charger
+        a.hitAt += STEP_MS;
+        a.end += STEP_MS;
+        a.moveLock += STEP_MS;
+        pl.cdUntil += STEP_MS;
+        // les minuteries du coup (élan, plongeon…) attendent aussi
+        for (const t of this.timers) if (t.data && t.data.aid === a.id && t.data.pi === pl.i) t.at += STEP_MS;
+        if (a.chg >= a.m.chargeMax - 0.01 && !this.resim) this.popup(s.x, s.y - 90, 'MAX !', '#ffe9a8');
+      } else a.chgShut = true;
+    }
+
     // Fenêtre active : frappe, projectile ou prise
     if (pl.atk && !pl.atk.done) {
       const m = pl.atk.m;
@@ -1615,7 +1703,7 @@ class GameScene extends Phaser.Scene {
           pl.atk.landed = now;
           const dir = Math.sign(other.sprite.x - s.x) || pl.facing;
           if (m.type === 'grab') this.startGrab(pl, other, m, now);
-          else this.applyHit(pl, other, m, now, dir, null, pl.atk.end - now);
+          else this.applyHit(pl, other, this.charged(m, pl.atk), now, dir, null, pl.atk.end - now);
         }
       } else if (now >= pl.atk.hitAt + m.active) pl.atk.done = true;
     }
@@ -1643,24 +1731,38 @@ class GameScene extends Phaser.Scene {
     // et le perso restait tout blanc)
     if (now < (pl.flashUntil || 0)) s.setTintFill(pl.flashCol || 0xffffff);
     else if (charmed) s.setTint(0xffb0d8);
+    else if (pl.atk && pl.atk.chg && now < pl.atk.hitAt) s.setTint(Math.floor(now / 60) % 2 ? 0xfff0a0 : 0xffffff); // lourd en charge
+    else if (pl.atk && now < pl.armorUntil && pl.def.stone) s.setTint(0xb8b0a4); // PEAU DE PIERRE
     else if (pl.shade) s.setTint(pl.shade);
     else if (s.isTinted) s.clearTint();
     s.setAlpha(now < pl.dodgeUntil ? 0.4 : now < pl.invulnUntil ? (Math.floor(now / 90) % 2 ? 0.35 : 0.8) : pl.helpless ? 0.75 : 1);
     pl.tag.setPosition(s.x, s.y - 66).setVisible(pl.stocks > 0);
+    // COUPABLE ! : un petit marteau de juge au-dessus de la tête (affichage seulement)
+    if (now < (pl.markUntil || 0) && pl.stocks > 0) {
+      if (!pl.markImg && !this.resim) pl.markImg = this.add.text(s.x, s.y - 96, '§', { fontFamily: FONT, fontSize: '26px', color: '#ffd166', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(41);
+      if (pl.markImg) pl.markImg.setPosition(s.x, s.y - 92 + Math.sin(now / 120) * 3).setAlpha(pl.markUntil - now < 1000 && Math.floor(now / 100) % 2 ? 0.3 : 1);
+    } else if (pl.markImg) {
+      pl.markImg.destroy();
+      pl.markImg = null;
+    }
+    // CHAUFFE pleine : flammèches autour de Toro
+    if (pl.def.heat && (pl.heat || 0) >= 100 && !this.resim && now - (pl.heatFx || 0) > 90) {
+      pl.heatFx = now;
+      this.flame(s.x + (Math.random() - 0.5) * 40, s.y + 10, pl.def.fx);
+    }
 
     // Zones de KO (mêmes distances depuis le centre en portrait et en paysage)
     const cx = this.W / 2;
     if (s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y > L.baseY + BLAST_BOTTOM || s.y < L.baseY - BLAST_TOP) this.die(pl, now);
   }
 
-  // aim : 'n' (neutre ou haut), 's' (côté), 'd' (bas) ; heavy : bouton LOURD
-  startAttack(pl, aim, grounded, now, inp, heavy) {
+  // key : clé du coup (voir moveKey) ; gc : coup du sol fait en l'air (Gravity Cancel)
+  startAttack(pl, key, grounded, now, inp, gc) {
     const mv = pl.def.moves;
-    const key = this.moveKey(aim, grounded, heavy);
     let m = mv[key];
     if (!m) return;
     // coup de côté : on se tourne d'abord du côté poussé
-    if (aim === 's' && inp && Math.abs(inp.sx || 0) > 0.2) {
+    if (inp && Math.abs(inp.sx || 0) > 0.2 && this.aimOf(pl, inp) === 's') {
       pl.facing = inp.sx > 0 ? 1 : -1;
       pl.sprite.setFlipX(pl.facing < 0);
     }
@@ -1671,7 +1773,20 @@ class GameScene extends Phaser.Scene {
       pl.cdUntil = now + 250;
       return;
     }
-    // une seule fois par temps en l'air (parasol, coups de retour)
+    // ÉRUPTION (Toro) : il faut un peu de CHAUFFE ; l'explosion grandit avec la jauge, qui se vide
+    if (m.type === 'burst') {
+      const heat = pl.heat || 0;
+      if (heat < (m.minHeat || 25)) {
+        const b0 = pl.sprite.body.center;
+        this.popup(b0.x, b0.y - 70, 'PAS ASSEZ CHAUD', '#ffb347');
+        pl.cdUntil = now + 250;
+        return;
+      }
+      const lv = heat / 100;
+      m = Object.assign({}, m, { type: 'melee', w: Math.round(m.w * (0.75 + 0.5 * lv)), h: Math.round(m.h * (0.75 + 0.5 * lv)), dmg: Math.round(m.dmg + m.dmgHeat * lv), kb: Math.round(m.kb + m.kbHeat * lv), ks: m.ks + m.ksHeat * lv, burstLv: lv });
+      pl.heat = 0;
+    }
+    // une seule fois par temps en l'air (capacités qui font bouger : parasol, charge, cornes, téléport…)
     if (!grounded && m.onceAir && pl[m.onceAir + 'Used']) { pl.cdUntil = now + 150; return; }
     if (!grounded && m.helpless && pl.recUsed) { pl.cdUntil = now + 150; return; }
     // nombre d'objets limité à l'écran
@@ -1698,7 +1813,10 @@ class GameScene extends Phaser.Scene {
     pl.cdUntil = now + m.total;
     const s = pl.sprite;
     if (m.turn) pl.facing = -pl.facing; // coup donné dos à l'adversaire (ruade)
-    if (m.lunge) s.setVelocityX(pl.facing * m.lunge);
+    // élan : tout de suite, sauf pour un lourd qui se charge (il part au moment de frapper)
+    if (m.lunge && !m.chargeMax) s.setVelocityX(pl.facing * m.lunge);
+    if (m.lunge && m.chargeMax) this.sched(m.startup, 'lunge', { pi: pl.i, aid: pl.atk.id });
+    if (m.liftAir && !grounded) s.setVelocityY(Math.min(s.body.velocity.y, -m.liftAir)); // capacité de côté en l'air : un peu de hauteur
     if (m.retreat) s.setVelocityX(-pl.facing * m.retreat);
     if (m.hop && (grounded || !pl.hopUsed)) {
       s.setVelocityY(-m.hop);
@@ -1737,6 +1855,12 @@ class GameScene extends Phaser.Scene {
       pl.atk.done = true;
       pl.atk.moveLock = now + m.total;
       s.setVelocityX(s.body.velocity.x * 0.2);
+    }
+    // TÉLÉPORT (Astra)
+    if (m.type === 'blink') {
+      pl.atk.done = true;
+      pl.atk.moveLock = now + m.startup;
+      this.sched(m.startup, 'blink', { pi: pl.i, aid: pl.atk.id });
     }
     // CTRL+Z (AdieuLescure) : retour une seconde en arrière
     if (m.type === 'rewind') {
@@ -2120,6 +2244,29 @@ class GameScene extends Phaser.Scene {
       vic.sprite.body.allowGravity = true;
     }
     vic.charmUntil = 0;
+    // USURE : un coup déjà placé parmi les 5 derniers coups qui ont touché perd 10 % par répétition (40 % au plus)
+    let stale = 1, reps = 0;
+    if (spec.mid && att !== vic) {
+      for (let i = 0; i < 5; i++) if (att['st' + i] === spec.mid) reps++;
+      stale = Math.max(0.6, 1 - 0.1 * reps);
+      const si = att.sti || 0;
+      att['st' + si] = spec.mid;
+      att.sti = (si + 1) % 5;
+      if (stale < 1) spec = Object.assign({}, spec, { dmg: spec.dmg * stale });
+    }
+    // COUPABLE ! (Deadlulu) : le livre marque ; le prochain lourd de Deadlulu sur un marqué est renforcé
+    const vc0 = vic.sprite.body.center;
+    if (spec.mark) {
+      vic.markUntil = now + spec.mark;
+      this.popup(vc0.x, vc0.y - 110, 'COUPABLE !', '#ffd166');
+    } else if (spec.heavy && att.def.judge && now < (vic.markUntil || 0)) {
+      spec = Object.assign({}, spec, { dmg: spec.dmg * 1.25, kb: spec.kb * 1.25 });
+      vic.markUntil = 0;
+      this.popup(vc0.x, vc0.y - 110, 'CONDAMNE !', '#ff5a5a');
+    }
+    // CHAUFFE (Toro) : la jauge monte quand il touche et quand il est touché
+    if (att.def.heat && att !== vic) att.heat = Math.min(100, (att.heat || 0) + spec.dmg * 2);
+    if (vic.def.heat) vic.heat = Math.min(100, (vic.heat || 0) + spec.dmg * 1.2);
     this.gainRage(vic, spec.dmg, now);
     vic.damage += spec.dmg;
     const power = (spec.kb * KB_BASE + vic.damage * spec.ks * KB_GROW) / vic.def.weight;
@@ -2138,9 +2285,10 @@ class GameScene extends Phaser.Scene {
     if (spec.pop) vy = Math.min(vy, -spec.pop * (1 + Math.min(vic.damage, 120) / 400));
     vic.sprite.setVelocity(ux * power, vy);
     const combo = now < vic.stunUntil;
-    let stunMs = spec.stun * STUN_BASE + power * STUN_GROW;
+    let stunMs = (spec.stun * STUN_BASE + power * STUN_GROW) * stale;
     // un coup qui touche laisse toujours l'avantage ; les coups légers en laissent assez pour enchaîner
-    if (rem !== undefined) stunMs = Math.max(stunMs, rem + (spec.combo || 2 * STEP_MS));
+    // (sauf un coup trop répété : l'usure supprime la garantie, pour éviter les boucles)
+    if (rem !== undefined && reps < 2) stunMs = Math.max(stunMs, rem + (spec.combo || 2 * STEP_MS) * stale);
     // poursuite : l'attaquant peut esquiver juste après pour suivre (2 fois au sol, 1 fois en l'air)
     const ab = att.sprite.body;
     att.chaseLeft = ab.blocked.down || ab.touching.down ? 2 : 1;
@@ -2153,6 +2301,8 @@ class GameScene extends Phaser.Scene {
     vic.recUsed = false;
     vic.dodgeLock = 0;
     vic.rollUntil = 0;
+    vic.gcUntil = 0;
+    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = false; // être touché rend aussi les capacités de retour
     if (vic.jumps === 0) vic.jumps = 1; // être touché rend un saut
     if (this.training) this.trainReport(att, vic, spec, stunMs, rem, combo);
     const lethal = this.isLethal(vic, now);
@@ -2254,6 +2404,11 @@ class GameScene extends Phaser.Scene {
   // =========================================================================
   spawnProj(pl, target, m, now, dy, spOverride) {
     let sp = spOverride || m.proj;
+    // lourd chargé : le projectile frappe plus fort
+    if (!spOverride && m && pl.atk && pl.atk.m === m && pl.atk.chg) {
+      const f = Math.min(pl.atk.chg / m.chargeMax, 1);
+      sp = Object.assign({}, sp, { dmg: sp.dmg * (1 + 0.5 * f), kb: sp.kb * (1 + 0.25 * f), s: (sp.s || 3) * (1 + 0.25 * f), w: sp.w * (1 + 0.2 * f), h: sp.h * (1 + 0.2 * f) });
+    }
     let f = m && m.backFire ? -pl.facing : pl.facing;
     // grappin lancé hors du terrain, en l'air : il part vers le terrain (pour s'accrocher au bord)
     if (sp && sp.kind === 'hook') {
@@ -2277,8 +2432,8 @@ class GameScene extends Phaser.Scene {
       const gnd = pl.sprite.body.blocked.down || pl.sprite.body.touching.down;
       vy = gnd ? -110 : bv < -60 ? -430 : bv > 60 ? 430 : 120;
     }
-    if (sp.kind === 'hermine') {
-      // l'hermine surgit du sol à distance FIXE devant le lanceur
+    if (sp.kind === 'hermine' || sp.kind === 'wall') {
+      // l'hermine (et le mur de Grom) surgit du sol à distance FIXE devant le lanceur
       y = pl.sprite.body.bottom + 2;
     }
     const img = this.add.image(x, y, sp.tex).setScale(sp.s || 3).setDepth(sp.kind === 'mine' ? 8 : 24);
@@ -2297,6 +2452,13 @@ class GameScene extends Phaser.Scene {
       }
     }
     if (sp.kind === 'ball') img.setDepth(25);
+    if (sp.kind === 'wall') {
+      img.setOrigin(0.5, 1).setScale(sp.s, sp.s * 0.1).setDepth(9);
+      this.tweens.add({ targets: img, scaleY: sp.s, duration: 140, ease: 'Back.easeOut' });
+      this.dust(x, y - 4, -1, 6, pl.def.fx);
+      this.dust(x, y - 4, 1, 6, pl.def.fx);
+      this.cameras.main.shake(120, 0.006);
+    }
     if (sp.kind === 'hermine') {
       img.setOrigin(0.5, 1).setScale(sp.s, 0.05);
       this.tweens.add({ targets: img, scaleY: sp.s, duration: 130, ease: 'Back.easeOut' });
@@ -2513,6 +2675,21 @@ class GameScene extends Phaser.Scene {
         continue;
       }
       if (sp.kind === 'hermine' && now - p.born > sp.act) p.spent = true;
+      // MUR DE ROCHE (Grom) : arrête les tirs adverses ; il ne frappe qu'en sortant du sol
+      if (sp.kind === 'wall') {
+        if (now - p.born > sp.act) p.spent = true;
+        for (const q of this.projs) {
+          if (q.dead || q.owner === p.owner || !q.spec.blockable) continue;
+          if (Math.abs(q.x - p.x) < (sp.w + q.spec.w) / 2 && q.y > p.y - sp.h - q.spec.h / 2 && q.y < p.y + 10) {
+            this.killProj(q, true);
+            this.sfx('parry');
+          }
+        }
+        if (now - p.born > sp.life - 200 && !p.crumble) {
+          p.crumble = true;
+          if (!this.resim) this.tweens.add({ targets: p.sprite, scaleY: 0.05, alpha: 0.4, duration: 180 });
+        }
+      }
 
       if (sp.kind === 'book' && p.y > L.baseY - 30 && Math.abs(p.x - this.W / 2) < L.mainW / 2 + 20) {
         // le livre s'écrase sur le sol
@@ -2534,9 +2711,10 @@ class GameScene extends Phaser.Scene {
         continue;
       }
 
-      // collision avec l'adversaire
+      // collision avec l'adversaire (la CHARGE DU TAUREAU passe à travers les tirs)
       const v = p.target;
       if (p.spent || now < p.armedAt || now < v.invulnUntil || v.stocks <= 0 || v.grab) continue;
+      if (v.atk && v.atk.m.projImmune && now < v.atk.end && sp.blockable) continue;
       const vb = v.sprite.body;
       const pcy = sp.bottom ? p.y - sp.h / 2 : p.y;
       const hit = p.x + sp.w / 2 > vb.x && p.x - sp.w / 2 < vb.right && pcy + sp.h / 2 > vb.y && pcy - sp.h / 2 < vb.bottom;
@@ -2578,9 +2756,9 @@ class GameScene extends Phaser.Scene {
         this.impactFx(p.owner, v, { dmg: 4 }, null);
         this.killProj(p, false);
       } else {
-        const dir = sp.kind === 'comet' || sp.kind === 'mine' || sp.kind === 'book' || sp.kind === 'hermine' ? Math.sign(v.sprite.x - p.x) || p.f : Math.sign(p.vx) || p.f;
+        const dir = sp.kind === 'comet' || sp.kind === 'mine' || sp.kind === 'book' || sp.kind === 'hermine' || sp.kind === 'wall' ? Math.sign(v.sprite.x - p.x) || p.f : Math.sign(p.vx) || p.f;
         this.applyHit(p.owner, v, sp, now, dir, { x: p.x, y: sp.bottom ? p.y - sp.h / 2 : p.y });
-        if (sp.kind === 'hermine') p.spent = true; // elle retourne sous terre toute seule
+        if (sp.kind === 'hermine' || sp.kind === 'wall') p.spent = true; // elle retourne sous terre toute seule (le mur reste)
         else {
           if (sp.breakGround) this.splatFx(p);
           this.killProj(p, !!sp.explode);
@@ -2598,6 +2776,7 @@ class GameScene extends Phaser.Scene {
     s.body.allowGravity = true;
     s.setAngle(0).clearTint();
     pl.rage = 0; pl.rageUntil = 0; pl.charmUntil = 0; pl.slowUntil = 0; pl.armorUntil = 0;
+    pl.markUntil = 0; pl.heat = 0;
     pl.ledgeSide = 0;
     this.landReset(pl);
     if (pl.umb) { pl.umb.destroy(); pl.umb = null; }
@@ -2658,6 +2837,8 @@ class GameScene extends Phaser.Scene {
     pl.floatUsed = false;
     pl.dashUsed = false;
     pl.ledgeInvUsed = false;
+    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = false;
+    pl.gcUntil = 0;
   }
 
   tryLedge(pl, other, now) {
@@ -2779,6 +2960,36 @@ class GameScene extends Phaser.Scene {
       pl.cdUntil = now + m.total;
       this.attackFx(pl, m);
     }
+  }
+
+  // bonus d'un lourd chargé : jusqu'à +50 % de dégâts et +25 % de recul
+  charged(spec, atk) {
+    if (!atk || !atk.chg || !atk.m.chargeMax) return spec;
+    const f = Math.min(atk.chg / atk.m.chargeMax, 1);
+    return Object.assign({}, spec, { dmg: spec.dmg * (1 + 0.5 * f), kb: spec.kb * (1 + 0.25 * f) });
+  }
+
+  // TÉLÉPORT (Astra) : sur son étoile piège si elle existe (l'étoile disparaît), sinon un bond vers le haut
+  doBlink(pl, now) {
+    const s = pl.sprite;
+    const star = this.projs.find((p) => !p.dead && p.owner === pl && p.spec.kind === 'mine');
+    const from = { x: s.x, y: s.y };
+    if (star) {
+      if (pl.grab) this.releaseGrab(pl);
+      pl.ledgeSide = 0;
+      s.body.allowGravity = true;
+      this.putAt(s, star.x, star.y - 40);
+      s.body.setVelocity(0, -120);
+      this.killProj(star, false);
+      pl.invulnUntil = Math.max(pl.invulnUntil, now + 200);
+    } else {
+      s.body.setVelocity(s.body.velocity.x * 0.3, -pl.atk.m.rise);
+    }
+    if (this.resim) return;
+    this.runeFx(from.x, from.y - 20, pl.def.fx, 2);
+    this.runeFx(s.x, s.y - 20, pl.def.fx, 2.4);
+    this.popup(s.x, s.y - 80, star ? 'TELEPORT !' : 'ENVOL', '#b79cff');
+    this.sfx('magic', 0.8);
   }
 
   startChain(pl, now) {

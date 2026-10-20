@@ -33,12 +33,15 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
     projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
-  - `kits.js` : commandes À LA BRAWLHALLA. Deux boutons d'attaque, trois directions (AVANT/sans direction, HAUT, BAS).
-    LÉGER : `sLight`/`uLight`/`dLight` au sol, `sAir`/`uAir`/`dAir` en l'air. LOURD : `sSig`/`uSig`/`dSig` au sol ;
-    en l'air seulement `rec` (LOURD + haut/avant : coup vers le haut = retour) et `gp` (LOURD + bas : coup de pied plongeant).
-    Pas de coup arrière (on se tourne du côté poussé). COMBOS : un léger qui touche (`atk.landed`) peut être annulé tout
-    de suite par un autre léger ou par un lourd (finisseur), 4 annulations max ; `combo` (avantage garanti en ms) et
-    `pop` (petit envol). Ce fichier remappe les anciens coups (`neutral`, `forward`, `up`, `down`, `back`, `nAir`…).
+  - `kits.js` : MOVESETS des 7 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
+    Boutons LÉGER / LOURD / SPÉCIAL + direction (neutre, avant, haut, bas ; haut/bas seulement si on pousse franchement).
+    Clés : `nL` (neutre : enchaînement de 3 coups, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air ;
+    lourds `sH` `uH` `dH` (se chargent : `chargeMax`, LOURD tenu) ; en l'air `uAH` (retour) et `dAH` (plongeon) ;
+    spéciales `nS` `uS` `dS` (recharges `cd`, `onceAir` = une fois par saut). Chaque coup a un identifiant `mid` (usure).
+    Mécaniques signature : CHAUFFE + ÉRUPTION (Toro, `heat`, type `burst`), ÉTOILE PIÈGE + TÉLÉPORT (Astra, type
+    `blink`), PEAU DE PIERRE + MUR DE ROCHE (Grom, `armor` sur ses lourds sauf la prise, projectile `wall` qui arrête les tirs
+    `blockable`), COUPABLE ! (Deadlulu, `mark` sur le livre, lourd renforcé), l'aigle (Denodoom), colère de Scarlett
+    (Nini), CTRL+Z (AdieuLescure). Vitesse, saut, poids et textes d'aide de chaque perso sont aussi ici.
   - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
     aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
@@ -69,13 +72,20 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
   après un coup qui touche (2 au sol, 1 en l'air).
 - 3 sauts (sol + 2 en l'air). Coup de retour = LOURD (+ haut) en l'air, une fois par saut, SANS chute impuissante ;
-  LOURD + bas en l'air = coup de pied plongeant.
-  Rebord automatique. Être touché rend un saut. On regarde du côté où l'on pousse le joystick.
+  LOURD + bas en l'air = coup de pied plongeant. Rebord automatique. Être touché rend un saut (et les capacités de
+  retour). On regarde du côté où l'on pousse le joystick.
+- Combos (`step` dans `game.js`) : un LÉGER qui touche peut être annulé par un autre coup (léger différent, lourd,
+  spéciale) ou par l'esquive de poursuite, 3 annulations au plus. USURE : un coup déjà dans les 5 derniers qui ont
+  touché (`st0..4`) perd 10 % par répétition (40 % au plus) et ne garantit plus l'enchaînement à partir de 2 répétitions.
+- GRAVITY CANCEL : esquive aérienne sur place puis attaque dans les 0,3 s (`gcUntil`) = coup du sol en l'air.
+- 5 boutons : LÉGER, LOURD, SPÉCIAL (3 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
   et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
   (sinon le corps physique garde un décalage d'une image).
 - Nini ne frappe jamais elle-même : Scarlett (le chat), le corgi, l'amour, la pivoine, le voyage (valise) et le vent
-  (Autant en emporte le vent). Le corgi est sur BAS avec une recharge, pas sur un coup de base.
+  (Autant en emporte le vent). Le corgi est sur SPÉCIAL + BAS avec une recharge, pas sur un coup de base.
+- Les coups « signature » (tirs, invocations, contres, CTRL+Z…) vont en LOURD ou en SPÉCIAL, jamais en LÉGER
+  (demande de Noah) : les légers sont des coups simples faits pour enchaîner.
 - Chrono de 3 min puis mort subite (premier coup gagne). 3 vies.
 - Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
 - Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en

@@ -8,54 +8,64 @@ const BOT_LV = [
   { react: 170, acc: 0.92, aggr: 1.25, dodge: 0.7, punish: 0.85, di: 0.95, escape: 0.85 }, // difficile
 ];
 
-// Coups utilisés par chaque bot : dir (sens du joystick), air (true = en l'air seulement, false = au sol seulement),
-// dx (distance horizontale à la cible, en px), dy (cible - bot, négatif = cible au-dessus), w (poids du choix)
+// Coups utilisés par chaque bot : [clé, [dx min, max] (distance horizontale à la cible), [dy min, max] (cible - bot,
+// négatif = cible au-dessus), poids du choix, options]. Options : any (au sol comme en l'air), tgtGround (cible au sol),
+// grab, charge (ballon), heatMin (CHAUFFE minimale), counter (contre : utilisé en défense)
 const BOT_MOVES = {
   toro: [
-    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 80], [-170, -20], 2], ['dLight', [10, 110], [-20, 60], 2],
-    ['uSig', [0, 90], [-200, -10], 2], ['sSig', [60, 170], [-50, 50], 2], ['dSig', [30, 150], [-20, 60], 1.5],
-    ['sAir', [30, 160], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 2], ['gp', [0, 70], [60, 260], 1],
+    ['nL', [0, 90], [-60, 50], 4], ['sL', [50, 150], [-50, 50], 2], ['uL', [0, 80], [-170, -20], 2], ['dL', [10, 110], [-20, 60], 2],
+    ['sH', [60, 170], [-50, 50], 1.5], ['uH', [0, 90], [-200, -10], 1.5], ['dH', [0, 130], [-20, 60], 1.2],
+    ['sA', [30, 150], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 2], ['dAH', [0, 70], [60, 260], 1],
+    ['nS', [160, 520], [-60, 60], 1.2, { any: true }], ['uS', [0, 90], [-220, -40], 0.8], ['dS', [0, 120], [-80, 80], 1.5, { heatMin: 60, any: true }],
   ],
   astra: [
-    ['sLight', [140, 600], [-60, 60], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['uSig', [60, 320], [-260, -60], 2], ['sSig', [200, 650], [-60, 60], 1.5], ['dSig', [40, 230], [-20, 60], 1],
-    ['sAir', [140, 600], [-80, 80], 2], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [60, 300], [40, 320], 2],
+    ['nL', [0, 80], [-60, 50], 2], ['sL', [60, 190], [-40, 40], 3], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 1.5],
+    ['sH', [200, 650], [-60, 60], 1.5], ['uH', [60, 320], [-260, -60], 2], ['dH', [0, 110], [-60, 60], 2],
+    ['sA', [30, 150], [-60, 60], 2], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5],
+    ['nS', [160, 620], [-60, 60], 4, { any: true }], ['dS', [40, 260], [-20, 60], 1, { tgtGround: true }],
   ],
   grom: [
-    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 80], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['uSig', [0, 90], [-180, -20], 2], ['sSig', [0, 85], [-50, 40], 3, { grab: true }], ['dSig', [0, 120], [-20, 40], 1.5, { tgtGround: true }],
-    ['sAir', [160, 420], [-60, 60], 1, { hook: true }], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [30, 120], [-20, 120], 2], ['gp', [0, 60], [30, 220], 1.5],
+    ['nL', [0, 90], [-60, 50], 4], ['sL', [40, 140], [-50, 50], 2], ['uL', [0, 80], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sH', [0, 85], [-50, 40], 3, { grab: true }], ['uH', [0, 90], [-180, -20], 2], ['dH', [0, 120], [-20, 40], 1.5, { tgtGround: true }],
+    ['sA', [30, 130], [-40, 80], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 2], ['dAH', [0, 60], [30, 220], 1.5],
+    ['nS', [160, 420], [-60, 60], 1.5, { any: true }], ['dS', [200, 640], [-60, 60], 0.5],
   ],
   deadlulu: [
-    ['sLight', [110, 420], [-60, 60], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['uSig', [180, 320], [-40, 60], 1.5, { tgtGround: true }], ['sSig', [50, 150], [-60, 50], 2],
-    ['sAir', [30, 140], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
+    ['nL', [0, 90], [-60, 50], 3], ['sL', [50, 170], [-50, 50], 3], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sH', [50, 150], [-60, 50], 2], ['uH', [0, 90], [-200, -10], 1.5], ['dH', [0, 140], [-20, 50], 1.2],
+    ['sA', [30, 140], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 60], [60, 260], 1],
+    ['nS', [110, 420], [-60, 60], 3, { any: true }], ['uS', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
   ],
   denodoom: [
-    ['sLight', [40, 260], [-50, 50], 3], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['uSig', [0, 120], [-320, -60], 2], ['sSig', [250, 620], [-50, 50], 1, { charge: true }], ['dSig', [90, 170], [-40, 60], 1.5, { tgtGround: true }],
-    ['sAir', [30, 140], [-60, 60], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 60], [60, 260], 1],
+    ['nL', [0, 95], [-60, 50], 3], ['sL', [60, 200], [-50, 50], 3], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sH', [250, 620], [-50, 50], 1, { charge: true }], ['uH', [0, 90], [-200, -10], 1.5], ['dH', [0, 140], [-20, 50], 1.2],
+    ['sA', [30, 140], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 60], [60, 260], 1],
+    ['nS', [40, 300], [-50, 50], 2.5, { any: true }], ['uS', [0, 140], [-340, -40], 1.5], ['dS', [90, 170], [-40, 60], 1.5, { tgtGround: true }],
   ],
   nini: [
-    ['sLight', [0, 95], [-60, 50], 4], ['uLight', [0, 90], [-170, -20], 2], ['dLight', [0, 110], [-20, 60], 2],
-    ['uSig', [0, 90], [-200, -20], 2], ['sSig', [50, 170], [-50, 50], 2], ['dSig', [160, 600], [-40, 60], 1.2, { tgtGround: true }],
-    ['sAir', [160, 520], [-60, 60], 1, { tgtGround: true }], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [0, 60], [30, 160], 1.5], ['gp', [0, 80], [40, 260], 1.5],
+    ['nL', [0, 90], [-60, 50], 4], ['sL', [50, 160], [-50, 50], 2], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sH', [50, 170], [-50, 50], 2], ['uH', [0, 90], [-200, -20], 2], ['dH', [30, 140], [-40, 50], 1.2],
+    ['sA', [30, 140], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 80], [40, 260], 1],
+    ['nS', [160, 520], [-60, 60], 1.2, { tgtGround: true }], ['dS', [160, 600], [-40, 60], 1.2, { tgtGround: true }],
   ],
   adieulescure: [
-    ['sLight', [0, 90], [-50, 60], 4], ['dLight', [30, 200], [-30, 50], 2.5],
-    ['uSig', [0, 90], [-200, -20], 2], ['sSig', [60, 260], [-50, 50], 2],
-    ['sAir', [20, 120], [-50, 50], 3], ['uAir', [0, 90], [-160, 10], 2], ['dAir', [60, 260], [40, 260], 1.5], ['gp', [0, 60], [60, 260], 1],
+    ['nL', [0, 90], [-50, 60], 4], ['sL', [50, 170], [-40, 50], 2.5], ['uL', [0, 90], [-170, -20], 2], ['dL', [30, 200], [-30, 50], 2.5],
+    ['sH', [60, 280], [-50, 50], 2], ['uH', [0, 90], [-200, -20], 2], ['dH', [0, 120], [-30, 50], 1.2],
+    ['sA', [20, 130], [-50, 50], 3], ['uA', [0, 100], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 60], [60, 260], 1],
+    ['nS', [120, 420], [-80, 60], 2, { any: true }],
   ],
 };
-const BOT_AIR = { uAir: 1, sAir: 1, dAir: 1, rec: 1, gp: 1 };
-const BOT_HEAVY = { uSig: 1, sSig: 1, dSig: 1, rec: 1, gp: 1 };
+const BOT_AIR = { sA: 1, uA: 1, dA: 1, uAH: 1, dAH: 1 };
+const BOT_KIND = { sH: 'H', uH: 'H', dH: 'H', uAH: 'H', dAH: 'H', nS: 'S', uS: 'S', dS: 'S' };
 for (const id in BOT_MOVES)
-  BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], heavy: !!BOT_HEAVY[k] }, ex || {}));
+  BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], kind: BOT_KIND[k] || 'L' }, ex || {}));
 const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90 };
+// le coup peut-il servir dans cette situation (au sol / en l'air) ?
+const botFits = (o, grounded) => o.any || o.air === !grounded;
 
 Object.assign(GameScene.prototype, {
   botInput(bot, tgt, now) {
-    const i = { sx: 0, sy: 0, jump: false, attack: false, hold: false, block: false };
+    const i = { sx: 0, sy: 0, jump: false, attack: false, heavy: false, special: false, hold: false, block: false };
     if (bot.stocks <= 0 || tgt.stocks <= 0) return i;
     const lv = BOT_LV[bot.lvl === undefined ? 1 : bot.lvl];
     const aggr = lv.aggr * (bot.aggr || 1);
@@ -74,6 +84,11 @@ Object.assign(GameScene.prototype, {
     // ballon de handball : on maintient le temps voulu
     if (bot.atk && bot.atk.charging) {
       i.hold = now - bot.atk.start < (bot.botCharge || 400);
+      return i;
+    }
+    // lourd chargé : on garde LOURD appuyé un moment
+    if (bot.atk && bot.atk.m.chargeMax && now < (bot.botHoldUntil || 0) && bot.atk.start >= (bot.botHoldFrom || 0)) {
+      i.hold = true;
       return i;
     }
     // accroché au rebord : on attend un peu, puis on remonte, on saute, on attaque ou on roule
@@ -112,6 +127,7 @@ Object.assign(GameScene.prototype, {
       }
       if (bot.botChainGo) {
         i.attack = true;
+        i.sx = dir * 0.3; // sans direction (sinon ce serait un autre coup)
         return i;
       }
     }
@@ -129,6 +145,14 @@ Object.assign(GameScene.prototype, {
       const m = ta.m;
       const reach = (m.ox || 0) + (m.w || 0) / 2 + 40;
       const coming = now < ta.hitAt + (m.active || 0) && (m.type === 'melee' || m.type === 'grab') && adx < reach + 30 && Math.abs(dy) < 140;
+      // contre (OBJECTION !, CONTRÔLE) : en bas + SPÉCIAL
+      const ctr = bot.def.moves.dS;
+      if (coming && ctr && (ctr.type === 'counter' || ctr.type === 'catch') && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: 'dS' }, grounded, now) && Math.random() < lv.dodge * 0.35) {
+        i.special = true;
+        i.sy = 1;
+        i.sx = dir * 0.3;
+        return i;
+      }
       if (coming && Math.random() < lv.dodge && now >= bot.dodgeCd && !bot.atk) {
         const r = Math.random();
         if (r < 0.5) i.sx = 0;
@@ -146,11 +170,11 @@ Object.assign(GameScene.prototype, {
       const approaching = Math.sign(p.vx || 0) === Math.sign(pdx) || (p.spec.kind === 'book' && Math.abs(pdx) < 110);
       if (approaching && Math.abs(pdx) < 220 && Math.abs(p.y - s.y) < 120 && now - p.born >= lv.react * 0.5) {
         bot.botSeenProj = p.id;
-        const cm = bot.def.moves.uLight;
-        if (cm && cm.type === 'catch' && grounded && !bot.atk && now > bot.cdUntil && Math.random() < lv.dodge * 0.7) {
-          i.sx = dir * 0.35;
-          i.sy = -1;
-          i.attack = true;
+        const cm = bot.def.moves.dS;
+        if (cm && cm.type === 'catch' && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: 'dS' }, grounded, now) && Math.random() < lv.dodge * 0.7) {
+          i.sx = dir * 0.3;
+          i.sy = 1;
+          i.special = true;
           return i;
         }
         if (Math.random() < lv.dodge) {
@@ -164,7 +188,7 @@ Object.assign(GameScene.prototype, {
     // punir un coup raté (pendant sa fin)
     if (ta && bot.botPunish === ta.id && now >= ta.hitAt + (ta.m.active || 0) && !bot.atk) {
       bot.botPunish = 0;
-      const opts = (BOT_MOVES[bot.char] || []).filter((o) => o.air === !grounded && adx >= o.dx[0] - 30 && adx <= o.dx[1] + 20 && !o.heal && !o.charge);
+      const opts = (BOT_MOVES[bot.char] || []).filter((o) => botFits(o, grounded) && adx >= o.dx[0] - 30 && adx <= o.dx[1] + 20 && !o.charge && o.kind !== 'S');
       if (opts.length) return this.botUse(bot, i, opts[0], dir, lv);
     }
 
@@ -187,13 +211,23 @@ Object.assign(GameScene.prototype, {
 
     // l'adversaire est charmé : on en profite avec un coup fort
     if (tgt.charmUntil > now && !bot.atk && now > bot.cdUntil && adx < 200) {
-      const o = grounded ? { k: adx < 90 ? 'uSig' : 'sSig' } : { k: 'sAir', air: true };
+      const o = grounded ? { k: adx < 90 ? 'uH' : 'sH', kind: 'H' } : { k: 'sA', air: true, kind: 'L' };
       return this.botUse(bot, i, o, dir, { acc: 1 });
     }
     // combo : un léger vient de toucher -> on finit par un lourd (coupe le léger)
-    if (bot.atk && bot.atk.landed && bot.atk.m.light && now >= bot.atk.landed + 40 && !bot.atk.cancels && Math.random() < lv.acc * 0.5) {
-      const k = grounded ? (dy < -60 ? 'uSig' : 'sSig') : dy > 40 ? 'gp' : 'rec';
-      if (bot.def.moves[k] && this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: !grounded }, dir, { acc: 1 });
+    // combo : un léger vient de toucher -> on le coupe : léger bas (pour jongler), lourd ou spéciale pour finir
+    if (bot.atk && bot.atk.landed && bot.atk.m.light && now >= bot.atk.landed + 40 && (bot.atk.cancels || 0) < 2 && bot.botCancelFor !== bot.atk.id) {
+      bot.botCancelFor = bot.atk.id;
+      if (Math.random() < lv.acc * 0.6) {
+        const r = Math.random();
+        let k;
+        if (!grounded) k = dy < -40 ? 'uA' : 'sA';
+        else if (r < 0.3 && bot.atk.key !== 'dL') k = 'dL';
+        else if (r < 0.75) k = dy < -60 ? 'uH' : 'sH';
+        else k = 'nS';
+        const o = { k, air: !grounded, kind: BOT_KIND[k] || 'L', any: true };
+        if (k !== bot.atk.key && bot.def.moves[k] && this.botReady(bot, o, grounded, now)) return this.botUse(bot, i, o, dir, { acc: 1 });
+      }
     }
     // combo : l'adversaire est sonné juste au-dessus -> on saute et on enchaîne en l'air
     if (now < tgt.stunUntil && adx < 120 && !bot.atk && now > bot.cdUntil && Math.random() < lv.acc) {
@@ -203,19 +237,19 @@ Object.assign(GameScene.prototype, {
         return i;
       }
       if (!grounded && Math.abs(dy) < 90) {
-        const k = adx > 60 ? 'sAir' : 'uAir';
-        if (this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: true }, dir, lv);
+        const k = adx > 60 ? 'sA' : 'uA';
+        if (this.botReady(bot, { k }, grounded, now)) return this.botUse(bot, i, { k, air: true, kind: 'L' }, dir, lv);
       }
     }
     // --- attaque
     if (!bot.atk && now > bot.cdUntil) {
       const opts = (BOT_MOVES[bot.char] || []).filter(
         (o) =>
-          o.air === !grounded &&
+          botFits(o, grounded) &&
           adx >= o.dx[0] && adx <= o.dx[1] &&
           dy >= o.dy[0] && dy <= o.dy[1] &&
           (!o.tgtGround || tGround) &&
-          (!o.heal || bot.damage > 35) &&
+          (!o.heatMin || (bot.heat || 0) >= o.heatMin) &&
           this.botReady(bot, o, grounded, now)
       );
       if (opts.length && Math.random() < 0.055 * aggr) {
@@ -238,24 +272,37 @@ Object.assign(GameScene.prototype, {
     const m = mv[key];
     if (!m) return false;
     if ((m.cd || m.cooldown) && now < (bot.moveCd[m.cdKey || key] || 0)) return false;
+    if (m.type === 'burst' && (bot.heat || 0) < (m.minHeat || 25)) return false;
+    if (!grounded && m.onceAir && bot[m.onceAir + 'Used']) return false;
     if (m.max && m.proj && !m.replace && this.projs.filter((p) => !p.dead && p.owner === bot && p.spec.kind === m.proj.kind && p.spec.tex === m.proj.tex).length >= m.max) return false;
     return true;
   },
 
   botUse(bot, i, o, dir, lv) {
     let k = o.k;
+    let kind = o.kind || BOT_KIND[k] || 'L';
     // erreur de précision : mauvais coup de temps en temps
-    if (Math.random() > lv.acc) k = (o.air ? ['uAir', 'sAir', 'dAir'] : ['sLight', 'uLight', 'dLight', 'sSig'])[Math.floor(Math.random() * (o.air ? 3 : 4))];
-    const heavy = !!BOT_HEAVY[k];
-    i.attack = !heavy;
-    i.heavy = heavy;
+    if (Math.random() > lv.acc) {
+      k = (o.air ? ['uA', 'sA', 'dA'] : ['nL', 'sL', 'uL', 'dL', 'sH'])[Math.floor(Math.random() * (o.air ? 3 : 5))];
+      kind = BOT_KIND[k] || 'L';
+    }
+    i.attack = kind === 'L';
+    i.heavy = kind === 'H';
+    i.special = kind === 'S';
     i.sy = 0;
-    const a = k[0] === 'u' || k === 'rec' ? 'u' : k[0] === 's' ? 's' : 'd';
-    // haut/bas : un léger mouvement vers la cible pour se tourner vers elle
-    i.sx = a === 's' ? dir : dir * 0.35;
-    if (a === 'd' || k === 'gp') i.sy = 1;
+    const a = k === 'uAH' ? 'u' : k === 'dAH' ? 'd' : k[0] === 'n' ? 'n' : k[0];
+    // neutre : on effleure le joystick vers la cible (pour se tourner) sans sortir de la zone morte
+    i.sx = a === 's' ? dir : dir * 0.3;
+    if (a === 'd') i.sy = 1;
     if (a === 'u') i.sy = -1;
     if (o.charge) bot.botCharge = 200 + Math.random() * 800;
+    // lourd : on le charge parfois
+    const m = bot.def.moves[k];
+    if (m && m.chargeMax && Math.random() < 0.45) {
+      bot.botHoldUntil = this.simNow + m.startup + 60 + Math.random() * 420;
+      bot.botHoldFrom = this.simNow;
+      i.hold = true;
+    }
     bot.botBlockPrev = false;
     return i;
   },
@@ -269,8 +316,8 @@ Object.assign(GameScene.prototype, {
     const below = s.y > L.baseY - 30;
     i.sx = -side;
     // Grom : grappin vers le bord quand il est assez près
-    if (bot.char === 'grom' && !bot.atk && out < 330 && Math.abs(s.y - L.baseY) < 110 && now > bot.cdUntil && Math.random() < 0.3) {
-      i.attack = true; // grappin (léger + côté en l'air), vers le terrain
+    if (bot.char === 'grom' && !bot.atk && this.botReady(bot, { k: 'nS' }, false, now) && out < 330 && Math.abs(s.y - L.baseY) < 110 && now > bot.cdUntil && Math.random() < 0.3) {
+      i.special = true; // GRAPPIN (spéciale), vers le terrain
       i.sx = -side;
       i.sy = 0;
       return;
@@ -282,12 +329,30 @@ Object.assign(GameScene.prototype, {
         i.heavy = true;
         i.sy = -1;
         i.sx = -side * 0.6;
+      } else if (bot.jumps === 0 && bot.recUsed && this.botRecoverSpecial(bot, i, now, side)) {
+        // capacité de retour (cornes, téléport, saut, parasol, CTRL+Z, charge…)
       } else if (bot.jumps === 0 && bot.recUsed && !bot.airDodged && s.y > L.baseY + 20 && out < 260 && Math.random() < lv.escape) {
         i.block = !bot.botBlockPrev;
         i.sx = -side;
         i.sy = -0.8;
       }
     }
+  },
+
+  // spéciale de retour : haut si elle fait monter (ou CTRL+Z), sinon la spéciale de côté si elle donne de l'élan
+  botRecoverSpecial(bot, i, now, side) {
+    if (bot.atk || now <= bot.cdUntil) return false;
+    for (const k of ['uS', 'nS']) {
+      const m = bot.def.moves[k];
+      if (!m) continue;
+      const mobile = m.rise || m.type === 'blink' || m.type === 'float' || m.type === 'rewind' || (k === 'nS' && m.dashV);
+      if (!mobile || !this.botReady(bot, { k }, false, now)) continue;
+      i.special = true;
+      i.sy = k === 'uS' ? -1 : 0;
+      i.sx = k === 'nS' ? -side : -side * 0.3;
+      return true;
+    }
+    return false;
   },
 
   // Mannequin du mode entraînement
