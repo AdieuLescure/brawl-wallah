@@ -95,10 +95,15 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   (Autant en emporte le vent). Le corgi est sur SPÉCIAL + BAS avec une recharge, pas sur un coup de base.
 - Les coups « signature » (tirs, invocations, contres, CTRL+Z…) vont en LOURD ou en SPÉCIAL, jamais en LÉGER
   (demande de Noah) : les légers sont des coups simples faits pour enchaîner.
-- ZONES DE KO (`BLAST_X`, `BLAST_TOP`, `BLAST_BOTTOM` dans `game.js`) : on ne meurt QUE projeté par l'adversaire
-  (encore étourdi + `KO_GRACE`, ou tenu par une prise). Seul, on bute sur un mur invisible (côtés, haut) et en bas un
-  REBOND DE SECOURS renvoie vers le terrain (sauts et retours rendus). La caméra peut dézoomer jusqu'à `CAM_MIN_Z`
-  (`anim.js`) ; le fond (profondeur <= -5) est rendu par une 3e caméra `bgCam` qui ne dézoome pas.
+- ZONES DE KO (`BLAST_X` 740, `BLAST_TOP` 640, `BLAST_BOTTOM` 420 dans `game.js`, comme à l'origine) : côtés et haut,
+  on n'y meurt QUE projeté par l'adversaire (encore étourdi + `KO_GRACE`, ou tenu par une prise) ; seul (saut, retour,
+  élan d'un coup), on bute sur un mur invisible `WALL_IN` px avant. En bas on meurt toujours (retour raté).
+  GROS POURCENTAGES : `tumble` (champ du joueur, `tumbleFor(%)`, de 50 % à 230 %, jusqu'à -55 %) réduit la dérive en
+  l'air et l'élan horizontal des coups de retour jusqu'à se reposer (sol ou rebord) : revenir devient dur.
+  La caméra peut dézoomer jusqu'à `CAM_MIN_Z` (`anim.js`) ; le fond (profondeur <= -5) est rendu par une 3e caméra
+  `bgCam` qui ne dézoome pas.
+- Effets d'un coup (traînée, croissant, flammes…) : lancés par `whenAtk` au moment où le coup PART (`atk.hitAt`), donc
+  après le relâchement d'un lourd chargé — jamais avec un délai fixe.
 - Persos en réserve : `BENCH` (`game.js`, Astra et Nini) : code et dessins gardés, mais absents du choix, de la
   campagne, des bots et de l'entraînement (`playable()` = la liste proposée).
 - POLICE : `BrawlPixel` = Press Start 2P retouchée (`tools/art/patch_font.py`) avec de vraies majuscules accentuées
@@ -106,7 +111,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Écran de choix du perso (`showSelect` dans `game.js`) : grille de cartes en parallélogramme avec le buste
   (`cardTex`, dessinées en pixels depuis `idle0`), grand perso en pied à droite (en haut en portrait), nom, VALIDER.
   Toucher une carte la sélectionne ; clavier : flèches + Entrée.
-- Chrono de 3 min puis mort subite (premier coup gagne). 3 vies.
+- Chrono de 8 min (`MATCH_MS`), PAS de mort subite : à la fin, plus de vies gagne, puis le moins de % ; sinon ÉGALITÉ. 3 vies.
 - Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
 - Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en
   ligne elles sont désactivées (le perso restait tout blanc, l'aigle restait figé). La teinte est décidée à chaque image

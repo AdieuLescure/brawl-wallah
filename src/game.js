@@ -199,9 +199,13 @@ const STUN_BASE = 0.7, STUN_GROW = 0.2; // étourdissement : base du coup x 0,7 
 const DI_MAX = 0.26; // influence directionnelle : jusqu'à 15° de déviation
 const BUF_MS = 100; // tampon d'entrée (6 images)
 const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esquiver en l'air
-const BLAST_X = 1000, BLAST_TOP = 860, BLAST_BOTTOM = 440; // zones de KO depuis le centre / le sol
-const KO_GRACE = 250; // ms après l'étourdissement pendant lesquelles on peut encore sortir de l'écran (KO)
-const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
+const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
+let KO_GRACE = 400; // ms après l'étourdissement pendant lesquelles on peut encore sortir de l'écran (KO)
+const WALL_IN = 50; // mur invisible (côtés, haut) à 50 px avant la zone de KO, pour qui n'a pas été projeté
+// GROS POURCENTAGES : projeté loin, on dérive moins bien en l'air jusqu'à se reposer (sol ou rebord)
+const tumbleFor = (dmg) => Math.max(0, Math.min(TUMBLE_MAX, (dmg - TUMBLE_FROM) / TUMBLE_SPAN));
+const TUMBLE_FROM = 50, TUMBLE_SPAN = 150, TUMBLE_MAX = 0.7;
+const MATCH_MS = 480000; // chrono de 8 min (pas de mort subite) : à la fin, plus de vies gagne, puis moins de %
 // attaque en remontant du rebord
 const HELP_TXT = "LÉGER / LOURD / SPÉCIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLÉGER SANS DIRECTION x3 = ENCHAÎNEMENT\nUN LÉGER QUI TOUCHE SE COUPE EN\nLOURD, SPÉCIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGÉ\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + CÔTÉ = SPRINT";
 const HELP_KB = "CLAVIER : ZQSD OU FLÈCHES, ESPACE = SAUT\nJ = LÉGER, K = LOURD, I = SPÉCIAL, L = ESQUIVE\n(OU X, C, V ET MAJ) - ÉCHAP = QUITTER";
@@ -861,6 +865,7 @@ class GameScene extends Phaser.Scene {
       stocks: STOCKS,
       jumps: def.jumps,
       stunUntil: 0,
+      tumble: 0,
       stunStart: 0,
       cdUntil: 0,
       invulnUntil: 0,
@@ -1439,15 +1444,12 @@ class GameScene extends Phaser.Scene {
     this.step(this.p1, this.p2, now, dt, in1);
     this.step(this.p2, this.p1, now, dt, in2);
     this.updateProjs(now, dt);
-    // chrono : à la fin, plus de vies gagne ; à égalité, mort subite (le premier qui touche gagne)
-    if (this.timeLimit && !this.over && !this.sudden && now >= this.timeLimit) {
-      if (this.p1.stocks !== this.p2.stocks) this.finish(this.p1.stocks > this.p2.stocks ? this.p1 : this.p2);
-      else {
-        this.sudden = true;
-        this.popup(this.W / 2, L.baseY - 200, 'MORT SUBITE !', '#ff5a5a');
-        if (typeof MUSIC !== 'undefined') MUSIC.setTempo(1.2);
-        this.sfx('count');
-      }
+    // chrono : à la fin, plus de vies gagne ; à vies égales, le moins de % ; sinon égalité
+    if (this.timeLimit && !this.over && now >= this.timeLimit) {
+      const a = this.p1, b = this.p2;
+      if (a.stocks !== b.stocks) this.finish(a.stocks > b.stocks ? a : b);
+      else if (Math.round(a.damage) !== Math.round(b.damage)) this.finish(a.damage < b.damage ? a : b);
+      else this.finish(null);
     }
   }
 
@@ -1519,7 +1521,7 @@ class GameScene extends Phaser.Scene {
       if (a.m.type === 'carry') a.carryUntil = now + a.m.carryMs;
       else {
         pl.sprite.setVelocityY(-a.m.rise);
-        if (a.m.riseX) pl.sprite.setVelocityX(a.rdir * a.m.riseX);
+        if (a.m.riseX) pl.sprite.setVelocityX(a.rdir * a.m.riseX * (1 - (pl.tumble || 0)));
       }
     } else if (t.kind === 'skill') {
       if (pl.atk && pl.atk.id === d.aid) this.niniSkillFire(pl, pl.atk.m, d.key, now);
@@ -1707,6 +1709,7 @@ class GameScene extends Phaser.Scene {
           if (charging) spd *= pl.atk.m.walk || 0;
           if (now < pl.slowUntil) spd *= 0.5;
           if (pl.helpless) spd *= 0.7;
+          if (!grounded && pl.tumble) spd *= 1 - pl.tumble;
           const target = Math.abs(inp.sx) > 0.2 ? inp.sx * spd : 0;
           const a = (grounded ? 3000 : 1500) * dt;
           s.setVelocityX(b.velocity.x + Phaser.Math.Clamp(target - b.velocity.x, -a, a));
@@ -1798,7 +1801,7 @@ class GameScene extends Phaser.Scene {
 
     // Aigle de Denodoom en l'air : il l'emporte vers le haut
     if (pl.atk && pl.atk.m.type === 'carry' && pl.atk.carryUntil && now < pl.atk.carryUntil) {
-      s.setVelocity(pl.atk.rdir * pl.atk.m.riseX, -pl.atk.m.carrySpeed);
+      s.setVelocity(pl.atk.rdir * pl.atk.m.riseX * (1 - (pl.tumble || 0)), -pl.atk.m.carrySpeed);
       if (!pl.carryImg && !this.resim) pl.carryImg = this.add.image(s.x, s.y - 70, 'eagle0').setScale(3).setDepth(27);
       if (pl.carryImg) pl.carryImg.setPosition(s.x, s.y - 66).setTexture(Math.floor(now / 85) % 2 ? 'eagle1' : 'eagle0').setFlipX(pl.atk.rdir < 0);
     } else if (pl.carryImg) {
@@ -1928,32 +1931,17 @@ class GameScene extends Phaser.Scene {
     }
 
     // Zones de KO (mêmes distances depuis le centre en portrait et en paysage).
-    // On ne meurt que projeté par l'adversaire (encore étourdi, + une petite marge) : seul, on bute sur un
-    // mur invisible sur les côtés et en haut, et en bas un REBOND DE SECOURS renvoie vers le terrain.
+    // Côtés et haut : on n'y meurt que projeté par l'adversaire (encore étourdi, + une petite marge). Seul (saut,
+    // retour, élan d'un coup…), on bute sur un mur invisible juste avant. En bas : on meurt toujours (retour raté).
     const cx = this.W / 2;
-    const out = s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y > L.baseY + BLAST_BOTTOM || s.y < L.baseY - BLAST_TOP;
+    const out = s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y < L.baseY - BLAST_TOP;
     const launched = now < pl.stunUntil + KO_GRACE || !!(pl.grab || [this.p1, this.p2].some((o) => o.grab && o.grab.victim === pl));
-    if (out && launched) return this.die(pl, now);
+    if (s.y > L.baseY + BLAST_BOTTOM || (out && launched)) return this.die(pl, now);
     if (launched) return;
     const bd = s.body;
-    const xl = cx - BLAST_X + 40, xr = cx + BLAST_X - 40, yt = L.baseY - BLAST_TOP + 40;
-    if (s.x < xl || s.x > xr || s.y < yt) {
-      const vx = bd.velocity.x, vy = bd.velocity.y, ox = s.x, oy = s.y;
-      const nx = Phaser.Math.Clamp(ox, xl, xr), ny = Math.max(oy, yt);
-      this.putAt(s, nx, ny);
-      bd.setVelocity(nx !== ox ? 0 : vx, ny !== oy ? Math.max(vy, 0) : vy);
-    }
-    if (s.y > L.baseY + BLAST_BOTTOM - 120 && bd.velocity.y > 0) {
-      // REBOND DE SECOURS : assez fort pour remonter au-dessus du terrain, vers le centre
-      const h = s.y - (L.baseY - 140);
-      bd.setVelocity(Math.sign(cx - s.x) * 320, -Math.sqrt(2 * GRAVITY * h));
-      this.landReset(pl);
-      pl.atk = null;
-      if (!this.resim) {
-        this.popup(s.x, s.y - 60, 'REBOND !', '#6ee7b7');
-        this.sfx('jump');
-      }
-    }
+    if (s.x < cx - BLAST_X + WALL_IN && bd.velocity.x < 0) bd.setVelocityX(0);
+    if (s.x > cx + BLAST_X - WALL_IN && bd.velocity.x > 0) bd.setVelocityX(0);
+    if (s.y < L.baseY - BLAST_TOP + WALL_IN && bd.velocity.y < 0) bd.setVelocityY(0);
   }
 
   // key : clé du coup (voir moveKey) ; gc : coup du sol fait en l'air (Gravity Cancel)
@@ -2132,23 +2120,39 @@ class GameScene extends Phaser.Scene {
   }
 
   // ---- Effets visuels des coups ------------------------------------------
+  // effet à jouer quand le coup PART vraiment (un lourd chargé attend que la touche soit lâchée)
+  whenAtk(pl, off, fn) {
+    const id = pl.atk ? pl.atk.id : null;
+    if (id === null) return;
+    const ev = this.time.addEvent({
+      delay: 16,
+      loop: true,
+      callback: () => {
+        if (!pl.sprite.active || !pl.atk || pl.atk.id !== id) return ev.remove();
+        if ((this.nowT || 0) >= pl.atk.hitAt + off) {
+          ev.remove();
+          fn();
+        }
+      },
+    });
+  }
+
   attackFx(pl, m) {
     const fx = m.fx || {};
     const col = pl.def.fx;
     // ghosts (traînée d'images rémanentes)
-    if (fx.ghosts) for (let i = 0; i < fx.ghosts; i++) this.time.delayedCall(m.startup + i * 45, () => this.ghost(pl, col.main));
+    if (fx.ghosts) for (let i = 0; i < fx.ghosts; i++) this.whenAtk(pl, i * 45, () => this.ghost(pl, col.main));
 
     // changement de tenue (JAMBE FEU de Lulu) : éclair blanc, étincelles dorées, puis bouffée de fumée au retour
     if (fx.transform) this.transformFx(pl, m);
 
     // runes magiques (ASTRA)
-    if (fx.rune) this.time.delayedCall(Math.max(m.startup - 40, 0), () => {
+    if (fx.rune) this.whenAtk(pl, -Math.min(40, m.startup), () => {
       const b = pl.sprite.body.center;
       this.runeFx(b.x + pl.facing * 44, b.y - 10, col, fx.big ? 2.4 : 1.5);
     });
 
-    this.time.delayedCall(m.startup, () => {
-      if (!pl.sprite.active || pl.atk === null) return;
+    this.whenAtk(pl, 0, () => {
       const f = pl.facing;
       const b = pl.sprite.body.center;
 
@@ -2516,6 +2520,7 @@ class GameScene extends Phaser.Scene {
     if (spec.slow) vic.slowUntil = now + spec.slow;
     vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = false; // être touché rend aussi les capacités de retour
     if (vic.jumps === 0) vic.jumps = 1; // être touché rend un saut
+    vic.tumble = Math.max(vic.tumble || 0, tumbleFor(vic.damage));
     if (this.training) this.trainReport(att, vic, spec, stunMs, rem, combo);
     const lethal = this.isLethal(vic, now);
     this.impactFx(att, vic, spec, hitPos, lethal);
@@ -3027,8 +3032,13 @@ class GameScene extends Phaser.Scene {
 
   finish(winner) {
     this.over = true;
-    if (!this.resim && typeof MUSIC !== 'undefined') MUSIC.jingle(winner === (this.net ? this.pl(this.net.me) : this.p1) ? 'win' : 'lose');
-    if (this.net) {
+    if (winner && !this.resim && typeof MUSIC !== 'undefined') MUSIC.jingle(winner === (this.net ? this.pl(this.net.me) : this.p1) ? 'win' : 'lose');
+    if (!winner) {
+      // fin du chrono à égalité parfaite (mêmes vies, mêmes %)
+      this.banner.setText('ÉGALITÉ');
+      this.sub.setText(this.net ? '' : 'TOUCHE POUR REJOUER');
+      if (this.net && this.onlineOverButtons) this.onlineOverButtons();
+    } else if (this.net) {
       this.onlineFinish(winner);
     } else {
       this.banner.setText(winner === this.p1 ? 'VICTOIRE !' : 'DÉFAITE...');
@@ -3046,6 +3056,7 @@ class GameScene extends Phaser.Scene {
 
   landReset(pl) {
     pl.jumps = pl.def.jumps;
+    pl.tumble = 0;
     pl.airDodged = false;
     pl.helpless = false;
     pl.recUsed = false;
@@ -3123,6 +3134,7 @@ class GameScene extends Phaser.Scene {
     s.setVelocity(0, 0);
     this.placeOnLedge(pl);
     pl.jumps = pl.def.jumps;
+    pl.tumble = 0;
     pl.airDodged = false;
     pl.recUsed = false;
     pl.hopUsed = pl.floatUsed = pl.dashUsed = false;

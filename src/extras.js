@@ -150,7 +150,7 @@ Object.assign(GameScene.prototype, {
       vib: () => 'VIBRATION : ' + (SETTINGS.vib ? 'OUI' : 'NON'),
       btnSize: () => 'BOUTONS : ' + ['PETITS', 'MOYENS', 'GRANDS'][SETTINGS.btnSize],
       flip: () => 'MAINS : ' + (SETTINGS.flip ? 'GAUCHER' : 'DROITIER'),
-      timer: () => 'CHRONO : ' + (SETTINGS.timer ? '3 MIN' : 'AUCUN'),
+      timer: () => 'CHRONO : ' + (SETTINGS.timer ? '8 MIN' : 'AUCUN'),
       botLevel: () => 'BOT : ' + ['FACILE', 'MOYEN', 'DIFFICILE'][SETTINGS.botLevel],
     };
     const next = {
