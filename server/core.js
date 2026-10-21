@@ -12,32 +12,64 @@ const send = (sock, o) => {
   } catch (e) {}
 };
 
+export const MODES = ['ffa', 'team'];
+export const NCOLS = 6; // couleurs d'équipe possibles (voir TEAM_COLS côté jeu)
+
 export class RoomCore {
   constructor(io) {
     this.io = io;
-    this.slots = [null, null]; // { sock, id, name, anon, char, ready, reported, left }
+    this.cap = 4; // salon : jusqu'à 4 joueurs ; duel classé : 2
+    this.slots = [null, null, null, null]; // { sock, id, name, anon, char, ready, reported, left, lastIn }
     this.expect = null; // ids attendus (salle classée)
     this.ranked = false;
     this.started = false;
     this.finalized = false;
     this.desync = false;
-    this.rematch = [false, false];
+    this.rematch = [];
     this.stage = null; // arène choisie par le créateur du salon
+    this.mode = null; // 'ffa' (chacun pour soi) ou 'team' (par équipes), choisi par le créateur
+    this.teams = [0, 1, 0, 1]; // équipe de chaque place (le chef du salon la change)
+    this.tcols = [0, 1]; // couleur de chaque équipe (indices dans TEAM_COLS)
+    this.order = []; // places des joueurs de la partie en cours (index de joueur = rang dans cette liste)
   }
 
   init(ids, ranked) {
     this.expect = ids;
     this.ranked = !!ranked;
+    if (this.ranked) {
+      this.cap = 2;
+      this.slots = [null, null];
+      this.mode = 'ffa';
+    }
   }
 
+  here() {
+    return this.slots.map((s, i) => (s && !s.left ? i : -1)).filter((i) => i >= 0);
+  }
+  host() {
+    const h = this.here();
+    return h.length ? h[0] : -1;
+  }
   peersInfo() {
-    return this.slots.map((s) => (s ? { name: s.name, char: s.char || null, ready: !!s.ready, here: !s.left } : null));
+    return this.slots.map((s, i) => (s ? { name: s.name, char: s.char || null, ready: !!s.ready, here: !s.left, team: this.teams[i] } : null));
+  }
+  roomInfo() {
+    return { peers: this.peersInfo(), mode: this.mode || 'ffa', tcols: this.tcols, host: this.host(), cap: this.cap };
   }
   broadcast(o) {
     this.slots.forEach((s) => s && !s.left && send(s.sock, o));
   }
+  others(i, o) {
+    this.slots.forEach((s, j) => j !== i && s && !s.left && send(s.sock, o));
+  }
   slotOf(sock) {
     return this.slots.findIndex((s) => s && s.sock === sock);
+  }
+  // un joueur parti : les autres l'apprennent (en pleine partie : avec sa dernière image, pour l'éliminer au même moment)
+  tellLeft(i, inMatch) {
+    const me = this.slots[i];
+    this.others(i, { t: 'left', started: inMatch, slot: i, p: this.order.indexOf(i), last: me && me.lastIn !== undefined ? me.lastIn : -1 });
+    this.others(i, { t: 'peers', ...this.roomInfo() });
   }
 
   async onMessage(sock, raw) {
@@ -53,52 +85,79 @@ export class RoomCore {
     const i = this.slotOf(sock);
     if (i < 0) return;
     const me = this.slots[i];
-    const other = this.slots[1 - i];
+    const isHost = i === this.host();
 
     switch (m.t) {
       case 'in':
+        if (!this.started) return;
+        // dernière image envoyée par ce joueur (s'il part, les autres l'éliminent juste après)
+        if (Array.isArray(m.a)) for (const q of m.a) if (Array.isArray(q) && typeof q[0] === 'number' && !(q[0] <= (me.lastIn ?? -1))) me.lastIn = q[0];
+        this.others(i, raw);
+        break;
       case 'hash':
-        if (this.started && other && !other.left) send(other.sock, raw);
+        if (this.started) this.others(i, raw);
         break;
       case 'desync':
         this.desync = true;
-        if (other && !other.left) send(other.sock, { t: 'desync', f: m.f });
+        this.others(i, { t: 'desync', f: m.f });
         break;
       case 'pick':
         if (this.started || !CHARS.includes(m.char)) return;
         me.char = m.char;
         me.ready = false;
-        this.broadcast({ t: 'peers', peers: this.peersInfo() });
+        this.broadcast({ t: 'peers', ...this.roomInfo() });
         break;
       case 'ready':
         if (this.started || !me.char) return;
         me.ready = true;
-        this.broadcast({ t: 'peers', peers: this.peersInfo() });
-        if (this.slots.every((s) => s && s.ready && !s.left)) this.start();
+        this.broadcast({ t: 'peers', ...this.roomInfo() });
+        this.tryStart();
+        break;
+      // ---- réglages du chef du salon (avant la partie) ----
+      case 'mode':
+        if (this.started || !isHost || this.ranked || !MODES.includes(m.mode)) return;
+        this.mode = m.mode;
+        this.broadcast({ t: 'peers', ...this.roomInfo() });
+        break;
+      case 'team':
+        if (this.started || !isHost || this.ranked || !(m.slot >= 0 && m.slot < this.cap) || !(m.team === 0 || m.team === 1)) return;
+        this.teams[m.slot] = m.team;
+        this.broadcast({ t: 'peers', ...this.roomInfo() });
+        break;
+      case 'tcol':
+        if (this.started || !isHost || this.ranked || !(m.team === 0 || m.team === 1) || !(m.col >= 0 && m.col < NCOLS) || this.tcols[1 - m.team] === m.col) return;
+        this.tcols[m.team] = m.col;
+        this.broadcast({ t: 'peers', ...this.roomInfo() });
         break;
       case 'result':
         if (!this.started || this.finalized) return;
-        me.reported = m.winner === 0 || m.winner === 1 ? m.winner : null;
+        me.reported = typeof m.winner === 'number' && m.winner >= 0 && m.winner < this.order.length ? m.winner : null;
         await this.tryFinalize();
         break;
       case 'leave': {
         // abandon volontaire (bouton QUITTER) : pas de délai de reconnexion
         const inMatch = this.started && !this.finalized;
         me.left = true;
-        if (other && !other.left) {
-          send(other.sock, { t: 'left', started: inMatch });
-          send(other.sock, { t: 'peers', peers: this.peersInfo() });
-        }
-        if (inMatch && other && other.reported !== null) await this.tryFinalize();
+        this.tellLeft(i, inMatch);
+        if (inMatch) await this.tryFinalize();
         break;
       }
       case 'rematch':
         if (!this.finalized && this.started) return;
         this.rematch[i] = true;
-        if (this.rematch.every(Boolean) && this.slots.every((s) => s && !s.left)) this.reset();
-        else if (other && !other.left) send(other.sock, { t: 'rematch?' });
+        if (this.here().every((j) => this.rematch[j]) && this.here().length >= 2) this.reset();
+        else this.others(i, { t: 'rematch?' });
         break;
     }
+  }
+
+  // la partie démarre quand tous les présents sont prêts (au moins 2 ; en équipes, les deux équipes ont du monde)
+  tryStart() {
+    const h = this.here();
+    if (h.length < 2 || !h.every((j) => this.slots[j].ready)) return;
+    if (this.ranked && h.length < 2) return;
+    if (this.mode === 'team' && new Set(h.map((j) => this.teams[j])).size < 2) return;
+    this.start();
   }
 
   async join(sock, m) {
@@ -114,12 +173,15 @@ export class RoomCore {
     // reconnexion éventuelle
     let i = this.slots.findIndex((s) => s && s.id === user.id);
     if (i < 0) {
+      if (this.started && !this.finalized) return send(sock, { t: 'error', e: 'full' }); // partie en cours
       if (this.expect) i = this.expect.indexOf(user.id);
-      else i = this.slots.findIndex((s) => !s);
-      if (i < 0 || this.slots[i]) return send(sock, { t: 'error', e: 'full' });
+      else i = this.slots.findIndex((s) => !s || (s.left && !this.started));
+      if (i < 0 || (this.slots[i] && !(this.slots[i].left && !this.started))) return send(sock, { t: 'error', e: 'full' });
+      if (this.slots[i]) this.slots[i] = null; // place libérée par quelqu'un parti avant la partie
     }
     const prev = this.slots[i];
     if (!this.stage && STAGES.includes(m.stage)) this.stage = m.stage;
+    if (!this.mode && !this.ranked) this.mode = MODES.includes(m.mode) ? m.mode : 'ffa';
     // retour pendant un combat (coupure franche, ou connexion morte que le serveur n'avait pas encore vue)
     const back = !!(prev && this.started && !this.finalized);
     if (prev && prev.dropTimer) this.io.cancel && this.io.cancel(prev.dropTimer);
@@ -128,42 +190,57 @@ export class RoomCore {
         prev.sock.close();
       } catch (e) {}
     }
-    this.slots[i] = { sock, id: user.id, name: user.name, anon: user.anon, char: prev ? prev.char : null, ready: prev ? prev.ready : false, reported: prev ? prev.reported : null, left: false };
-    send(sock, { t: 'hello', idx: i, ranked: this.ranked, stage: this.stage, started: this.started && !this.finalized, peers: this.peersInfo() });
-    const other = this.slots[1 - i];
-    if (other && !other.left) {
-      if (back) send(other.sock, { t: 'back' });
-      send(other.sock, { t: 'peers', peers: this.peersInfo() });
-    }
+    this.slots[i] = { sock, id: user.id, name: user.name, anon: user.anon, char: prev ? prev.char : null, ready: prev ? prev.ready : false, reported: prev ? prev.reported : null, left: false, lastIn: prev ? prev.lastIn : undefined };
+    send(sock, { t: 'hello', idx: i, ranked: this.ranked, stage: this.stage, started: this.started && !this.finalized, order: this.order, ...this.roomInfo() });
+    if (back) this.others(i, { t: 'back', p: this.order.indexOf(i) });
+    this.others(i, { t: 'peers', ...this.roomInfo() });
   }
 
   start() {
     this.started = true;
     this.finalized = false;
     this.desync = false;
-    this.rematch = [false, false];
-    this.slots.forEach((s) => (s.reported = null));
-    this.broadcast({ t: 'start', stage: this.stage, chars: this.slots.map((s) => s.char), names: this.slots.map((s) => s.name) });
+    this.rematch = [];
+    this.order = this.here();
+    this.slots.forEach((s) => s && ((s.reported = null), (s.lastIn = undefined)));
+    const pl = this.order.map((j) => this.slots[j]);
+    this.broadcast({
+      t: 'start', stage: this.stage, mode: this.mode || 'ffa', order: this.order, tcols: this.tcols,
+      chars: pl.map((s) => s.char), names: pl.map((s) => s.name), teams: this.order.map((j) => this.teams[j]),
+    });
   }
 
   reset() {
     this.started = false;
     this.finalized = false;
-    this.rematch = [false, false];
+    this.rematch = [];
+    // les places des joueurs partis se libèrent
+    this.slots = this.slots.map((s) => (s && s.left ? null : s));
     this.slots.forEach((s) => {
+      if (!s) return;
       s.ready = false;
       s.reported = null;
     });
-    this.broadcast({ t: 'rematch', peers: this.peersInfo() });
+    this.broadcast({ t: 'rematch', ...this.roomInfo() });
   }
 
   async tryFinalize() {
-    const [a, b] = this.slots;
+    if (this.finalized) return;
+    const pl = this.order.map((j) => this.slots[j]);
+    // partie à plusieurs (jamais classée) : le premier résultat reçu suffit
+    if (pl.length > 2) {
+      const r = pl.find((s) => s && s.reported !== null && s.reported !== undefined);
+      const stillHere = pl.filter((s) => s && !s.left).length;
+      if (!r && stillHere > 0) return;
+      this.finalized = true;
+      return this.broadcast({ t: 'final', winner: r ? r.reported : null, unrated: true });
+    }
+    const [a, b] = pl;
     const ra = a && a.reported, rb = b && b.reported;
     const aHere = a && !a.left, bHere = b && !b.left;
     let winner = null;
-    if (ra !== null && rb !== null && ra === rb) winner = ra;
-    else if (ra !== null && rb !== null) {
+    if (ra !== null && ra !== undefined && rb !== null && rb !== undefined && ra === rb) winner = ra;
+    else if (ra !== null && ra !== undefined && rb !== null && rb !== undefined) {
       this.finalized = true;
       if (this.ranked && this.io.dispute) {
         try {
@@ -172,14 +249,14 @@ export class RoomCore {
         } catch (e) {}
       }
       return this.broadcast({ t: 'final', winner: null, disputed: true });
-    } else if (ra !== null && !bHere) winner = ra; // l'adversaire a quitté : forfait
-    else if (rb !== null && !aHere) winner = rb;
+    } else if (ra !== null && ra !== undefined && !bHere) winner = ra; // l'adversaire a quitté : forfait
+    else if (rb !== null && rb !== undefined && !aHere) winner = rb;
     else return;
     this.finalized = true;
     if (this.ranked && !this.desync && a && b) {
       try {
         const r = await this.io.recordMatch(a.id, b.id, winner === 0 ? a.id : b.id);
-        this.slots.forEach((s, i) => !s.left && send(s.sock, { t: 'rated', winner, delta: i === 0 ? r.delta0 : r.delta1, rating: i === 0 ? r.rating0 : r.rating1 }));
+        pl.forEach((s, k) => s && !s.left && send(s.sock, { t: 'rated', winner, delta: k === 0 ? r.delta0 : r.delta1, rating: k === 0 ? r.rating0 : r.rating1 }));
         return;
       } catch (e) {}
     }
@@ -192,30 +269,22 @@ export class RoomCore {
     const me = this.slots[i];
     if (me.left) return; // déjà compté (close + error)
     me.left = true;
-    const other = this.slots[1 - i];
     const inMatch = this.started && !this.finalized;
     if (inMatch && this.io.later) {
       // coupure pendant un combat : 10 s pour revenir avant de compter un abandon
-      if (other && !other.left) send(other.sock, { t: 'drop' });
+      this.others(i, { t: 'drop', p: this.order.indexOf(i) });
       me.dropTimer = this.io.later(10000, () => this.dropped(me));
       return;
     }
-    if (other && !other.left) {
-      send(other.sock, { t: 'left', started: inMatch });
-      send(other.sock, { t: 'peers', peers: this.peersInfo() });
-    }
-    if (inMatch && other && other.reported !== null) await this.tryFinalize();
+    this.tellLeft(i, inMatch);
+    if (inMatch) await this.tryFinalize();
   }
 
   async dropped(me) {
     const i = this.slots.indexOf(me);
     if (i < 0 || !me.left) return; // revenu entre-temps
-    const other = this.slots[1 - i];
-    if (other && !other.left) {
-      send(other.sock, { t: 'left', started: this.started && !this.finalized });
-      send(other.sock, { t: 'peers', peers: this.peersInfo() });
-    }
-    if (this.started && !this.finalized && other && other.reported !== null) await this.tryFinalize();
+    this.tellLeft(i, this.started && !this.finalized);
+    if (this.started && !this.finalized) await this.tryFinalize();
   }
 
   isEmpty() {

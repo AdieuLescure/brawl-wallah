@@ -23,10 +23,7 @@
   P.update = function (time, delta) {
     baseUpdate.call(this, time, delta);
     const dt = Math.min(delta, 50) / 1000;
-    if (this.p1 && this.p2 && this.p1.view) {
-      this.syncView(this.p1, dt);
-      this.syncView(this.p2, dt);
-    }
+    if (this.pls && this.p1 && this.p1.view) this.pls.forEach((pl) => this.syncView(pl, dt));
     this.updateCamera(dt);
   };
 
@@ -68,7 +65,7 @@
       const inMatch = this.p1 && this.p2 && this.p1.view && (this.state === 'play' || this.state === 'countdown') && !this.over;
       if (inMatch && SETTINGS.zoom !== false) {
         // un perso invisible (DOUBLURE) : la caméra suit sa silhouette de billets, pas lui
-        const pts = [this.p1, this.p2].filter((p) => p.stocks > 0 || this.training).map((p) => {
+        const pts = this.pls.filter((p) => p.stocks > 0 || this.training).map((p) => {
           const d = (this.nowT || 0) < (p.invisUntil || 0) && this.projs.find((q) => !q.dead && q.id === p.decoyId);
           return d ? { x: d.x, y: d.y } : p.sprite;
         });
@@ -210,6 +207,8 @@
       else if ((name === 'run0' || name === 'run1') && this.hasTex(`${ch}_run2${gs}`)) {
         key = `${ch}_${['run0', 'run2', 'run1', 'run3'][Math.floor(now / 85) % 4]}${gs}`;
       }
+      // couleur d'équipe : même posture, planche recolorée (« toro~2_run0 »)
+      if (pl.tex && key.startsWith(ch + '_')) key = pl.tex + key.slice(ch.length);
       if (key !== a.key) {
         v.setTexture(key);
         a.key = key;

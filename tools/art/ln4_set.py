@@ -25,6 +25,8 @@ FOUR = {'o': hexc('#ff8a1e')}
 OPEN = ['.kkkk...', 'kWWWWk..', 'kWWWWWk.', 'kWWWWWk.', 'kwWWWWk.', 'kgwwwwk.', '.kkkkk..']
 
 
+CLOTH = [(ORA, 0), (ORA_FAR, 1)]  # vêtements recolorés en équipe
+
 def ell(c, rx, ry, n=14, a0=0.0, a1=6.283, rot_=0.0):
     out = []
     for t in range(n + 1):

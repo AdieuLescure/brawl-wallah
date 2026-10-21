@@ -24,6 +24,8 @@ FIST['UL'] = [r[::-1] for r in FIST['U']]
 LIGHT = (0.7, -0.7)
 
 
+CLOTH = [(RED, 0), (PANTS, 0), (mat('#2c0610', '#521220', '#782030'), 1)]  # vêtements recolorés en équipe
+
 def sub(a, b): return (a[0] - b[0], a[1] - b[1])
 def add(a, b): return (a[0] + b[0], a[1] + b[1])
 def mul(a, k): return (a[0] * k, a[1] * k)

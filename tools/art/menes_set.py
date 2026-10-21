@@ -11,7 +11,7 @@ SKIN = mat('#a86a4c', '#dca282', '#f0c0a0', '#fcdcc4')
 SKIN_FAR = mat('#80503a', '#b88264', '#d4a284', '#e6bc9e')
 HAIR = mat('#1a1614', '#2e2824', '#4a423c', '#6a625a')
 GREY = mat('#3e3c40', '#5e5c62', '#7e7c84')
-TEE = mat('#9ea4b8', '#dfe3ee', '#ffffff')
+TEE = mat('#9ea4b9', '#dfe3ef', '#fdfdff')
 TEE_FAR = mat('#7a8098', '#aeb2c6', '#d4d8e8')
 PANTS = mat('#0c0c12', '#1e1e28', '#34343e', '#4a4a56')
 PANTS_FAR = mat('#08080c', '#16161e', '#282832')
@@ -24,6 +24,8 @@ HAND_FAR = {'k': K, 'W': hexc('#d4a284'), 'w': hexc('#b88264'), 'g': hexc('#8050
 OPEN = ['.kkkk...', 'kWWWWk..', 'kWWWWWk.', 'kWWWWWk.', 'kwWWWWk.', 'kgwwwwk.', '.kkkkk..']
 MIC = {'k': K, 'G': (90, 90, 100, 255), 'g': (150, 150, 160, 255), 'L': (210, 210, 220, 255), 'B': (24, 24, 30, 255)}
 
+
+CLOTH = [(TEE, 0), (TEE_FAR, 1)]  # vêtements recolorés en équipe
 
 def ell(c, rx, ry, n=14, a0=0.0, a1=6.283):
     return [(c[0] + rx * math.cos(a0 + (a1 - a0) * t / n), c[1] + ry * math.sin(a0 + (a1 - a0) * t / n)) for t in range(n + 1)]

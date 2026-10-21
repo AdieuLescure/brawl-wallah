@@ -36,6 +36,8 @@ PAL_GOLD = dict(
 )
 
 
+CLOTH = [(PAL_BLUE['SUIT'], 0), (PAL_BLUE['SUIT_FAR'], 1), (PAL_BLUE['PANTS'], 0), (PAL_BLUE['PANTS_FAR'], 1)]  # vêtements recolorés en équipe
+
 def torso(P, lean, C):
     T = lambda pts: [add(rot(sub(p, P0), lean), P) for p in pts]
     it = []

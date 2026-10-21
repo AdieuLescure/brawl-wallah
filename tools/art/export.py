@@ -22,6 +22,9 @@ for cid, (mod, dx) in CHARS.items():
     sheet.save(f'{cid}_sheet.png')
     buf = io.BytesIO(); sheet.save(buf, 'PNG', optimize=True)
     data[cid] = {'w': CW, 'h': CH, 'scale': 1.25, 'names': names, 'src': 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()}
+    # couleurs des vêtements (recolorées à la couleur de l'équipe dans le jeu) : [tons du sombre au clair, 1 = côté lointain]
+    hexs = lambda M: ['#%02x%02x%02x' % c[:3] for c in M]
+    if hasattr(m, 'CLOTH'): data[cid]['cloth'] = [[hexs(M), far] for M, far in m.CLOTH]
 js = ("// Généré par tools/art/export.py : persos dessinés en pixel art (planches PNG intégrées)\n"
       "const PNG_CHARS = " + json.dumps(data) + ";\n"
       "const PNG_IMG = {};\n"

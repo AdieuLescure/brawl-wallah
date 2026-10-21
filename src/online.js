@@ -7,7 +7,16 @@ const ONLINE_OK = !!(CFG.RELAY_URL && (CFG.DEV || (CFG.SUPABASE_URL && CFG.SUPAB
 let onlineStage = null; // null = hors ligne ; sinon 'menu' | 'lobby' | ...
 let onlinePick = null;
 let pendingRoom = null; // callback de choix de personnage
-const Online = { conn: null, idx: 0, peers: [null, null], code: '', ranked: false, names: ['', ''], chars: [null, null], rematchAsked: false };
+const Online = { conn: null, idx: 0, peers: [null, null, null, null], code: '', ranked: false, names: [], chars: [], rematchAsked: false, mode: 'ffa', tcols: [0, 1], host: 0, cap: 4 };
+const MODE_NAMES = { ffa: 'CHACUN POUR SOI', team: 'PAR ÉQUIPES' };
+// infos du salon envoyées par le serveur (joueurs, mode, couleurs des équipes, chef)
+Online.roomInfo = (m) => {
+  Online.peers = m.peers;
+  if (m.mode) Online.mode = m.mode;
+  if (m.tcols) Online.tcols = m.tcols;
+  if (m.host !== undefined) Online.host = m.host;
+  if (m.cap) Online.cap = m.cap;
+};
 
 // ---------------------------------------------------------------------------
 // Fenêtres de saisie (HTML par-dessus le jeu : clavier natif sur téléphone)
@@ -377,7 +386,7 @@ Object.assign(GameScene.prototype, {
       const y = 232 + i * 76;
       const bg = this.add.rectangle(400, y, 640, 64, 0x1a1d33, 1).setStrokeStyle(3, 0x6ee7b7).setDepth(D);
       const t1 = this.add.text(100, y, String(r.host || '?').toUpperCase().slice(0, 14), { fontFamily: FONT, fontSize: '17px', color: '#ffe9a8', stroke: '#000', strokeThickness: 4 }).setOrigin(0, 0.5).setDepth(D + 1);
-      const t2 = this.add.text(560, y, '1/2', { fontFamily: FONT, fontSize: '15px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(D + 1);
+      const t2 = this.add.text(560, y, `${r.n || 1}/${r.cap || 2}` + (r.mode === 'team' ? '\nÉQUIPES' : r.cap > 2 ? '\nFFA' : ''), { fontFamily: FONT, fontSize: '12px', color: '#9aa0d0', align: 'center', lineSpacing: 4 }).setOrigin(0.5).setDepth(D + 1);
       const t3 = this.add.text(690, y, 'JOUER', { fontFamily: FONT, fontSize: '15px', color: '#6ee7b7', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
       this.roomObjs.push(bg, t1, t2, t3);
       this.uiBtns.push({ x: 400, y, w: 640, h: 64, fn: () => this.joinPublic(r.code) });
@@ -498,7 +507,21 @@ Object.assign(GameScene.prototype, {
     const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
     // le créateur du salon choisit l'arène (envoyée au serveur, qui la donne aux deux joueurs)
     if (this.roomPoll) { this.roomPoll.remove(); this.roomPoll = null; }
-    this.showStagePick((stage) => this.joinRoom(code, false, '', !!pub, stage), () => this.showOnlineMenu());
+    this.showStagePick((stage) => this.pickMode((mode) => this.joinRoom(code, false, '', !!pub, stage, mode), () => this.goCreate(pub)), () => this.showOnlineMenu());
+  },
+
+  // mode du salon : chacun pour soi ou par équipes (jusqu'à 4 joueurs)
+  pickMode(next, back) {
+    this.menuBase('MODE DU SALON', { small: true });
+    this.ui.push(this.add.text(this.W / 2, 150, "JUSQU'À 4 JOUEURS", { fontFamily: FONT, fontSize: '16px', color: '#ffd166', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(101));
+    this.menuButtons(
+      [
+        { label: 'CHACUN POUR SOI\n(FREE FOR ALL)', col: 0xf72585, fn: () => next('ffa') },
+        { label: 'PAR ÉQUIPES\n(TEAM)', col: 0x4cc9f0, fn: () => next('team') },
+        { label: 'RETOUR', col: 0x888888, fn: back },
+      ],
+      260
+    );
   },
   async goJoinPrompt() {
     if (!(await Auth.ensure())) return this.showOnlineMenu();
@@ -510,7 +533,7 @@ Object.assign(GameScene.prototype, {
     else this.showOnlineMenu();
   },
 
-  async joinRoom(code, ranked, vs, pub, stage) {
+  async joinRoom(code, ranked, vs, pub, stage, mode) {
     this.onlineMsg('CONNEXION...', 'SALLE ' + code);
     Online.code = code;
     Online.ranked = ranked;
@@ -519,12 +542,13 @@ Object.assign(GameScene.prototype, {
     Online.picked = null;
     Online.leaving = false;
     Online.stage = stage || null;
+    Online.wantMode = mode || null;
     try {
       Online.conn = await netOpen('/ws/room/' + code + (pub ? '?pub=1' : ''), (m) => this.roomMsg(m), (x) => this.roomClosed(x));
     } catch (e) {
       return this.onlineMsg('ERREUR', 'SERVEUR INJOIGNABLE');
     }
-    Online.conn.send({ t: 'join', token: await Auth.token(), stage: Online.stage });
+    Online.conn.send({ t: 'join', token: await Auth.token(), stage: Online.stage, mode: Online.wantMode });
   },
 
   roomClosed(c) {
@@ -564,10 +588,10 @@ Object.assign(GameScene.prototype, {
       Online.conn = null;
       return this.onlineMsg('IMPOSSIBLE', m.e === 'full' ? 'SALLE PLEINE' : m.e === 'forbidden' ? 'ACCÈS REFUSÉ' : 'CONNEXION REFUSÉE');
     }
+    if (m.peers) Online.roomInfo(m);
     if (m.t === 'hello' && this.net && !this.over) {
       // reconnecté pendant le combat : on continue
       Online.idx = m.idx;
-      Online.peers = m.peers;
       if (this.reco) {
         this.reco = null;
         if (this.recoTxt) this.recoTxt.destroy();
@@ -577,7 +601,7 @@ Object.assign(GameScene.prototype, {
       return;
     }
     if (m.t === 'drop') {
-      if (n && !this.over && !this.dropTxt) this.dropTxt = this.add.text(this.W / 2, this.H * 0.3, "L'ADVERSAIRE SE RECONNECTE...", { fontFamily: FONT, fontSize: '18px', color: '#ffe9a8', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(90);
+      if (n && !this.over && !this.dropTxt) this.dropTxt = this.add.text(this.W / 2, this.H * 0.3, this.pls && this.pls.length > 2 ? 'UN JOUEUR SE RECONNECTE...' : "L'ADVERSAIRE SE RECONNECTE...", { fontFamily: FONT, fontSize: '18px', color: '#ffe9a8', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(90);
       return;
     }
     if (m.t === 'back') {
@@ -589,12 +613,10 @@ Object.assign(GameScene.prototype, {
     if (m.t === 'hello') {
       Online.idx = m.idx;
       if (m.stage) Online.stage = m.stage;
-      Online.peers = m.peers;
       onlineStage = 'lobby';
       return this.showLobby();
     }
     if (m.t === 'peers' || m.t === 'rematch') {
-      Online.peers = m.peers;
       if (m.t === 'rematch') {
         onlineStage = 'lobby';
         Online.picked = null;
@@ -610,11 +632,16 @@ Object.assign(GameScene.prototype, {
     if (m.t === 'left') {
       if (this.dropTxt) this.dropTxt.destroy();
       this.dropTxt = null;
-      if (n && !this.over) this.onlineForfeit("L'ADVERSAIRE EST PARTI");
+      if (n && !this.over && m.started && this.pls.length > 2) {
+        // à plusieurs : le joueur parti est éliminé (à la même image chez tout le monde) et la partie continue
+        if (m.p >= 0) this.netGone(m.p, m.last);
+        const who = m.p >= 0 && this.pls[m.p] ? this.pls[m.p].name : '';
+        this.popup(this.W / 2, this.H * 0.3, (who ? who + ' ' : 'UN JOUEUR ') + 'EST PARTI', '#ff8fa3');
+      } else if (n && !this.over) this.onlineForfeit("L'ADVERSAIRE EST PARTI");
       return;
     }
     if (m.t === 'rated') {
-      const mine = m.winner === Online.idx;
+      const mine = m.winner === (this.net ? this.net.me : Online.idx);
       this.sub && this.sub.setText(`${m.delta >= 0 ? '+' : ''}${m.delta} POINTS  (${m.rating})`).setColor(m.delta >= 0 ? '#6ee7b7' : '#ff8fa3');
       if (Auth.profile) Auth.profile.rating = m.rating;
       return;
@@ -623,34 +650,97 @@ Object.assign(GameScene.prototype, {
     if (m.t === 'final') return m.disputed && this.sub && this.sub.setText('RÉSULTAT CONTESTÉ : SANS EFFET');
   },
 
-  // ----- Salon : choix du personnage -----------------------------------------------
+  // ----- Salon : joueurs (jusqu'à 4), mode, équipes, choix du personnage ----------------
   showLobby() {
     this.clearUi();
     if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     this.state = 'lobby';
-    const me = Online.peers[Online.idx], other = Online.peers[1 - Online.idx];
-    const D = 100;
-    this.ui.push(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.92).setDepth(D));
-    const title = Online.ranked ? 'DUEL CLASSÉ' : 'SALLE  ' + Online.code;
-    this.ui.push(this.add.text(this.W / 2, 56, title, { fontFamily: FONT, fontSize: '36px', color: '#fff', stroke: '#f72585', strokeThickness: 8 }).setOrigin(0.5).setDepth(D + 1));
-    const line = (p, y, label) => {
-      const txt = p ? `${label} ${p.name}  ${p.char ? CHARS[p.char].name : '...'}  ${p.ready ? 'PRÊT' : ''}` : `${label} EN ATTENTE...`;
-      this.ui.push(this.add.text(this.W / 2, y, txt, { fontFamily: FONT, fontSize: '18px', color: p && p.ready ? '#6ee7b7' : '#cfd3ff' }).setOrigin(0.5).setDepth(D + 1));
+    this.uiBtns = [];
+    this.barBtn = null;
+    const peers = Online.peers || [];
+    const me = peers[Online.idx];
+    const cap = Online.ranked ? 2 : Online.cap || 4;
+    const isHost = !Online.ranked && Online.host === Online.idx;
+    const team = !Online.ranked && Online.mode === 'team';
+    const D = 100, W = this.W;
+    const txt = (x, y, s, size, col, ox) => {
+      const t = this.add.text(x, y, s, { fontFamily: FONT, fontSize: size + 'px', color: col || '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(ox === undefined ? 0.5 : ox, 0.5).setDepth(D + 2);
+      this.ui.push(t);
+      return t;
     };
-    line(me, 120, 'TOI:');
-    line(other, 156, 'ADV:');
-    if (!Online.ranked && Online.stage)
-      this.ui.push(this.add.text(this.W - 40, 56, 'ARÈNE : ' + (STAGE_NAMES[Online.stage] || '?'), { fontFamily: FONT, fontSize: '16px', color: '#ffd166', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5).setDepth(D + 1));
-    const buttons = [];
-    if (!me || !me.char || !me.ready) buttons.push({ label: me && me.char ? 'CHANGER DE PERSO' : 'CHOISIR MON PERSO', fn: () => this.lobbyPick() });
-    if (!Online.ranked) buttons.push({ label: 'COPIER LE LIEN', col: 0x4cc9f0, fn: () => this.copyInvite() });
-    buttons.push({ label: 'QUITTER', col: 0x888888, fn: () => leaveOnline() });
-    if (me && me.char && !me.ready && other) {
-      this.ui.push(this.add.text(this.W / 2, 200, 'TOUCHE PRÊT QUAND TU ES BON', { fontFamily: FONT, fontSize: '12px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(D + 1));
-      buttons.unshift({ label: 'PRÊT !', col: 0x6ee7b7, fn: () => Online.conn.send({ t: 'ready' }) });
+    const btn = (x, y, w, h, label, col, fn, size, fill) => {
+      this.ui.push(this.add.rectangle(x, y, w, h, fill === undefined ? 0x1a1d33 : fill, 1).setStrokeStyle(4, col).setDepth(D + 1));
+      txt(x, y, label, size || 15);
+      this.uiBtns.push({ x, y, w, h, fn });
+    };
+    this.ui.push(this.add.rectangle(W / 2, this.H / 2, W, this.H, 0x0b0d1f, 0.94).setDepth(D));
+    txt(W / 2, 48, Online.ranked ? 'DUEL CLASSÉ' : 'SALLE  ' + Online.code, 34, '#fff');
+    const info = [];
+    if (!Online.ranked) info.push(MODE_NAMES[Online.mode] || MODE_NAMES.ffa);
+    if (!Online.ranked && Online.stage) info.push('ARÈNE : ' + (STAGE_NAMES[Online.stage] || '?'));
+    if (info.length) txt(W / 2, 92, info.join('   ·   '), 15, '#ffd166');
+    // les places
+    const y0 = 146, rh = 64;
+    const here = peers.filter((p) => p && p.here !== false);
+    for (let j = 0; j < cap; j++) {
+      const p = peers[j] && peers[j].here !== false ? peers[j] : null;
+      const y = y0 + j * rh;
+      const mine = j === Online.idx;
+      this.ui.push(this.add.rectangle(W / 2, y, 940, rh - 10, mine ? 0x232846 : 0x161a30, 1).setStrokeStyle(3, mine ? 0xffe9a8 : 0x3a3f5c).setDepth(D + 1));
+      txt(W / 2 - 450, y, `J${j + 1}`, 15, '#9aa0d0', 0);
+      if (!p) {
+        txt(W / 2 - 390, y, 'PLACE LIBRE', 15, '#5a6080', 0);
+        continue;
+      }
+      txt(W / 2 - 390, y, (p.name || '?').toUpperCase().slice(0, 12) + (mine ? ' (TOI)' : ''), 16, mine ? '#ffe9a8' : '#fff', 0);
+      if (!Online.ranked && j === Online.host) txt(W / 2 - 390, y + 19, 'CHEF', 10, '#ffd166', 0);
+      txt(W / 2 + 20, y, p.char ? CHARS[p.char].name : '...', 15, '#cfd3ff');
+      txt(W / 2 + 190, y, p.ready ? 'PRÊT' : '', 15, '#6ee7b7');
+      if (team) {
+        const t = p.team === 1 ? 1 : 0;
+        const tc = TEAM_COLS[Online.tcols[t]] || TEAM_COLS[t];
+        const col = Phaser.Display.Color.HexStringToColor(tc.css).color;
+        const x = W / 2 + 360;
+        this.ui.push(this.add.rectangle(x, y, 190, 40, col, 1).setStrokeStyle(3, 0x000000).setDepth(D + 1));
+        txt(x, y, 'ÉQUIPE ' + tc.name, 12, '#fff');
+        // le chef du salon place chaque joueur dans une équipe (toucher pour changer)
+        if (isHost) this.uiBtns.push({ x, y, w: 190, h: 40, fn: () => Online.conn.send({ t: 'team', slot: j, team: 1 - t }) });
+      }
     }
-    if (me && me.ready && !other) this.ui.push(this.add.text(this.W / 2, 220, 'EN ATTENTE DE L\'ADVERSAIRE...', { fontFamily: FONT, fontSize: '14px', color: '#ffe9a8' }).setOrigin(0.5).setDepth(D + 1));
-    this.menuButtons(buttons, this.H * 0.42);
+    // réglages du chef : mode, couleurs des équipes
+    let yh = y0 + cap * rh + 6;
+    if (isHost) {
+      const other = Online.mode === 'team' ? 'ffa' : 'team';
+      btn(W / 2 - (team ? 320 : 0), yh, 300, 50, 'MODE : ' + (team ? 'ÉQUIPES' : 'CHACUN POUR SOI'), 0xf72585, () => Online.conn.send({ t: 'mode', mode: other }), 12);
+      if (team)
+        [0, 1].forEach((t) => {
+          const tc = TEAM_COLS[Online.tcols[t]];
+          const next = () => {
+            let c = Online.tcols[t];
+            do c = (c + 1) % TEAM_COLS.length;
+            while (c === Online.tcols[1 - t]);
+            Online.conn.send({ t: 'tcol', team: t, col: c });
+          };
+          btn(W / 2 + (t === 0 ? 0 : 320), yh, 300, 50, `ÉQUIPE ${t + 1} : ${tc.name}`, Phaser.Display.Color.HexStringToColor(tc.css).color, next, 12);
+        });
+      yh += 44;
+    }
+    // pourquoi la partie ne démarre pas encore
+    let hint = '';
+    if (here.length < 2) hint = Online.ranked ? "EN ATTENTE DE L'ADVERSAIRE..." : 'EN ATTENTE DE JOUEURS (2 À 4)...';
+    else if (team && new Set(here.map((p) => (p.team === 1 ? 1 : 0))).size < 2) hint = isHost ? 'TOUCHE LES ÉQUIPES POUR RÉPARTIR LES JOUEURS' : 'LE CHEF RÉPARTIT LES ÉQUIPES';
+    else if (me && me.char && !me.ready) hint = 'TOUCHE PRÊT QUAND TU ES BON';
+    else if (me && me.ready) hint = 'LA PARTIE DÉMARRE QUAND TOUT LE MONDE EST PRÊT';
+    if (team && isHost && !hint) hint = 'TOUCHE UNE ÉQUIPE POUR CHANGER UN JOUEUR DE CAMP';
+    if (hint) txt(W / 2, yh + 22, hint, 12, '#9aa0d0');
+    // actions
+    const acts = [];
+    if (!me || !me.char || !me.ready) acts.push({ label: me && me.char ? 'CHANGER DE PERSO' : 'CHOISIR MON PERSO', col: 0xf72585, fn: () => this.lobbyPick() });
+    if (me && me.char && !me.ready) acts.push({ label: 'PRÊT !', col: 0x6ee7b7, fn: () => Online.conn.send({ t: 'ready' }) });
+    if (!Online.ranked) acts.push({ label: 'COPIER LE LIEN', col: 0x4cc9f0, fn: () => this.copyInvite() });
+    acts.push({ label: 'QUITTER', col: 0x888888, fn: () => leaveOnline() });
+    const bw = 280, gap = 20, by = this.H - 52;
+    acts.forEach((a, k) => btn(W / 2 + (k - (acts.length - 1) / 2) * (bw + gap), by, bw, 62, a.label, a.col, a.fn, 14));
     if (!Online.picked && (!me || !me.char)) this.lobbyPick();
   },
 
@@ -680,13 +770,16 @@ Object.assign(GameScene.prototype, {
     const stage = STAGES.includes(m.stage) ? m.stage : STAGES.includes(Online.stage) ? Online.stage : stageFromCode(Online.code);
     if (this.applyStage) this.applyStage(stage);
     if (typeof MUSIC !== 'undefined') MUSIC.play(stage === 'dune' ? 'desert' : 'night');
-    this.beginNetMatch({ me: Online.idx, chars: m.chars, names: m.names, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
+    Online.mode = m.mode || 'ffa';
+    if (m.tcols) Online.tcols = m.tcols;
+    const meIdx = m.order ? m.order.indexOf(Online.idx) : Online.idx;
+    this.beginNetMatch({ me: meIdx, chars: m.chars, names: m.names, mode: Online.mode, teams: m.teams, tcols: Online.tcols, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
     this.state = 'countdown';
     this.setControls(true);
     this.onDesync = (f) => this.onlineEndNoResult('DÉSYNCHRONISATION');
     const D = 120;
     const t = this.add.text(this.W / 2, this.H * 0.35, '3', { fontFamily: FONT, fontSize: '96px', color: '#fff', stroke: '#f72585', strokeThickness: 14 }).setOrigin(0.5).setDepth(D);
-    const names = this.add.text(this.W / 2, this.H * 0.2, `${m.names[0]}  VS  ${m.names[1]}`, { fontFamily: FONT, fontSize: '22px', color: '#ffe9a8', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D);
+    const names = this.add.text(this.W / 2, this.H * 0.2, m.names.join('  VS  '), { fontFamily: FONT, fontSize: '22px', color: '#ffe9a8', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D);
     let c = 3;
     const ev = this.time.addEvent({
       delay: 800,
@@ -714,7 +807,7 @@ Object.assign(GameScene.prototype, {
     if (this.over) return;
     this.over = true;
     this.net = this.net; // gardé pour le rapport
-    const mine = Online.idx;
+    const mine = this.net ? this.net.me : Online.idx;
     this.banner.setText('VICTOIRE !');
     this.sub.setText(msg);
     Online.conn && Online.conn.send({ t: 'result', winner: mine });
@@ -730,10 +823,13 @@ Object.assign(GameScene.prototype, {
   },
 
   onlineFinish(winnerPlayer) {
-    const widx = winnerPlayer === this.p1 ? 0 : 1;
-    const won = widx === Online.idx;
+    const widx = winnerPlayer.i;
+    const me = this.pl(this.net ? this.net.me : 0);
+    const multi = this.pls.length > 2;
+    const won = winnerPlayer === me || (multi && winnerPlayer.team === me.team);
     this.banner.setText(won ? 'VICTOIRE !' : 'DÉFAITE...');
-    this.sub.setText(Online.ranked ? 'CALCUL DU CLASSEMENT...' : '');
+    if (multi) this.sub.setText(Online.mode === 'team' ? `ÉQUIPE ${TEAM_COLS[Online.tcols[winnerPlayer.team]].name} GAGNE` : `${winnerPlayer.name || winnerPlayer.def.name} GAGNE`);
+    else this.sub.setText(Online.ranked ? 'CALCUL DU CLASSEMENT...' : '');
     Online.conn && Online.conn.send({ t: 'result', winner: widx });
     this.onlineOverButtons();
   },

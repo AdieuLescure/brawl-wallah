@@ -161,7 +161,7 @@ export class Room extends DurableObject {
   async report() {
     if (!this.pub || this.core.ranked || !this.env.LOBBY) return;
     const here = this.core.slots.filter((x) => x && !x.left);
-    const k = JSON.stringify({ code: this.code, n: here.length, host: here[0] ? here[0].name : '', started: this.core.started });
+    const k = JSON.stringify({ code: this.code, n: here.length, cap: this.core.cap, mode: this.core.mode || 'ffa', host: here[0] ? here[0].name : '', started: this.core.started });
     if (k === this.lastRep) return;
     this.lastRep = k;
     try {
@@ -226,7 +226,7 @@ export class Lobby extends DurableObject {
     const list = [];
     for (const [c, r] of this.rooms) {
       if (now - r.t > 20 * 60000) this.rooms.delete(c);
-      else if (r.n === 1 && !r.started) list.push({ code: r.code, host: r.host });
+      else if (r.n >= 1 && r.n < (r.cap || 2) && !r.started) list.push({ code: r.code, host: r.host, n: r.n, cap: r.cap || 2, mode: r.mode || 'ffa' });
     }
     return new Response(JSON.stringify(list.slice(0, 12)), { headers: { 'content-type': 'application/json' } });
   }

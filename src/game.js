@@ -186,6 +186,15 @@ const CHARS = {
 
 };
 const ORDER = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini'];
+// couleurs d'équipe (salons en ligne « par équipes ») : nom, couleur du texte, 4 tons pour les vêtements
+const TEAM_COLS = [
+  { name: 'ROUGE', css: '#ff5a5a', ramp: ['#5a0c14', '#b81c2c', '#ec4a4a', '#ff9a8a'] },
+  { name: 'BLEU', css: '#5aa8ff', ramp: ['#0c1e5a', '#1e48b8', '#4a86ec', '#a8ccff'] },
+  { name: 'VERT', css: '#5ad87a', ramp: ['#0a4a1e', '#1c9a3c', '#4ad06a', '#b0f4b8'] },
+  { name: 'JAUNE', css: '#ffd23a', ramp: ['#6a4a00', '#d0a000', '#ffd23a', '#fff2a0'] },
+  { name: 'VIOLET', css: '#b88aff', ramp: ['#2e0c5a', '#6a2cc0', '#a070f0', '#d8c0ff'] },
+  { name: 'ROSE', css: '#ff7ac8', ramp: ['#6a0c40', '#d02c8a', '#ff70c0', '#ffc8e8'] },
+];
 // persos mis de côté pour l'instant (le code et les dessins restent, ils ne sont juste plus proposés)
 const BENCH = ['astra', 'nini'];
 const playable = () => ORDER.filter((id) => !BENCH.includes(id));
@@ -934,6 +943,9 @@ class GameScene extends Phaser.Scene {
     this.p2 = this.makePlayer(botChar, this.W / 2 + 150, L.baseY - 110, false);
     this.p1.i = 0;
     this.p2.i = 1;
+    this.p1.team = 0;
+    this.p2.team = 1;
+    this.pls = [this.p1, this.p2];
     this.p2.lvl = SETTINGS.botLevel;
     this.timeLimit = this.training || camp ? 0 : SETTINGS.timer ? MATCH_MS : 0;
     this.buildHud();
@@ -942,11 +954,12 @@ class GameScene extends Phaser.Scene {
   }
 
   buildHud() {
-    const k = L.portrait ? 1.35 : 1;
+    const k = L.portrait ? 1.35 : this.pls.length > 2 ? 0.82 : 1;
     const mk = (pl, x, align) => {
       const ox = align === 'left' ? 0 : 1;
+      const label = this.pls.length > 2 && pl.name ? pl.name : pl.def.name;
       const name = this.add
-        .text(x, 20, pl.def.name, { fontFamily: FONT, fontSize: `${Math.round(16 * k)}px`, color: '#ffffff', stroke: '#000', strokeThickness: 4 })
+        .text(x, 20, label, { fontFamily: FONT, fontSize: `${Math.round(16 * k)}px`, color: pl.teamCss || '#ffffff', stroke: '#000', strokeThickness: 4 })
         .setOrigin(ox, 0)
         .setDepth(50);
       const dmg = this.add
@@ -972,8 +985,22 @@ class GameScene extends Phaser.Scene {
       }
       pl.hud = { name, dmg, icons, gfg, gw, rfg, air };
     };
-    mk(this.p1, 24, 'left');
-    mk(this.p2, this.W - 24, 'right');
+    if (this.pls.length > 2) {
+      // à plusieurs : 4 encarts en haut (deux à gauche, deux à droite du chrono)
+      const L2 = [[24, 'left'], [24 + 250, 'left']], R2 = [[this.W - 24, 'right'], [this.W - 24 - 250, 'right']];
+      const teamed = this.pls.some((p) => p.teamCss);
+      if (teamed && this.pls.filter((p) => p.team === 0).length <= 2 && this.pls.filter((p) => p.team === 1).length <= 2) {
+        // par équipes : l'équipe 1 à gauche, l'équipe 2 à droite
+        let l = 0, r = 0;
+        this.pls.forEach((pl) => (pl.team === 0 ? mk(pl, ...L2[l++]) : mk(pl, ...R2[r++])));
+      } else {
+        const X = [L2[0], R2[0], L2[1], R2[1]];
+        this.pls.forEach((pl, i) => mk(pl, X[i][0], X[i][1]));
+      }
+    } else {
+      mk(this.p1, 24, 'left');
+      mk(this.p2, this.W - 24, 'right');
+    }
     this.timerTxt = this.add.text(this.W / 2, 84, '', { fontFamily: FONT, fontSize: '20px', color: '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(50);
 
     this.banner = this.add
@@ -988,7 +1015,7 @@ class GameScene extends Phaser.Scene {
 
   updateHud() {
     const now = this.nowT || 0;
-    [this.p1, this.p2].forEach((pl) => {
+    (this.pls || [this.p1, this.p2]).forEach((pl) => {
       const d = Math.round(pl.damage);
       const t = Math.min(d / 150, 1);
       const col = t < 0.5 ? this.lerpCol(0xffffff, 0xffd166, t * 2) : this.lerpCol(0xffd166, 0xff3b3b, (t - 0.5) * 2);
@@ -1021,7 +1048,7 @@ class GameScene extends Phaser.Scene {
       this.kbWasUsed = KB.used;
     }
     // points des spéciales (joueur local) : allumés = prête
-    const me = this.p1 && this.p1.human ? this.p1 : this.p2 && this.p2.human ? this.p2 : null;
+    const me = this.pls ? this.pls.find((p) => p.human) || null : null;
     if (this.spDots && me) {
       for (const { k, d } of this.spDots) {
         const m = me.def.moves[k];
@@ -1441,18 +1468,81 @@ class GameScene extends Phaser.Scene {
     this.physicsTick(dt);
     this.runTimers(now);
 
-    const in1 = this.inputFor(this.p1, this.p2, 0, now);
-    const in2 = this.inputFor(this.p2, this.p1, 1, now);
-    this.step(this.p1, this.p2, now, dt, in1);
-    this.step(this.p2, this.p1, now, dt, in2);
+    const pls = this.pls;
+    const multi = pls.length > 2;
+    // un joueur parti en pleine partie à plusieurs (entrée « parti ») est éliminé au même moment chez tout le monde
+    if (multi && this.netInput) pls.forEach((pl, i) => pl.stocks > 0 && this.curIn[i] === LEFT_IN && this.eliminate(pl, now));
+    const ins = pls.map((pl, i) => this.inputFor(pl, this.foeOf(pl), i, now));
+    pls.forEach((pl, i) => {
+      if (multi && pl.stocks <= 0) return; // éliminé : spectateur
+      this.step(pl, this.foeOf(pl), now, dt, ins[i]);
+    });
     this.updateProjs(now, dt);
     // chrono : à la fin, plus de vies gagne ; à vies égales, le moins de % ; sinon égalité
-    if (this.timeLimit && !this.over && now >= this.timeLimit) {
-      const a = this.p1, b = this.p2;
-      if (a.stocks !== b.stocks) this.finish(a.stocks > b.stocks ? a : b);
-      else if (Math.round(a.damage) !== Math.round(b.damage)) this.finish(a.damage < b.damage ? a : b);
-      else this.finish(null);
+    if (this.timeLimit && !this.over && now >= this.timeLimit) this.finish(this.timeWinner());
+  }
+
+  // ----- Plusieurs joueurs (salons en ligne jusqu'à 4) -----------------------
+  // ennemis encore en jeu (en équipe, pas de coups entre coéquipiers)
+  enemiesOf(pl) {
+    return this.pls.filter((o) => o !== pl && o.stocks > 0 && o.team !== pl.team);
+  }
+
+  // l'ennemi le plus proche (à deux : toujours l'autre joueur)
+  foeOf(pl) {
+    const pls = this.pls;
+    if (pls.length === 2) return pls[0] === pl ? pls[1] : pls[0];
+    let best = null, bd = 1e9;
+    for (const o of pls) {
+      if (o === pl || o.team === pl.team || o.stocks <= 0) continue;
+      const d = Math.abs(o.sprite.x - pl.sprite.x) + Math.abs(o.sprite.y - pl.sprite.y);
+      if (d < bd) { bd = d; best = o; }
     }
+    return best || pls.find((o) => o !== pl) || pl;
+  }
+
+  // fin du chrono : le camp avec le plus de vies, puis le moins de % ; null = égalité
+  timeWinner() {
+    const sides = {};
+    for (const p of this.pls) {
+      const s = sides[p.team] || (sides[p.team] = { stocks: 0, dmg: 0, best: null });
+      s.stocks += Math.max(p.stocks, 0);
+      if (p.stocks > 0) s.dmg += Math.round(p.damage);
+      if (p.stocks > 0 && (!s.best || p.damage < s.best.damage)) s.best = p;
+    }
+    const list = Object.values(sides).sort((a, b) => b.stocks - a.stocks || a.dmg - b.dmg);
+    if (list.length < 2) return list[0] && list[0].best;
+    if (list[0].stocks === list[1].stocks && list[0].dmg === list[1].dmg) return null;
+    return list[0].best;
+  }
+
+  // retire un joueur de la partie (plus de vies, ou parti) ; la partie s'arrête quand il ne reste qu'un camp
+  eliminate(pl, now) {
+    pl.stocks = 0;
+    pl.ledgeSide = 0;
+    pl.atk = null;
+    if (pl.grab) this.releaseGrab(pl);
+    this.pls.forEach((o) => o.grab && o.grab.victim === pl && this.releaseGrab(o));
+    pl.sprite.body.enable = false;
+    pl.sprite.setVisible(false);
+    pl.tag.setVisible(false);
+    if (this.over) return;
+    const alive = this.pls.filter((o) => o.stocks > 0);
+    const teams = new Set(alive.map((o) => o.team));
+    if (teams.size <= 1) this.finish(alive[0] || null);
+    else if (!this.resim) this.popup(this.W / 2, L.baseY - 220, (pl.name || pl.def.name) + ' ÉLIMINÉ', '#ff8fa3');
+  }
+
+  // le tir touche-t-il un ennemi de son lanceur ? (à plusieurs : le premier touché)
+  projVictim(p, now) {
+    const sp = p.spec;
+    const pcy = sp.bottom ? p.y - sp.h / 2 : p.y;
+    for (const v of this.enemiesOf(p.owner)) {
+      if (now < v.invulnUntil || v.grab) continue;
+      const vb = v.sprite.body;
+      if (p.x + sp.w / 2 > vb.x && p.x - sp.w / 2 < vb.right && pcy + sp.h / 2 > vb.y && pcy - sp.h / 2 < vb.bottom) return v;
+    }
+    return null;
   }
 
   physicsTick(dt) {
@@ -1512,7 +1602,7 @@ class GameScene extends Phaser.Scene {
     const pl = d.pi === undefined ? null : this.pl(d.pi);
     if (t.kind === 'double') {
       if (pl.atk && pl.atk.id === d.aid && !this.over && pl.stocks > 0) {
-        this.spawnProj(pl, this.pl(1 - d.pi), pl.atk.m, now, 7);
+        this.spawnProj(pl, this.foeOf(pl), pl.atk.m, now, 7);
         this.muzzle(pl, 1);
       }
     } else if (t.kind === 'dive') {
@@ -1528,7 +1618,7 @@ class GameScene extends Phaser.Scene {
     } else if (t.kind === 'skill') {
       if (pl.atk && pl.atk.id === d.aid) this.niniSkillFire(pl, pl.atk.m, d.key, now);
     } else if (t.kind === 'book') {
-      this.bookLand(pl, this.pl(1 - d.pi), d, now);
+      this.bookLand(pl, this.foeOf(pl), d, now);
     } else if (t.kind === 'lunge') {
       if (pl.atk && pl.atk.id === d.aid) pl.sprite.setVelocityX(pl.facing * pl.atk.m.lunge);
     } else if (t.kind === 'vanish') {
@@ -1543,7 +1633,7 @@ class GameScene extends Phaser.Scene {
   }
 
   pl(i) {
-    return i === 0 ? this.p1 : this.p2;
+    return this.pls ? this.pls[i] : i === 0 ? this.p1 : this.p2;
   }
 
   // directions : neutre ('n', doigt au centre), avant ('s'), haut ('u'), bas ('d')
@@ -1864,9 +1954,10 @@ class GameScene extends Phaser.Scene {
       } else if (now >= pl.atk.hitAt && now < pl.atk.hitAt + m.active) {
         const bc = b.center;
         const box = new Phaser.Geom.Rectangle(bc.x + pl.facing * m.ox - m.w / 2, bc.y + m.oy - m.h / 2, m.w, m.h);
+        const victims = this.pls.length > 2 ? this.enemiesOf(pl) : [other];
         // un coup au corps-à-corps détruit les petits projectiles adverses (orbes, balles, anneau, mine)
         for (const p of this.projs) {
-          if (p.dead || p.owner !== other || !p.spec.small) continue;
+          if (p.dead || !victims.includes(p.owner) || !p.spec.small) continue;
           const ph = p.spec;
           if (p.x + ph.w / 2 > box.x && p.x - ph.w / 2 < box.right && p.y + ph.h / 2 > box.y && p.y - ph.h / 2 < box.bottom) {
             this.killProj(p, true);
@@ -1874,18 +1965,24 @@ class GameScene extends Phaser.Scene {
           }
         }
         // la silhouette de billets de l'adversaire encaisse le coup à sa place
-        if (this.bzDecoyHit && this.bzDecoyHit(pl, other, box, now)) {
-          pl.atk.done = true;
-        }
-        const vb = other.sprite.body;
-        const vr = new Phaser.Geom.Rectangle(vb.x, vb.y, vb.width, vb.height);
-        const vGround = vb.blocked.down || vb.touching.down;
-        if (!pl.atk.done && now >= other.invulnUntil && other.stocks > 0 && !other.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
-          pl.atk.done = true;
-          pl.atk.landed = now;
-          const dir = Math.sign(other.sprite.x - s.x) || pl.facing;
-          if (m.type === 'grab') this.startGrab(pl, other, m, now);
-          else this.applyHit(pl, other, this.charged(m, pl.atk), now, dir, null, pl.atk.end - now);
+        for (const v of victims) if (!pl.atk.done && this.bzDecoyHit && this.bzDecoyHit(pl, v, box, now)) pl.atk.done = true;
+        // à plusieurs, un même coup peut toucher plusieurs ennemis dans la même image (une prise : un seul)
+        const wasDone = pl.atk.done;
+        let hitOne = false;
+        for (const v of victims) {
+          if (wasDone || (hitOne && m.type === 'grab')) break;
+          const vb = v.sprite.body;
+          const vr = new Phaser.Geom.Rectangle(vb.x, vb.y, vb.width, vb.height);
+          const vGround = vb.blocked.down || vb.touching.down;
+          if (now >= v.invulnUntil && v.stocks > 0 && !v.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
+            hitOne = true;
+            pl.atk.done = true;
+            pl.atk.landed = now;
+            const dir = Math.sign(v.sprite.x - s.x) || pl.facing;
+            if (m.type === 'grab') this.startGrab(pl, v, m, now);
+            else this.applyHit(pl, v, this.charged(m, pl.atk), now, dir, null, pl.atk.end - now);
+            if (!pl.atk) break;
+          }
         }
       } else if (now >= pl.atk.hitAt + m.active) pl.atk.done = true;
     }
@@ -1939,7 +2036,7 @@ class GameScene extends Phaser.Scene {
     // retour, élan d'un coup…), on bute sur un mur invisible juste avant. En bas : on meurt toujours (retour raté).
     const cx = this.W / 2;
     const out = s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y < L.baseY - BLAST_TOP;
-    const launched = now < pl.stunUntil + KO_GRACE || !!(pl.grab || [this.p1, this.p2].some((o) => o.grab && o.grab.victim === pl));
+    const launched = now < pl.stunUntil + KO_GRACE || !!(pl.grab || this.pls.some((o) => o.grab && o.grab.victim === pl));
     if (s.y > L.baseY + BLAST_BOTTOM || (out && launched)) return this.die(pl, now);
     if (launched) return;
     const bd = s.body;
@@ -2309,7 +2406,7 @@ class GameScene extends Phaser.Scene {
   // plus on charge, plus le tir est tendu et fort ; peu chargé : tir en cloche
   spawnBall(pl, m, lv, now) {
     const b = m.ball;
-    const tgt = pl === this.p1 ? this.p2 : this.p1;
+    const tgt = this.foeOf(pl);
     const spec = {
       ...b,
       vx: 300 + 1000 * lv,
@@ -2792,7 +2889,7 @@ class GameScene extends Phaser.Scene {
           let hit = 0;
           for (const side of [-1, 1]) {
             const ex = this.W / 2 + side * (L.mainW / 2);
-            if (Math.abs(p.x - ex) < 60 && Math.abs(p.y - L.baseY) < 80 && (this.pl(1 - o.i).ledgeSide !== side)) hit = side;
+            if (Math.abs(p.x - ex) < 60 && Math.abs(p.y - L.baseY) < 80 && !this.pls.some((q) => q !== o && q.ledgeSide === side)) hit = side;
           }
           if (hit) {
             this.grabLedge(o, hit, now);
@@ -2829,6 +2926,7 @@ class GameScene extends Phaser.Scene {
       }
       // --- DENODOOM : l'aigle de Carthage (vol guidé, prise, drapeau, lancer)
       if (sp.kind === 'eagle') {
+        if (!p.carry && this.pls.length > 2) p.target = this.projVictim(p, now) || p.target;
         const v = p.target;
         p.sprite.setTexture(Math.floor(now / 85) % 2 ? 'eagle1' : 'eagle0');
         if (!p.carry) {
@@ -2885,11 +2983,12 @@ class GameScene extends Phaser.Scene {
           this.killProj(p, false);
           continue;
         }
-        const v2 = p.target;
-        const vb2 = v2.sprite.body;
-        if (!p.hits.has(v2) && now >= v2.invulnUntil && v2.stocks > 0 && !v2.grab && p.x + sp.w / 2 > vb2.x && p.x - sp.w / 2 < vb2.right && p.y + sp.h / 2 > vb2.y && p.y - sp.h / 2 < vb2.bottom) {
-          p.hits.add(v2);
-          this.applyHit(p.owner, v2, sp, now, p.f, { x: p.x, y: p.y });
+        for (const v2 of this.pls.length > 2 ? this.enemiesOf(p.owner) : [p.target]) {
+          const vb2 = v2.sprite.body;
+          if (!p.hits.has(v2) && now >= v2.invulnUntil && v2.stocks > 0 && !v2.grab && p.x + sp.w / 2 > vb2.x && p.x - sp.w / 2 < vb2.right && p.y + sp.h / 2 > vb2.y && p.y - sp.h / 2 < vb2.bottom) {
+            p.hits.add(v2);
+            this.applyHit(p.owner, v2, sp, now, p.f, { x: p.x, y: p.y });
+          }
         }
         continue;
       }
@@ -2943,6 +3042,12 @@ class GameScene extends Phaser.Scene {
       }
 
       // collision avec l'adversaire (la CHARGE DU TAUREAU passe à travers les tirs)
+      if (this.pls.length > 2) {
+        if (p.spent || now < p.armedAt) continue;
+        const vv = this.projVictim(p, now);
+        if (!vv) continue;
+        p.target = vv;
+      }
       const v = p.target;
       if (p.spent || now < p.armedAt || now < v.invulnUntil || v.stocks <= 0 || v.grab) continue;
       if (v.atk && v.atk.m.projImmune && now < v.atk.end && sp.blockable) continue;
@@ -3003,7 +3108,7 @@ class GameScene extends Phaser.Scene {
   die(pl, now) {
     const s = pl.sprite;
     if (pl.grab) this.releaseGrab(pl);
-    [this.p1, this.p2].forEach((o) => o.grab && o.grab.victim === pl && this.releaseGrab(o));
+    this.pls.forEach((o) => o.grab && o.grab.victim === pl && this.releaseGrab(o));
     s.body.allowGravity = true;
     s.setAngle(0).clearTint();
     pl.rage = 0; pl.rageUntil = 0; pl.charmUntil = 0; pl.slowUntil = 0; pl.armorUntil = 0;
@@ -3031,6 +3136,7 @@ class GameScene extends Phaser.Scene {
     pl.damage = 0;
     pl.atk = null;
     if (pl.stocks <= 0) {
+      if (this.pls.length > 2) return this.eliminate(pl, now);
       s.setVisible(false);
       s.body.enable = false;
       this.finish(pl === this.p1 ? this.p2 : this.p1);
@@ -3044,7 +3150,9 @@ class GameScene extends Phaser.Scene {
 
   finish(winner) {
     this.over = true;
-    if (winner && !this.resim && typeof MUSIC !== 'undefined') MUSIC.jingle(winner === (this.net ? this.pl(this.net.me) : this.p1) ? 'win' : 'lose');
+    const meP = this.net ? this.pl(this.net.me) : this.p1;
+    const won = !!winner && (winner === meP || (this.pls.length > 2 && winner.team === meP.team));
+    if (winner && !this.resim && typeof MUSIC !== 'undefined') MUSIC.jingle(won ? 'win' : 'lose');
     if (!winner) {
       // fin du chrono à égalité parfaite (mêmes vies, mêmes %)
       this.banner.setText('ÉGALITÉ');
@@ -3056,10 +3164,10 @@ class GameScene extends Phaser.Scene {
       this.banner.setText(winner === this.p1 ? 'VICTOIRE !' : 'DÉFAITE...');
       this.sub.setText('TOUCHE POUR REJOUER');
     }
-    this.clearCharge(this.p1);
-    this.clearCharge(this.p2);
-    this.p1.sprite.setVelocity(0, 0);
-    this.p2.sprite.setVelocity(0, 0);
+    this.pls.forEach((p) => {
+      this.clearCharge(p);
+      if (p.sprite.body.enable) p.sprite.setVelocity(0, 0);
+    });
     this.projs.forEach((p) => !p.dead && this.killProj(p, false));
     this.projs = [];
     this.chainGfx.clear();
@@ -3092,7 +3200,7 @@ class GameScene extends Phaser.Scene {
       const inner = ceiling ? b.halfWidth + 130 : b.top > L.baseY - 6 ? b.halfWidth + 36 : 8;
       if (out < -inner || out > b.halfWidth + 46) continue;
       if (b.top < L.baseY - 50 || b.top > L.baseY + 70) continue;
-      if (other.ledgeSide === side) continue; // déjà pris par l'adversaire
+      if (this.pls.some((o) => o !== pl && o.ledgeSide === side)) continue; // déjà pris par quelqu'un
       this.grabLedge(pl, side, now);
       return true;
     }

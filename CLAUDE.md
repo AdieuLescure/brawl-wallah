@@ -118,6 +118,17 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   (`cardTex`, dessinées en pixels depuis `idle0`), grand perso en pied à droite (en haut en portrait), nom, VALIDER.
   Toucher une carte la sélectionne ; clavier : flèches + Entrée.
 - Chrono de 8 min (`MATCH_MS`), PAS de mort subite : à la fin, plus de vies gagne, puis le moins de % ; sinon ÉGALITÉ. 3 vies.
+- SALONS À 4 (en ligne, hors duel classé) : `RoomCore` (`server/core.js`) a 4 places (`cap`), un mode choisi à la création
+  (`mode` : 'ffa' chacun pour soi / 'team' par équipes, envoyé avec `join`), et le CHEF (`host()` = 1re place occupée)
+  change le mode, l'équipe de chaque joueur (`team`) et la couleur des deux équipes (`tcol`, indices de `TEAM_COLS`
+  dans `game.js`). Départ quand tous les présents (2 à 4) sont prêts ; `start` envoie `order` (places en jeu = index des
+  joueurs), `teams`, `tcols`. Moteur : `this.pls` (2 à 4 joueurs ; `p1`/`p2` = alias des deux premiers), `enemiesOf`,
+  `foeOf` (ennemi le plus proche), `projVictim`, pas de coups entre coéquipiers, `eliminate` (éliminé = spectateur,
+  corps désactivé ; fin quand il reste un camp), `timeWinner`. Netcode : entrées de N joueurs (`netIn`, message `in`
+  avec `p`), un joueur parti en pleine partie est éliminé à la même image partout : le serveur envoie `left` avec sa
+  dernière image (`lastIn`) et `LEFT_IN` remplace ensuite ses entrées. À 2 joueurs, tout reste comme avant.
+  Couleurs d'équipe : chaque `*_set.py` déclare `CLOTH` (matériaux des vêtements), exportés dans `PNG_CHARS[id].cloth` ;
+  `teamTex` recolore la planche à la volée (textures `id~couleur_pose`, `pl.tex`, utilisées par `anim.js`).
 - Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
 - Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en
   ligne elles sont désactivées (le perso restait tout blanc, l'aigle restait figé). La teinte est décidée à chaque image

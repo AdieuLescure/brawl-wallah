@@ -106,7 +106,7 @@ Object.assign(GameScene.prototype, {
     // la silhouette en billets reste à sa place (un « projectile » immobile, sauvegardé en ligne comme les autres)
     const sp = { kind: 'decoy', tex: `${pl.char}_idle0`, s: PX, vx: 0, life: BZ.invisMs, w: 44, h: 76, ox: 0, oy: 0, dmg: 0 };
     const img = this.add.image(x0, y0, sp.tex).setScale(PX).setDepth(9).setTint(0x5fbf5a).setFlipX(pl.facing < 0);
-    this.projs.push({ id: ++this.projSeq, owner: pl, target: this.pl(1 - pl.i), spec: sp, x: x0, y: y0, vx: 0, vy: 0, born: now, armedAt: now, lastTrail: 0, sprite: img, dead: false, f: pl.facing });
+    this.projs.push({ id: ++this.projSeq, owner: pl, target: this.foeOf(pl), spec: sp, x: x0, y: y0, vx: 0, vy: 0, born: now, armedAt: now, lastTrail: 0, sprite: img, dead: false, f: pl.facing });
     pl.decoyId = this.projSeq;
     pl.invisUntil = now + BZ.invisMs;
     // téléport vers le haut (sans sortir par le haut de l'écran)

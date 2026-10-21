@@ -29,6 +29,8 @@ GUN_R = ['kkkkkkkkkk', 'khhhhhhhgk', 'kgGGGGGGGk', 'kGGkkkkkkk', 'kGGk......', '
 GUN_L = [r[::-1] for r in GUN_R]
 
 
+CLOTH = [(COAT, 0), (COAT_FAR, 1), (LINING, 0)]  # vêtements recolorés en équipe
+
 def torso(P, lean):
     T = lambda pts: [add(rot(sub(p, P0), lean), P) for p in pts]
     it = []

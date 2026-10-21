@@ -30,6 +30,8 @@ POINT = ['..kk....', '.kWk....', '.kWk....', '.kWkkk..', 'kWWWWWk.', 'kwWWWWk.',
 OPEN = ['.kkkk...', 'kWWWWk..', 'kWWWWWk.', 'kWWWWWk.', 'kwWWWWk.', 'kgwwwwk.', '.kkkkk..']
 
 
+CLOTH = [(NAVY, 0), (NAVY_FAR, 1)]  # vêtements recolorés en équipe
+
 def torso(P, lean):
     T = lambda pts: [add(rot(sub(p, P0), lean), P) for p in pts]
     it = []

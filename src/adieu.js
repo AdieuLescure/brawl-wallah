@@ -92,7 +92,7 @@ Object.assign(GameScene.prototype, {
     const s = pl.sprite;
     const from = { x: s.x, y: s.y };
     if (pl.grab) this.releaseGrab(pl);
-    [this.p1, this.p2].forEach((o) => o.grab && o.grab.victim === pl && this.releaseGrab(o));
+    this.pls.forEach((o) => o.grab && o.grab.victim === pl && this.releaseGrab(o));
     pl.ledgeSide = 0;
     s.body.allowGravity = true;
     this.putAt(s, x, y);

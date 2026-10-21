@@ -106,9 +106,9 @@ Object.assign(GameScene.prototype, {
 
   // --- Indicateurs : perso hors de l'écran, changement de côté --------------------
   overlayFx(now) {
-    if (this.resim || !this.p1 || !this.p2) return;
+    if (this.resim || !this.p1 || !this.p2 || !this.pls) return;
     if (!this.ovl) this.ovl = {};
-    [this.p1, this.p2].forEach((pl, i) => {
+    this.pls.forEach((pl, i) => {
       const s = pl.sprite;
       let o = this.ovl[i];
       if (!o) {

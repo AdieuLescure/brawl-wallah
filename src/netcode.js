@@ -1,5 +1,5 @@
 // ===========================================================================
-// NETCODE : rollback (type GGPO) pour le duel en ligne 1v1
+// NETCODE : rollback (type GGPO) pour les combats en ligne (duel 1v1, salons jusqu'à 4 joueurs)
 //  - snapshot()/restore() : état complet du combat, restauré à l'identique
 //  - netStep() : prédit l'adversaire, corrige et rejoue les images quand son vrai input arrive
 //  - pendant un rejeu, aucun effet visuel (sinon on verrait chaque coup en double)
@@ -28,6 +28,8 @@ function unpackInput(v) {
   return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)), special: !!(v & (1 << 21)) };
 }
 const NEUTRAL_IN = packInput({});
+// entrée spéciale « ce joueur a quitté la partie » (à plusieurs) : il est éliminé à cette image chez tout le monde
+const LEFT_IN = 1 << 30;
 // pour prédire : on garde la direction et les boutons maintenus, jamais les « appuis » ponctuels
 const predictFrom = (v) => v & ~((1 << 16) | (1 << 17) | (1 << 20) | (1 << 21));
 
@@ -43,7 +45,7 @@ function hashStr(s) {
 Object.assign(GameScene.prototype, {
   // ----- Etat ------------------------------------------------------------
   snapshot() {
-    const pls = [this.p1, this.p2].map((pl) => {
+    const pls = this.pls.map((pl) => {
       const b = pl.sprite.body;
       const o = {
         sx: pl.sprite.x, sy: pl.sprite.y,
@@ -69,7 +71,7 @@ Object.assign(GameScene.prototype, {
 
   restore(str) {
     const S = JSON.parse(str);
-    [this.p1, this.p2].forEach((pl, i) => {
+    this.pls.forEach((pl, i) => {
       const o = S.pls[i];
       const s = pl.sprite, b = s.body;
       b.stop();
@@ -88,6 +90,11 @@ Object.assign(GameScene.prototype, {
       pl.grab = o.grab ? { victim: this.pl(o.grab.v), start: o.grab.start, slamAt: o.grab.slamAt, spec: o.grab.spec } : null;
       s.setFlipX(pl.facing < 0);
       if (!pl.grab) s.setAngle(0);
+      // à plusieurs : un joueur éliminé n'a plus de corps (il peut revenir si le rejeu remonte avant son élimination)
+      if (this.pls.length > 2) {
+        b.enable = pl.stocks > 0;
+        pl.tag.setVisible(pl.stocks > 0);
+      }
     });
     // projectiles : on garde les sprites existants, on recrée ceux qui manquent
     const live = new Map(this.projs.map((p) => [p.id, p]));
@@ -135,6 +142,55 @@ Object.assign(GameScene.prototype, {
     return img;
   },
 
+  // ----- Équipes : vêtements à la couleur de l'équipe ----------------------
+  paintTeam(pl, col) {
+    const tc = TEAM_COLS[col] || TEAM_COLS[0];
+    pl.teamCol = col;
+    pl.teamCss = tc.css;
+    pl.tex = this.teamTex(pl.char, col);
+    pl.tag.setColor(tc.css);
+  },
+
+  // planche du perso recolorée : les couleurs des vêtements (listées par export.py) prennent les tons de l'équipe
+  teamTex(id, col) {
+    const png = typeof PNG_CHARS !== 'undefined' && PNG_CHARS[id];
+    const img = typeof PNG_IMG !== 'undefined' && PNG_IMG[id];
+    if (!png || !img || !png.cloth) return null;
+    const prefix = `${id}~${col}`;
+    if (this.textures.exists(`${prefix}_idle0`)) return prefix;
+    const cv = document.createElement('canvas');
+    cv.width = img.width;
+    cv.height = img.height;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    const d = c.getImageData(0, 0, cv.width, cv.height);
+    const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const ramp = (TEAM_COLS[col] || TEAM_COLS[0]).ramp.map(hex);
+    const map = new Map();
+    png.cloth.forEach(([tones, far]) =>
+      tones.forEach((h, j) => {
+        const k = Math.max(0, Math.min(3, Math.round((j * 3) / Math.max(tones.length - 1, 1)) - (far ? 1 : 0)));
+        const [r, g, b] = hex(h);
+        map.set((r << 16) | (g << 8) | b, ramp[k]);
+      })
+    );
+    const px = d.data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (!px[i + 3]) continue;
+      const t = map.get((px[i] << 16) | (px[i + 1] << 8) | px[i + 2]);
+      if (t) { px[i] = t[0]; px[i + 1] = t[1]; px[i + 2] = t[2]; }
+    }
+    c.putImageData(d, 0, 0);
+    // une texture par posture (mêmes noms que les originales ; absente de la planche = garde)
+    this.textures.getTextureKeys().filter((k) => k.startsWith(id + '_')).forEach((key) => {
+      const name = key.slice(id.length + 1);
+      const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf(name.endsWith('_g') ? 'idle0_g' : 'idle0');
+      mkCanvas(this, `${prefix}_${name}`, png.w, png.h, (c2) => c2.drawImage(cv, fi * png.w, 0, png.w, png.h, 0, 0, png.w, png.h), 'raw');
+      TEXSCALE[`${prefix}_${name}`] = TEXSCALE[key];
+    });
+    return prefix;
+  },
+
   // ----- Rejeu silencieux --------------------------------------------------
   beginResim() {
     if (this.resim) return;
@@ -155,64 +211,98 @@ Object.assign(GameScene.prototype, {
   },
 
   // ----- Match en ligne ------------------------------------------------------
-  // cfg : { me: 0|1, chars: [id0, id1], send(msg) }
+  // cfg : { me, chars: [...], names, mode: 'ffa'|'team', teams: [...], tcols: [c0, c1], send(msg) }
   beginNetMatch(cfg) {
     this.clearUi();
     this.state = 'play';
     this.setControls && this.setControls(true);
-    const [c0, c1] = cfg.chars;
-    this.p1 = this.makePlayer(c0, this.W / 2 - 150, L.baseY - 110, cfg.me === 0);
-    this.p2 = this.makePlayer(c1, this.W / 2 + 150, L.baseY - 110, cfg.me === 1);
-    if (cfg.names) [this.p1, this.p2].forEach((pl, i) => pl.tag.setText(String(cfg.names[i] || '').toUpperCase().slice(0, 12)));
-    this.p1.facing = 1;
-    this.p2.facing = -1;
-    this.p1.i = 0;
-    this.p2.i = 1;
+    const N = cfg.chars.length;
+    // départs : face au centre
+    const XS = N === 2 ? [-150, 150] : N === 3 ? [-230, 230, 0] : [-250, 250, -90, 90];
+    this.pls = cfg.chars.map((c, i) => {
+      const pl = this.makePlayer(c, this.W / 2 + XS[i], L.baseY - 110, cfg.me === i);
+      pl.i = i;
+      pl.facing = XS[i] <= 0 ? 1 : -1;
+      pl.name = String((cfg.names && cfg.names[i]) || '').toUpperCase().slice(0, 12);
+      pl.team = cfg.mode === 'team' && cfg.teams ? cfg.teams[i] : i;
+      if (cfg.mode === 'team' && cfg.tcols) this.paintTeam(pl, cfg.tcols[pl.team]);
+      return pl;
+    });
+    this.p1 = this.pls[0];
+    this.p2 = this.pls[1];
+    if (cfg.names) this.pls.forEach((pl) => pl.tag.setText(pl.name));
     this.projSeq = 0;
     this.timeLimit = MATCH_MS;
     this.sudden = false;
     this.buildHud();
     const D = NET_DELAY;
     this.net = {
-      me: cfg.me, send: cfg.send, rtt: cfg.rtt || (() => 0), remoteMax: -1, lastSkip: 0,
-      inputs: [{}, {}], // inputs[joueur][image] = entier
-      used: {}, snaps: {}, verified: -1, lastRemote: NEUTRAL_IN,
+      me: cfg.me, send: cfg.send, rtt: cfg.rtt || (() => 0), remoteMax: this.pls.map(() => -1), lastSkip: 0,
+      inputs: this.pls.map(() => ({})), // inputs[joueur][image] = entier
+      used: {}, snaps: {}, verified: -1, lastRemote: this.pls.map(() => NEUTRAL_IN), gone: {},
       hashes: { mine: {}, theirs: {} }, desync: false, stalled: 0, rollbacks: 0, maxRoll: 0,
     };
-    for (let f = 0; f < D; f++) this.net.inputs[0][f] = this.net.inputs[1][f] = NEUTRAL_IN; // images 0..D-1 : neutre pour les deux
+    for (let f = 0; f < D; f++) this.net.inputs.forEach((a) => (a[f] = NEUTRAL_IN)); // images 0..D-1 : neutre pour tous
     // les gestes de pistolet/charge utilisent le hasard des bots : jamais en ligne
     this.autoP1 = false;
-    this.curIn = [NEUTRAL_IN, NEUTRAL_IN];
+    this.curIn = this.pls.map(() => NEUTRAL_IN);
     this.netInput = (i) => unpackInput(this.curIn[i]);
     this.snapAt = {};
+  },
+
+  // les autres joueurs de la partie
+  netRemotes() {
+    const n = this.net;
+    return this.pls.map((_, i) => i).filter((i) => i !== n.me);
+  },
+
+  // entrée connue d'un joueur pour une image (undefined = pas encore reçue)
+  netIn(r, f) {
+    const n = this.net;
+    if (n.gone[r] !== undefined && f > n.gone[r]) return LEFT_IN;
+    return n.inputs[r][f];
+  },
+
+  // un joueur est parti (salon à plusieurs) : à partir de l'image qui suit sa dernière entrée, il est éliminé
+  netGone(r, last) {
+    const n = this.net;
+    if (!n || r === n.me || n.gone[r] !== undefined) return;
+    n.gone[r] = last;
   },
 
   netReceive(msg) {
     const n = this.net;
     if (!n) return;
-    const r = 1 - n.me;
+    const r = msg.p !== undefined ? msg.p : 1 - n.me;
+    if (r === n.me || r < 0 || r >= this.pls.length) return;
     if (msg.t === 'in') {
       msg.a.forEach(([f, v]) => {
         if (n.inputs[r][f] === undefined) n.inputs[r][f] = v;
-        if (f > n.remoteMax) n.remoteMax = f;
+        if (f > n.remoteMax[r]) n.remoteMax[r] = f;
       });
     } else if (msg.t === 'hash') {
-      n.hashes.theirs[msg.f] = msg.h;
+      (n.hashes.theirs[msg.f] || (n.hashes.theirs[msg.f] = {}))[r] = msg.h;
       this.netCheckHash(msg.f);
     }
   },
 
   netCheckHash(f) {
     const n = this.net;
-    const a = n.hashes.mine[f], b = n.hashes.theirs[f];
-    if (a === undefined || b === undefined) return;
-    if (a !== b && !n.desync) {
-      n.desync = true;
-      n.send({ t: 'desync', f });
-      if (this.onDesync) this.onDesync(f);
+    const a = n.hashes.mine[f], th = n.hashes.theirs[f];
+    if (a === undefined || !th) return;
+    for (const r in th) {
+      if (th[r] !== a && !n.desync) {
+        n.desync = true;
+        n.send({ t: 'desync', f });
+        if (this.onDesync) this.onDesync(f);
+      }
     }
-    delete n.hashes.mine[f];
-    delete n.hashes.theirs[f];
+    // tout le monde a répondu : on oublie cette image
+    const want = this.netRemotes().filter((r) => n.gone[r] === undefined).length;
+    if (Object.keys(th).length >= want) {
+      delete n.hashes.mine[f];
+      delete n.hashes.theirs[f];
+    }
   },
 
   sampleLocal() {
@@ -235,8 +325,10 @@ Object.assign(GameScene.prototype, {
         break;
       }
       // recalage du rythme : si on est en avance sur l'adversaire, on ralentit d'une image de temps en temps
-      if (n.remoteMax >= 0 && this.frame - n.lastSkip > 20) {
-        const remoteNow = n.remoteMax - NET_DELAY + Math.round(n.rtt() / 2 / STEP_MS);
+      const rms = this.netRemotes().filter((r) => n.gone[r] === undefined).map((r) => n.remoteMax[r]);
+      const rmin = rms.length ? Math.min(...rms) : -1;
+      if (rmin >= 0 && this.frame - n.lastSkip > 20) {
+        const remoteNow = rmin - NET_DELAY + Math.round(n.rtt() / 2 / STEP_MS);
         if (this.frame - remoteNow > 2) {
           n.lastSkip = this.frame;
           this.acc -= STEP_MS;
@@ -254,18 +346,19 @@ Object.assign(GameScene.prototype, {
     if (!n) return;
     const pk = [];
     for (let k = this.frame + NET_DELAY; k > this.frame + NET_DELAY - win && k >= 0; k--) if (n.inputs[n.me][k] !== undefined) pk.push([k, n.inputs[n.me][k]]);
-    n.send({ t: 'in', a: pk });
+    n.send({ t: 'in', p: n.me, a: pk });
   },
 
   // vérifie les prédictions contre les vraies commandes reçues (rollback si besoin) + empreintes
   netVerify(f) {
     const n = this.net;
-    const r = 1 - n.me;
-    // 2. l'adversaire a-t-il fait autre chose que prévu ?
+    const rem = this.netRemotes();
+    const known = (v) => rem.every((r) => this.netIn(r, v) !== undefined);
+    // 2. les autres ont-ils fait autre chose que prévu ?
     let mis = -1;
     let v = n.verified + 1;
-    while (v < f && n.inputs[r][v] !== undefined) {
-      if (n.used[v][r] !== n.inputs[r][v]) {
+    while (v < f && known(v)) {
+      if (rem.some((r) => n.used[v][r] !== this.netIn(r, v))) {
         mis = v;
         break;
       }
@@ -277,7 +370,7 @@ Object.assign(GameScene.prototype, {
       this.netRollback(mis, f);
       // on revérifie ce qui vient d'être rejoué
       let w = mis;
-      while (w < f && n.inputs[r][w] !== undefined) w++;
+      while (w < f && known(w)) w++;
       n.verified = w - 1;
     }
     // 3. empreinte de l'état (images confirmées) pour détecter une désynchronisation
@@ -287,7 +380,7 @@ Object.assign(GameScene.prototype, {
         n.lastHashF = F;
         const h = hashStr(this.stateKey(n.snaps[F]));
         n.hashes.mine[F] = h;
-        n.send({ t: 'hash', f: F, h });
+        n.send({ t: 'hash', p: n.me, f: F, h });
         this.netCheckHash(F);
       }
     }
@@ -295,13 +388,13 @@ Object.assign(GameScene.prototype, {
 
   netStep() {
     const n = this.net;
-    const me = n.me, r = 1 - me;
+    const me = n.me;
     const f = this.frame;
     // 1. mes commandes de l'image f+D, envoyées avec les 5 précédentes (redondance)
     n.inputs[me][f + NET_DELAY] = this.sampleLocal();
     const pk = [];
     for (let k = f + NET_DELAY; k > f + NET_DELAY - 6 && k >= 0; k--) if (n.inputs[me][k] !== undefined) pk.push([k, n.inputs[me][k]]);
-    if ((f & 1) === 0) n.send({ t: 'in', a: pk }); // 30 Hz : économise le quota Cloudflare
+    if ((f & 1) === 0) n.send({ t: 'in', p: me, a: pk }); // 30 Hz : économise le quota Cloudflare
     this.netVerify(f);
     // 4. on joue l'image f
     this.netPlay(f);
@@ -310,22 +403,21 @@ Object.assign(GameScene.prototype, {
     if (old >= 0) {
       delete n.snaps[old];
       delete n.used[old];
-      delete n.inputs[0][old];
-      delete n.inputs[1][old];
+      n.inputs.forEach((a) => delete a[old]);
     }
   },
 
   netPlay(f) {
     const n = this.net;
-    const me = n.me, r = 1 - me;
+    const me = n.me;
     n.snaps[f] = this.snapshot();
-    const mine = n.inputs[me][f] !== undefined ? n.inputs[me][f] : NEUTRAL_IN;
-    let theirs = n.inputs[r][f];
-    if (theirs === undefined) theirs = n.lastRemote;
-    else n.lastRemote = predictFrom(theirs);
-    const used = [0, 0];
-    used[me] = mine;
-    used[r] = theirs;
+    const used = this.pls.map((_, r) => {
+      if (r === me) return n.inputs[me][f] !== undefined ? n.inputs[me][f] : NEUTRAL_IN;
+      const v = this.netIn(r, f);
+      if (v === undefined) return n.lastRemote[r];
+      n.lastRemote[r] = predictFrom(v);
+      return v;
+    });
     n.used[f] = used;
     this.curIn = used;
     this.simTick();

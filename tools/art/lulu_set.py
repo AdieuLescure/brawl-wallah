@@ -30,6 +30,8 @@ BLACK_FAR = mat('#08070c', '#1a1822', '#302e38')
 POINT = ['..kk....', '.kWk....', '.kWk....', '.kWkkk..', 'kWWWWWk.', 'kwWWWWk.', 'kgwwwwk.', '.kkkkk..']
 
 
+CLOTH = [(SUIT, 0), (SUIT_FAR, 1), (PANTS, 0), (PANTS_FAR, 1)]  # vêtements recolorés en équipe
+
 def torso(P, lean):
     T = lambda pts: [add(rot(sub(p, P0), lean), P) for p in pts]
     it = []
