@@ -79,6 +79,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   touché (`st0..4`) perd 10 % par répétition (40 % au plus) et ne garantit plus l'enchaînement à partir de 2 répétitions.
 - GRAVITY CANCEL : esquive aérienne sur place puis attaque dans les 0,3 s (`gcUntil`) = coup du sol en l'air.
 - 5 boutons : LÉGER, LOURD, SPÉCIAL (3 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21.
+- CLAVIER (ordinateur, `KEYMAP`/`KB` dans `game.js`, touches physiques donc AZERTY = QWERTY) : ZQSD ou flèches, Espace
+  saut, J/X léger, K/C lourd (tenu = charge), I/V spéciale, L/Maj esquive, Échap quitter. `localInput()` mélange
+  écran tactile et clavier (hors ligne et en ligne) ; au clavier les boutons tactiles se cachent.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
   et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
   (sinon le corps physique garde un décalage d'une image).

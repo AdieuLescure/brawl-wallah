@@ -200,6 +200,7 @@ const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis 
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
 const HELP_TXT = "LEGER / LOURD / SPECIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLEGER SANS DIRECTION x3 = ENCHAINEMENT\nUN LEGER QUI TOUCHE SE COUPE EN\nLOURD, SPECIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGE\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + COTE = SPRINT";
+const HELP_KB = "CLAVIER : ZQSD OU FLECHES, ESPACE = SAUT\nJ = LEGER, K = LOURD, I = SPECIAL, L = ESQUIVE\n(OU X, C, V ET MAJ) - ECHAP = QUITTER";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -217,6 +218,38 @@ function saveSettings() {
   try {
     localStorage.setItem('brawl_settings', JSON.stringify(SETTINGS));
   } catch (e) {}
+}
+
+// --- CLAVIER (ordinateur) : touches physiques (même place en AZERTY et en QWERTY) ------------------
+// Bouger : ZQSD ou flèches · SAUT : Espace · LÉGER : J ou X · LOURD : K ou C (tenir = charger)
+// SPÉCIAL : I ou V · ESQUIVE : L ou Maj · Échap : quitter le combat
+const KEYMAP = {
+  KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down',
+  Space: 'jump', KeyJ: 'attack', KeyX: 'attack', KeyK: 'heavy', KeyC: 'heavy', KeyI: 'special', KeyV: 'special',
+  KeyL: 'block', ShiftLeft: 'block', ShiftRight: 'block',
+};
+const KB = { held: {}, q: {}, used: false };
+if (typeof window !== 'undefined') {
+  const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  window.addEventListener('keydown', (e) => {
+    if (typing(e)) return;
+    if (e.code === 'Escape') {
+      const sc = game && game.scene.getScene('game');
+      if (sc && sc.state === 'play' && !sc.over && sc.askQuit) (sc.quitUi ? sc.closeQuit() : sc.askQuit());
+      return;
+    }
+    const a = KEYMAP[e.code];
+    if (!a) return;
+    e.preventDefault();
+    if (!KB.held[a] && !e.repeat) KB.q[a] = true;
+    KB.held[a] = true;
+    KB.used = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    const a = KEYMAP[e.code];
+    if (a) KB.held[a] = false;
+  });
+  window.addEventListener('blur', () => { KB.held = {}; });
 }
 
 let game = null;
@@ -948,12 +981,18 @@ class GameScene extends Phaser.Scene {
         pl.hud.rfg.setFillStyle(raging ? (Math.floor(now / 100) % 2 ? 0xff2b2b : 0xffd166) : rk > 0.75 ? 0xff7a45 : 0xff4d8d);
       }
     });
+    // au clavier : on cache les boutons tactiles (ils reviennent dès qu'on touche l'écran)
+    if (this.touchObjs) {
+      if (KB.used) this.touchObjs.forEach((o) => o.setVisible(false));
+      else if (this.kbWasUsed) this.touchObjs.forEach((o) => o.setVisible(true));
+      this.kbWasUsed = KB.used;
+    }
     // points des spéciales (joueur local) : allumés = prête
     const me = this.p1 && this.p1.human ? this.p1 : this.p2 && this.p2.human ? this.p2 : null;
     if (this.spDots && me) {
       for (const { k, d } of this.spDots) {
         const m = me.def.moves[k];
-        if (!m) { d.setVisible(false); continue; }
+        if (!m || KB.used) { d.setVisible(false); continue; }
         const ready = !(m.cd && now < (me.moveCd[m.cdKey || k] || 0)) && !(m.type === 'burst' && (me.heat || 0) < (m.minHeat || 25));
         d.setVisible(true).setFillStyle(ready ? 0xd8c4ff : 0x3a3f5c);
       }
@@ -1109,12 +1148,15 @@ class GameScene extends Phaser.Scene {
     this.stickBase = this.add.image(this.stickHome.x, this.stickHome.y, 'stickBase').setScale(PX).setAlpha(0.35).setDepth(D);
     this.stickKnob = this.add.image(this.stickHome.x, this.stickHome.y, 'stickKnob').setScale(PX).setAlpha(0.35).setDepth(D + 1);
     this.ctrlObjs = [this.stickBase, this.stickKnob];
+    this.touchObjs = [this.stickBase, this.stickKnob]; // cachés quand on joue au clavier
 
     const mkBtn = (key, tex, ico, x, y, r) => {
       x = fx(x);
       r *= z;
       const img = this.add.image(x, y, tex).setScale((r * 2) / (tex === 'btnAtk' || tex === 'btnHeavy' ? 28 : 24)).setAlpha(0.75).setDepth(D);
-      this.ctrlObjs.push(img, this.add.image(x, y, ico).setScale(PX * z).setAlpha(0.95).setDepth(D + 1));
+      const icon = this.add.image(x, y, ico).setScale(PX * z).setAlpha(0.95).setDepth(D + 1);
+      this.ctrlObjs.push(img, icon);
+      this.touchObjs.push(img, icon);
       return { key, x, y, r, img, id: null };
     };
     // 5 boutons : LÉGER (le plus gros, sous le pouce), LOURD, SPÉCIAL, SAUT, ESQUIVE
@@ -1133,6 +1175,7 @@ class GameScene extends Phaser.Scene {
     this.spDots = [['uS', 0, -dr], ['nS', SETTINGS.flip ? dr : -dr, 0], ['dS', 0, dr]].map(([k, dx, dy]) => {
       const d = this.add.circle(sb.x + dx, sb.y + dy, 8 * z, 0x3a3f5c).setStrokeStyle(2, 0x000000, 0.6).setDepth(D + 1);
       this.ctrlObjs.push(d);
+      this.touchObjs.push(d);
       return { k, d };
     });
     this.fsBtn = { x: this.W / 2, y: 40, r: 34 };
@@ -1146,6 +1189,7 @@ class GameScene extends Phaser.Scene {
     this.queue = { jump: false, attack: false, heavy: false, special: false };
 
     this.input.on('pointerdown', (p) => {
+      if (p.wasTouch) KB.used = false; // on touche l'écran : retour des boutons tactiles
       if (this.state === 'lobby' || this.state === 'menu' || this.state === 'story') {
         this.uiTap(p);
         return;
@@ -1317,12 +1361,26 @@ class GameScene extends Phaser.Scene {
   inputFor(pl, other, i, now) {
     if (this.netInput) return this.netInput(i, now);
     if (i === 0 && !this.autoP1) {
-      const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, special: this.queue.special, hold: this.btn.heavy.id !== null || !!this.forceHold, block: this.btn.block.id !== null };
-      this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.special = this.queue.block = false;
-      return inp;
+      return this.localInput();
     }
     if (this.training && i === 1) return this.dummyInput(pl, other, now);
     return this.botInput(pl, other, now);
+  }
+
+  // commandes du joueur sur ce téléphone / cet ordinateur : écran tactile + clavier
+  localInput() {
+    const q = this.queue, h = KB.held, k = KB.q;
+    let sx = this.stick.sx, sy = this.stick.sy;
+    const kx = (h.right ? 1 : 0) - (h.left ? 1 : 0), ky = (h.down ? 1 : 0) - (h.up ? 1 : 0);
+    if (kx || ky) { sx = kx; sy = ky; }
+    const inp = {
+      sx, sy,
+      jump: q.jump || !!k.jump, attack: q.attack || !!k.attack, heavy: q.heavy || !!k.heavy, special: q.special || !!k.special,
+      hold: this.btn.heavy.id !== null || !!h.heavy || !!this.forceHold, block: this.btn.block.id !== null || !!h.block,
+    };
+    q.jump = q.attack = q.heavy = q.special = q.block = false;
+    KB.q = {};
+    return inp;
   }
 
   sched(ms, kind, data) {

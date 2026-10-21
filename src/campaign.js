@@ -134,8 +134,8 @@ Object.assign(GameScene.prototype, {
     this.menuBase('COMMENT\nJOUER');
     this.ui.push(
       this.add
-        .text(this.W / 2, this.H * 0.52, HELP_TXT, { fontFamily: FONT, fontSize: L.portrait ? '18px' : '14px', color: '#cfd3ff', align: 'center', lineSpacing: 7 })
-        .setOrigin(0.5)
+        .text(this.W / 2, this.H * (L.portrait ? 0.3 : 0.315), HELP_TXT + (window.matchMedia && matchMedia('(pointer: fine)').matches ? '\n\n' + HELP_KB : ''), { fontFamily: FONT, fontSize: L.portrait ? '18px' : '13px', color: '#cfd3ff', align: 'center', lineSpacing: 7 })
+        .setOrigin(0.5, 0)
         .setDepth(101)
     );
     this.menuButtons([{ label: 'RETOUR', col: 0x888888, fn: () => this.showMenu() }], this.H * (L.portrait ? 0.86 : 0.9));

@@ -215,9 +215,7 @@ Object.assign(GameScene.prototype, {
   },
 
   sampleLocal() {
-    const inp = { sx: this.stick.sx, sy: this.stick.sy, jump: this.queue.jump, attack: this.queue.attack, heavy: this.queue.heavy, special: this.queue.special, hold: this.btn.heavy.id !== null, block: this.btn.block.id !== null };
-    this.queue.jump = this.queue.attack = this.queue.heavy = this.queue.special = this.queue.block = false;
-    return packInput(inp);
+    return packInput(this.localInput());
   },
 
   netUpdate(delta) {
