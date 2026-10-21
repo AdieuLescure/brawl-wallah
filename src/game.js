@@ -248,7 +248,8 @@ if (typeof window !== 'undefined') {
     }
     const sel = game && game.scene.getScene('game');
     if (sel && sel.state === 'select' && sel.cards && sel.cards.length) {
-      const mv = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1, ArrowUp: -3, KeyW: -3, ArrowDown: 3, KeyS: 3 }[e.code];
+      const C = sel.selCols || 3;
+      const mv = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1, ArrowUp: -C, KeyW: -C, ArrowDown: C, KeyS: C }[e.code];
       if (mv) { e.preventDefault(); sel.selectCard(sel.selIdx + mv); return; }
       if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyJ' || e.code === 'KeyX') { e.preventDefault(); if (!e.repeat) sel.confirmSelect(); return; }
     }
@@ -1153,7 +1154,8 @@ class GameScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(D + 1)
     );
-    const NW = 46, NH = 38, K = 8, cols = 3, rows = Math.ceil(ids.length / cols);
+    const NW = 46, NH = 38, K = 8, cols = ids.length > 6 ? 4 : 3, rows = Math.ceil(ids.length / cols);
+    this.selCols = cols;
     // zones : grille (gauche / bas) et grand perso (droite / haut)
     let grid, pane, btnH;
     if (P) {
@@ -1533,6 +1535,8 @@ class GameScene extends Phaser.Scene {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.bzVanish(pl, now);
     } else if (t.kind === 'blink') {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doBlink(pl, now);
+    } else if (t.kind === 'pit') {
+      if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.lnPit(pl, now);
     } else if (t.kind === 'rewind') {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doRewind(pl, now);
     }
@@ -1703,7 +1707,7 @@ class GameScene extends Phaser.Scene {
         } else if (dashing) {
           // élan tenu pendant tout le coup (CHARGE DU TAUREAU, ÉCHAPPÉE) ; un lourd chargé va plus loin
           const f = pl.atk.chg && pl.atk.m.chargeMax ? Math.min(pl.atk.chg / pl.atk.m.chargeMax, 1) : 0;
-          s.setVelocityX(pl.facing * pl.atk.m.dashV * (1 + 0.5 * f));
+          s.setVelocityX(pl.facing * pl.atk.m.dashV * (1 + 0.5 * f) * (now < (pl.tyreUntil || 0) ? 1.3 : 1));
         } else if (!moveLocked) {
           let spd = def.speed * (raging ? 1.12 : 1) * (pl.spdMul || 1) * (pl.sprintDir ? 1.35 : 1);
           if (charging) spd *= pl.atk.m.walk || 0;
@@ -1978,6 +1982,7 @@ class GameScene extends Phaser.Scene {
     }
     // une seule fois par temps en l'air (capacités qui font bouger : parasol, charge, cornes, téléport…)
     if (!grounded && m.onceAir && pl[m.onceAir + 'Used']) { pl.cdUntil = now + 150; return; }
+    if (!grounded && m.type === 'pit') { pl.cdUntil = now + 150; return; } // ARRÊT AU STAND : seulement au sol
     if (!grounded && m.helpless && pl.recUsed) { pl.cdUntil = now + 150; return; }
     // nombre d'objets limité à l'écran
     if (m.max && m.proj) {
@@ -2057,6 +2062,13 @@ class GameScene extends Phaser.Scene {
       pl.atk.done = true;
       pl.atk.moveLock = now + m.startup;
       this.sched(m.startup, 'blink', { pi: pl.i, aid: pl.atk.id });
+    }
+    // ARRÊT AU STAND (LN4) : immobile pendant le démarrage, puis pneus neufs
+    if (m.type === 'pit') {
+      pl.atk.done = true;
+      pl.atk.moveLock = now + m.total;
+      s.setVelocityX(0);
+      this.sched(m.startup, 'pit', { pi: pl.i, aid: pl.atk.id });
     }
     // CTRL+Z (AdieuLescure) : retour une seconde en arrière
     if (m.type === 'rewind') {

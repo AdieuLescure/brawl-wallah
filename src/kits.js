@@ -258,11 +258,43 @@
     }, ['LÉGER  TAP x3 / SWIPE', 'LOURD  VIRAL', 'LOURD H/B BUZZ / KRACH', 'SPÉCIAL FEUILLE A4', 'SPÉ H/B DOUBLURE/KEYFRAME', 'PASSIF JACKPOT (ARGENT)']);
   }
 
+  // ---------------- LN4 : pilote de F1 et joueur de badminton ----------------
+  {
+    set('ln4', { speed: 365, jump: 690, weight: 0.97, role: 'PILOTE SMASHEUR' }, {
+      nL: J({ pose: 'swing', fx: { cres: 'cres_ln', s: 2.6, ang: 0 }, chain: [
+        J({ pose: 'swing', fx: { cres: 'cres_ln', s: 2.6, ang: -15 } }),
+        FIN({ pose: 'flick', w: 84, h: 70, ox: 50, oy: -18, ang: -0.8, fx: { cres: 'cres_ln', s: 3.4, ang: -40, shuttleFx: true } }), // AMORTI
+      ] }), // COUP DROIT, REVERS
+      sL: SL({ pose: 'helmet', lunge: 260, fx: { ghosts: 1, dust: true } }), // COUP DE CASQUE
+      uL: UL({ pose: 'flick', fx: { cres: 'cres_ln', s: 3, ang: -90 } }), // LOB
+      dL: DL({ pose: 'slide', w: 112, ox: 56, oy: 28, fx: { dust: true, smoke: true } }), // DÉRAPAGE
+      sA: SA({ pose: 'swing', fx: { cres: 'cres_ln', s: 3, ang: 0 } }), // REVERS
+      uA: UA({ pose: 'flick', fx: { cres: 'cres_ln', s: 3, ang: -90 } }), // DÉGAGÉ
+      dA: DA({ pose: 'dive', fx: { cres: 'cres_ln', s: 3, ang: 90 } }), // RABAT
+      // FEUX ÉTEINTS : départ arrêté, il fonce tout droit (plus loin chargé, et encore plus avec des PNEUS NEUFS)
+      sH: { type: 'melee', pose: 'dash', startup: 180, active: 240, total: 660, w: 84, h: 60, ox: 40, oy: -2, dmg: 11, kb: 340, ks: 8.6, ang: -0.4, stun: 230, dashV: 760, fx: { ghosts: 4, lights: true, smoke: true } },
+      // SMASH : saut, smash puissant vers le haut et l'avant
+      uH: { type: 'melee', pose: 'smash', startup: 150, active: 130, total: 580, w: 92, h: 100, ox: 30, oy: -60, dmg: 12, kb: 340, ks: 8.8, ang: -1.2, stun: 220, fx: { cres: 'cres_ln', s: 4.4, ang: -60, shuttleFx: true } },
+      // BURN-OUT : les pneus patinent, nuage de fumée des deux côtés
+      dH: { type: 'melee', pose: 'burn', startup: 170, active: 170, total: 640, w: 200, h: 44, ox: 0, oy: 26, dmg: 11, kb: 310, ks: 8, ang: -0.9, stun: 220, fx: { smoke: 'big', shock: true } },
+      // AILERON : smash vers le ciel, il remonte (retour)
+      uAH: { type: 'melee', pose: 'smash', startup: 60, active: 220, total: 520, w: 80, h: 96, ox: 18, oy: -56, dmg: 9, kb: 300, ks: 7, ang: -1.35, stun: 200, rise: 790, riseX: 110, inv: 50, helpless: true, fx: { cres: 'cres_ln', s: 4, ang: -90, ghosts: 2 } },
+      dAH: GP({ pose: 'dive', fx: { ghosts: 2 } }), // SMASH PLONGEANT
+      // VOLANT : il part très vite, freine d'un coup et retombe
+      nS: { type: 'proj', pose: 'serve', startup: 110, total: 440, max: 1, cd: 1350, fx: {},
+        proj: { kind: 'shuttle', tex: 'shuttle', s: 3, vx: 1300, vy: -80, grav: 520, life: 1500, w: 30, h: 26, ox: 40, oy: -16, dmg: 6, kb: 185, ks: 3.4, ang: -0.5, stun: 200, small: true } },
+      // CHAMPAGNE : le podium ! le jet le propulse vers le haut et arrose ceux qui sont dessous
+      uS: { type: 'melee', pose: 'champ', startup: 90, active: 260, total: 600, w: 80, h: 110, ox: 0, oy: 60, dmg: 7, kb: 250, ks: 5, ang: -0.9, stun: 200, rise: 840, riseX: 100, cd: 3200, onceAir: 'leap', fx: { champ: true } },
+      // ARRÊT AU STAND (au sol) : immobile une demi-seconde, puis PNEUS NEUFS 6 s
+      dS: { type: 'pit', pose: 'pit', startup: 500, total: 640, cd: 12000, fx: {} },
+    }, ['LÉGER  RAQUETTE x3 / CASQUE', 'LOURD  FEUX ÉTEINTS', 'LOURD H/B SMASH / BURN-OUT', 'SPÉCIAL VOLANT', 'SPÉ H/B CHAMPAGNE / STAND', 'STAND = PNEUS NEUFS (6 S)']);
+  }
+
   // ---- finitions communes : catégories, identifiants (usure), charge des lourds, tirs que le mur arrête ----
   const LIGHTS = ['nL', 'sL', 'uL', 'dL', 'sA', 'uA', 'dA'];
   const HEAVIES = ['sH', 'uH', 'dH', 'uAH', 'dAH'];
   const SPECIALS = ['nS', 'uS', 'dS', 'nSA', 'uSA', 'dSA'];
-  const BLOCKABLE = { orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1 };
+  const BLOCKABLE = { orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1, shuttle: 1 };
   for (const id of Object.keys(K)) {
     const mv = K[id];
     for (const k of Object.keys(mv)) {

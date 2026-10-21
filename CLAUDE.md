@@ -38,6 +38,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     8 s (postures `_g` de la planche, choisies dans `step`/`anim.js`). DOUBLURE (`type: 'vanish'`) : téléport vers le
     haut, invisible (`invisUntil`), silhouette de billets = projectile `decoy` qui encaisse un coup (`bzDecoyHit`,
     `bzProj`). KEY FRAME : projectile `keyframe`, `freeze` = image figée (`freezeUntil`). FEUILLE A4 : projectile `paper`.
+  - `ln4.js` : le perso LN4 (pilote de F1 et joueur de badminton, combinaison noire et orange SANS logo de marque).
+    VOLANT (`shuttle` : part vite puis freine, `LN.drag`), CHAMPAGNE (spéciale haut, `rise`), ARRÊT AU STAND
+    (`type: 'pit'`, au sol : immobile 0,5 s puis PNEUS NEUFS `tyreUntil` 6 s = `spdMul` 1,25 et FEUX ÉTEINTS +30 %),
+    FEUX ÉTEINTS (lourd avant, `dashV`, 5 feux rouges). Branché sur `bzStep`/`bzProj`/`extraFx` (enveloppés).
   - `kits.js` : MOVESETS des 8 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
     Boutons LÉGER / LOURD / SPÉCIAL + direction (neutre, avant, haut, bas ; haut/bas seulement si on pousse franchement).
     Clés : `nL` (neutre : enchaînement de 3 coups, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air ;
@@ -60,8 +64,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py` = postures de Toro,
-  Deadlulu, Denodoom, AdieuLescure, BIGZINZIN et MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py`, `ln4_set.py` = postures de Toro,
+  Deadlulu, Denodoom, AdieuLescure, BIGZINZIN, MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes) et LN4 (raquette `rq`, casque `hm`, champagne `bt`, volant `sc`) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
   préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
@@ -98,12 +102,14 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - ZONES DE KO (`BLAST_X` 740, `BLAST_TOP` 640, `BLAST_BOTTOM` 420 dans `game.js`, comme à l'origine) : côtés et haut,
   on n'y meurt QUE projeté par l'adversaire (encore étourdi + `KO_GRACE`, ou tenu par une prise) ; seul (saut, retour,
   élan d'un coup), on bute sur un mur invisible `WALL_IN` px avant. En bas on meurt toujours (retour raté).
-  GROS POURCENTAGES : `tumble` (champ du joueur, `tumbleFor(%)`, de 50 % à 230 %, jusqu'à -55 %) réduit la dérive en
+  GROS POURCENTAGES : `tumble` (champ du joueur, `tumbleFor(%)`, de 50 % à 155 %, jusqu'à -70 %) réduit la dérive en
   l'air et l'élan horizontal des coups de retour jusqu'à se reposer (sol ou rebord) : revenir devient dur.
   La caméra peut dézoomer jusqu'à `CAM_MIN_Z` (`anim.js`) ; le fond (profondeur <= -5) est rendu par une 3e caméra
   `bgCam` qui ne dézoome pas.
 - Effets d'un coup (traînée, croissant, flammes…) : lancés par `whenAtk` au moment où le coup PART (`atk.hitAt`), donc
   après le relâchement d'un lourd chargé — jamais avec un délai fixe.
+- Écran de choix : 3 colonnes jusqu'à 6 persos, 4 au-delà. Chaque perso jouable doit avoir ses répliques de campagne
+  (`STORY.intro` et `STORY.outro` dans `campaign.js`), sinon la campagne plante quand il est l'adversaire.
 - Persos en réserve : `BENCH` (`game.js`, Astra et Nini) : code et dessins gardés, mais absents du choix, de la
   campagne, des bots et de l'entraînement (`playable()` = la liste proposée).
 - POLICE : `BrawlPixel` = Press Start 2P retouchée (`tools/art/patch_font.py`) avec de vraies majuscules accentuées
