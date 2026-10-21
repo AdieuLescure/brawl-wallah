@@ -120,13 +120,16 @@ Object.assign(GameScene.prototype, {
         };
       }
       const m = 40;
-      const out = pl.stocks > 0 && !(now < (pl.invisUntil || 0)) && (s.x < 0 || s.x > this.W || s.y < 0 || s.y > this.H);
+      // position à l'écran (la caméra du combat zoome et se déplace)
+      const cam = this.cameras.main, wv = cam.worldView;
+      const px = (s.x - wv.x) * cam.zoom, py = (s.y - wv.y) * cam.zoom;
+      const out = pl.stocks > 0 && !(now < (pl.invisUntil || 0)) && wv.width > 0 && (px < 0 || px > this.W || py < 0 || py > this.H);
       [o.bg, o.ico, o.arrow].forEach((g) => g.setVisible(out));
       if (out) {
-        const x = Phaser.Math.Clamp(s.x, m, this.W - m), y = Phaser.Math.Clamp(s.y, m, this.H - m);
+        const x = Phaser.Math.Clamp(px, m, this.W - m), y = Phaser.Math.Clamp(py, m, this.H - m);
         o.bg.setPosition(x, y);
         o.ico.setPosition(x, y);
-        const a = Math.atan2(s.y - y, s.x - x);
+        const a = Math.atan2(py - y, px - x);
         o.arrow.setPosition(x + Math.cos(a) * 40, y + Math.sin(a) * 40).setRotation(a);
       }
       // petite flèche sous les pieds quand AVANT / ARRIÈRE changent de sens
@@ -138,12 +141,12 @@ Object.assign(GameScene.prototype, {
 
   // --- Réglages -------------------------------------------------------------------
   showSettings() {
-    this.menuBase('REGLAGES');
+    this.menuBase('RÉGLAGES');
     const D = 120;
     const lab = {
       sound: () => 'BRUITAGES : ' + (SETTINGS.sound ? 'OUI' : 'NON'),
       music: () => 'MUSIQUE : ' + (SETTINGS.music !== false ? 'OUI' : 'NON'),
-      zoom: () => 'CAMERA : ' + (SETTINGS.zoom !== false ? 'ZOOM' : 'FIXE'),
+      zoom: () => 'CAMÉRA : ' + (SETTINGS.zoom !== false ? 'ZOOM' : 'FIXE'),
       vib: () => 'VIBRATION : ' + (SETTINGS.vib ? 'OUI' : 'NON'),
       btnSize: () => 'BOUTONS : ' + ['PETITS', 'MOYENS', 'GRANDS'][SETTINGS.btnSize],
       flip: () => 'MAINS : ' + (SETTINGS.flip ? 'GAUCHER' : 'DROITIER'),
@@ -188,9 +191,9 @@ Object.assign(GameScene.prototype, {
     const D = 55;
     this.trainBtns = [];
     const labels = [
-      ['% A ZERO', () => { this.p1.damage = 0; this.p2.damage = 0; }],
+      ['% À ZÉRO', () => { this.p1.damage = 0; this.p2.damage = 0; }],
       [() => 'MANNEQUIN : ' + ['IMMOBILE', 'SAUTE', 'ESQUIVE', 'BOT'][trainDummyMode], () => { trainDummyMode = (trainDummyMode + 1) % 4; this.dummyMode = trainDummyMode; }],
-      [() => 'FACE A : ' + CHARS[trainDummy].name, () => { trainDummy = ORDER[(ORDER.indexOf(trainDummy) + 1) % ORDER.length]; this.scene.restart(); }],
+      [() => 'FACE À : ' + CHARS[trainDummy].name, () => { { const R = playable(); trainDummy = R[(R.indexOf(trainDummy) + 1) % R.length]; } this.scene.restart(); }],
       ['COUPS', () => this.toggleMoveList()],
       ['QUITTER', () => { trainingMode = false; chosen = null; goSelect = false; this.scene.restart(); }],
     ];
@@ -219,8 +222,8 @@ Object.assign(GameScene.prototype, {
     this.trainComboDmg = combo ? (this.trainComboDmg || 0) + spec.dmg : spec.dmg;
     const adv = rem === undefined ? null : Math.round((stunMs - rem) / STEP_MS);
     const advTxt = adv === null ? '' : `  AVANCE ${adv >= 0 ? '+' : ''}${adv}`;
-    const cTxt = this.trainCombo > 1 ? `\nENCHAINEMENT : ${this.trainCombo} COUPS, ${Math.round(this.trainComboDmg)} %` : '';
-    this.trainInfo.setText(`COUP : ${Math.round(spec.dmg)} %${advTxt}  ETOURDI ${Math.round(stunMs / STEP_MS)} IMAGES${cTxt}`);
+    const cTxt = this.trainCombo > 1 ? `\nENCHAÎNEMENT : ${this.trainCombo} COUPS, ${Math.round(this.trainComboDmg)} %` : '';
+    this.trainInfo.setText(`COUP : ${Math.round(spec.dmg)} %${advTxt}  ÉTOURDI ${Math.round(stunMs / STEP_MS)} IMAGES${cTxt}`);
   },
 
   toggleMoveList() {
@@ -269,7 +272,7 @@ Object.assign(GameScene.prototype, {
     objs.push(this.add.rectangle(cx, this.H / 2, this.W, this.H, 0x000000, 0.55).setDepth(D));
     const bw = Math.min(600, this.W - 40);
     objs.push(this.add.rectangle(cx, cy, bw, 250, 0x1a1d33, 1).setStrokeStyle(4, 0xf72585).setDepth(D + 1));
-    const q = this.net ? 'ABANDONNER ?\n(DEFAITE)' : 'QUITTER LE COMBAT ?';
+    const q = this.net ? 'ABANDONNER ?\n(DÉFAITE)' : 'QUITTER LE COMBAT ?';
     objs.push(this.add.text(cx, cy - 64, q, { fontFamily: FONT, fontSize: '22px', color: '#ffffff', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 10 }).setOrigin(0.5).setDepth(D + 2));
     const btns = [];
     const half = Math.min(125, bw / 4 + 10), w = Math.min(220, bw / 2 - 20);

@@ -68,7 +68,7 @@
       uS: { type: 'melee', pose: 'up', startup: 80, active: 160, total: 520, w: 64, h: 80, ox: 16, oy: -50, dmg: 7, kb: 260, ks: 5, ang: -1.4, stun: 200, rise: 640, riseX: 60, inv: 80, cd: 2500, onceAir: 'horn', fx: { ghosts: 2, flames: 3 } },
       // ÉRUPTION : vide la CHAUFFE en une explosion autour de lui (plus la jauge est pleine, plus elle est forte)
       dS: { type: 'burst', pose: 'stomp', startup: 160, active: 160, total: 620, w: 150, h: 130, ox: 0, oy: -10, dmg: 6, dmgHeat: 12, kb: 220, kbHeat: 200, ks: 4, ksHeat: 6, ang: -1.2, stun: 200, minHeat: 25, fx: { shock: true, flames: 12, burst: true } },
-    }, ['LEGER  JAB x3 / DIRECT', 'LOURD  POING DE FEU', 'LOURD H/B DRAGON/BALAYAGE', 'SPECIAL CHARGE TAUREAU', 'SPEC H/B CORNES/ERUPTION', 'PASSIF CHAUFFE']);
+    }, ['LÉGER  JAB x3 / DIRECT', 'LOURD  POING DE FEU', 'LOURD H/B DRAGON/BALAYAGE', 'SPÉCIAL CHARGE TAUREAU', 'SPÉ H/B CORNES/ÉRUPTION', 'PASSIF CHAUFFE']);
   }
 
   // ---------------- ASTRA : mage, ÉTOILE PIÈGE + TÉLÉPORT ----------------
@@ -93,7 +93,7 @@
       nS: Object.assign({}, o.neutral, { cd: 600 }), // ORBES (2 à l'écran)
       uS: { type: 'blink', pose: 'castUp', startup: 120, total: 380, rise: 820, cd: 3000, onceAir: 'blink', fx: { rune: true } }, // TÉLÉPORT
       dS: Object.assign({}, o.down, { cd: 1500 }), // ÉTOILE PIÈGE
-    }, ['LEGER  RUNES / IMPULSION', 'LOURD  SPHERE', 'LOURD H/B COMETE / NOVA', 'SPECIAL ORBES', 'SPEC H/B TELEPORT/ETOILE', 'TELEPORT : VERS L\'ETOILE']);
+    }, ['LÉGER  RUNES / IMPULSION', 'LOURD  SPHÈRE', 'LOURD H/B COMÈTE / NOVA', 'SPÉCIAL ORBES', 'SPÉ H/B TÉLÉPORT/ÉTOILE', 'TÉLÉPORT : VERS L\'ÉTOILE']);
   }
 
   // ---------------- MÉNÈS (id 'grom') : tank lutteur, PEAU DE PIERRE ----------------
@@ -120,7 +120,7 @@
       uS: { type: 'melee', pose: 'bellyUp', startup: 100, active: 220, total: 600, w: 80, h: 90, ox: 10, oy: -40, dmg: 8, kb: 280, ks: 6, ang: -1.3, stun: 200, rise: 860, riseX: 120, armor: ARM, armorActive: true, cd: 3000, onceAir: 'leap', fx: { dust: true, ghosts: 3 } }, // VENTRE AU CIEL : il fonce vers le haut, ventre en avant
       dS: { type: 'proj', pose: 'slam', startup: 150, total: 520, max: 1, replace: true, cd: 4000, fx: {}, // MUR DE PRISON
         proj: { kind: 'wall', tex: 'prisonwall', s: 5, vx: 0, life: 3000, act: 220, w: 50, h: 140, ox: 74, oy: 0, bottom: true, dmg: 7, kb: 260, ks: 5, ang: -1.35, stun: 200 } },
-    }, ['LEGER  CLAQUES / EPAULE', 'LOURD  SUPLEX', 'LOURD H/B BELIER / SEISME', 'SPECIAL MICRO', 'SPEC H/B VENTRE / PRISON', 'PASSIF PEAU DE PIERRE']);
+    }, ['LÉGER  CLAQUES / ÉPAULE', 'LOURD  SUPLEX', 'LOURD H/B BÉLIER / SÉISME', 'SPÉCIAL MICRO', 'SPÉ H/B VENTRE / PRISON', 'PASSIF PEAU DE PIERRE']);
   }
 
   // ---------------- DEADLULU : technique, COUPABLE ! + OBJECTION ----------------
@@ -145,7 +145,7 @@
       nS: Object.assign({}, o.neutral, { cd: 500 }), // PASTIS (3 bouteilles à l'écran)
       uS: Object.assign({}, o.down, { book: Object.assign({}, o.down.book, { mark: 5000 }) }), // CODE PÉNAL : marque COUPABLE 5 s
       dS: Object.assign({}, o.back, { cd: 2000 }), // OBJECTION !
-    }, ['LEGER  RIFFS / MANCHE', 'LOURD  GUITARE+', 'LOURD H/B JAMBE FEU/CHORD', 'SPECIAL PASTIS', 'SPEC H/B CODE PENAL/OBJ.', 'LIVRE = COUPABLE !']);
+    }, ['LÉGER  RIFFS / MANCHE', 'LOURD  GUITARE+', 'LOURD H/B JAMBE FEU/CHORD', 'SPÉCIAL PASTIS', 'SPÉ H/B CODE PÉNAL/OBJ.', 'LIVRE = COUPABLE !']);
   }
 
   // ---------------- DENODOOM : assassin, L'AIGLE DE CARTHAGE ----------------
@@ -170,7 +170,7 @@
       nS: Object.assign({}, o.neutral, { cd: 600 }), // PISTOLETS
       uS: Object.assign({}, o.up, { cd: 6000 }), // AIGLE DE CARTHAGE
       dS: Object.assign({}, o.down, { cd: 2500 }), // HERMINE
-    }, ['LEGER  SABRE / FENTE', 'LOURD  HANDBALL (CHARGE)', 'LOURD H/B SABRE/BALAYAGE', 'SPECIAL PISTOLETS', 'SPEC H/B AIGLE/HERMINE', 'AIR LOURD H ENVOL AIGLE']);
+    }, ['LÉGER  SABRE / FENTE', 'LOURD  HANDBALL (CHARGE)', 'LOURD H/B SABRE/BALAYAGE', 'SPÉCIAL PISTOLETS', 'SPÉ H/B AIGLE/HERMINE', 'AIR LOURD H ENVOL AIGLE']);
   }
 
   // ---------------- NINI : invocatrice, COLÈRE DE SCARLETT (elle ne frappe jamais elle-même) ----------------
@@ -197,7 +197,7 @@
       nS: Object.assign({}, o.back, { cd: 4000 }), // COUP DE FOUDRE (charme, recharge 4 s)
       uS: { type: 'float', pose: 'float', startup: 60, total: 900, hop: 360, onceAir: 'float', fx: {} }, // PARASOL : elle plane
       dS: o.down, // CORGI (recharge 4 s)
-    }, ['LEGER  GRIFFES / PATTE', 'LOURD  BOND DU CHAT', 'LOURD H/B PIVOINE/VALISE', 'SPECIAL COUP DE FOUDRE', 'SPEC H/B PARASOL/CORGI', 'PASSIF COLERE DU CHAT']);
+    }, ['LÉGER  GRIFFES / PATTE', 'LOURD  BOND DU CHAT', 'LOURD H/B PIVOINE/VALISE', 'SPÉCIAL COUP DE FOUDRE', 'SPÉ H/B PARASOL/CORGI', 'PASSIF COLÈRE DU CHAT']);
   }
 
   // ---------------- ADIEULESCURE : rapide et technique, CTRL+Z ----------------
@@ -222,7 +222,7 @@
       nS: Object.assign({}, o.fwdAir, { cd: 800 }), // POMME D'AMOUR
       uS: o.down, // CTRL+Z (recharge 11 s)
       dS: Object.assign({}, o.back, { cd: 1500 }), // CONTRÔLE
-    }, ['LEGER  PASSES / REPRISE', 'LOURD  ECHAPPEE', 'LOURD H/B IPA / RUADE', 'SPECIAL POMME D\'AMOUR', 'SPEC H/B CTRL+Z/CONTROLE', 'CTRL+Z : 1 S EN ARRIERE']);
+    }, ['LÉGER  PASSES / REPRISE', 'LOURD  ÉCHAPPÉE', 'LOURD H/B IPA / RUADE', 'SPÉCIAL POMME D\'AMOUR', 'SPÉ H/B CTRL+Z/CONTRÔLE', 'CTRL+Z : 1 S EN ARRIÈRE']);
   }
 
   // ---------------- BIGZINZIN : JACKPOT (argent), DOUBLURE, KEY FRAME, FEUILLE A4 ----------------
@@ -255,7 +255,7 @@
       // KEY FRAME : une image clé posée au sol (4 s) ; qui marche dessus reste figé un instant
       dS: { type: 'proj', pose: 'low', startup: 120, total: 420, max: 1, replace: true, cd: 2500, fx: {},
         proj: { kind: 'keyframe', tex: 'keyframe', s: 3.4, vx: 0, life: 4000, arm: 250, w: 54, h: 40, ox: 90, oy: 28, ground: true, dmg: 6, kb: 120, ks: 1.5, ang: -1.45, stun: 750, freeze: 550, explode: true, small: true } },
-    }, ['LEGER  TAP x3 / SWIPE', 'LOURD  VIRAL', 'LOURD H/B BUZZ / KRACH', 'SPECIAL FEUILLE A4', 'SPEC H/B DOUBLURE/KEYFRAME', 'PASSIF JACKPOT (ARGENT)']);
+    }, ['LÉGER  TAP x3 / SWIPE', 'LOURD  VIRAL', 'LOURD H/B BUZZ / KRACH', 'SPÉCIAL FEUILLE A4', 'SPÉ H/B DOUBLURE/KEYFRAME', 'PASSIF JACKPOT (ARGENT)']);
   }
 
   // ---- finitions communes : catégories, identifiants (usure), charge des lourds, tirs que le mur arrête ----

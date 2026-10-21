@@ -191,7 +191,7 @@ const Auth = {
       if (!r) return false;
       if (r.button === 'Jouer en invité') {
         const g = await domModal(
-          'MODE INVITE',
+          'MODE INVITÉ',
           [{ name: 'pseudo', label: 'Ton pseudo (3 à 16 : lettres, chiffres, _)', max: 16 }],
           [
             {
@@ -340,9 +340,9 @@ Object.assign(GameScene.prototype, {
     this.ui.push(this.roomMsgTxt);
     // colonne de droite
     const list = [
-      { label: 'DUEL CLASSE', col: 0xf72585, fn: () => this.goRanked() },
-      { label: 'CREER UN SALON', col: 0x4cc9f0, fn: () => this.goCreate(true) },
-      { label: 'SALON PRIVE', col: 0x6ee7b7, fn: () => this.goCreate(false) },
+      { label: 'DUEL CLASSÉ', col: 0xf72585, fn: () => this.goRanked() },
+      { label: 'CRÉER UN SALON', col: 0x4cc9f0, fn: () => this.goCreate(true) },
+      { label: 'SALON PRIVÉ', col: 0x6ee7b7, fn: () => this.goCreate(false) },
       { label: 'ENTRER UN CODE', col: 0xffb703, fn: () => this.goJoinPrompt() },
       { label: 'RETOUR', col: 0x888888, fn: () => leaveOnline() },
     ];
@@ -370,7 +370,7 @@ Object.assign(GameScene.prototype, {
     this.roomObjs = [];
     this.uiBtns = this.baseBtns.slice();
     if (rooms === null) return this.roomMsgTxt.setText('SALONS INDISPONIBLES\nUTILISE UN CODE').setVisible(true);
-    if (!rooms.length) return this.roomMsgTxt.setText('AUCUN SALON PUBLIC\nCREES-EN UN !').setVisible(true);
+    if (!rooms.length) return this.roomMsgTxt.setText('AUCUN SALON PUBLIC\nCRÉES-EN UN !').setVisible(true);
     this.roomMsgTxt.setVisible(false);
     const D = 121;
     rooms.slice(0, 5).forEach((r, i) => {
@@ -395,15 +395,15 @@ Object.assign(GameScene.prototype, {
     this.menuBase('PROFIL', { noBar: true });
     const p = Auth.profile;
     const lines = Auth.session
-      ? [Auth.name.toUpperCase(), p ? `${p.rating} POINTS` : '', p ? `${p.wins || 0} VICTOIRES - ${p.losses || 0} DEFAITES` : '']
-      : [Auth.name.toUpperCase(), 'INVITE (SANS COMPTE)', 'JOUE CONTRE LE BOT'];
+      ? [Auth.name.toUpperCase(), p ? `${p.rating} POINTS` : '', p ? `${p.wins || 0} VICTOIRES - ${p.losses || 0} DÉFAITES` : '']
+      : [Auth.name.toUpperCase(), 'INVITÉ (SANS COMPTE)', 'JOUE CONTRE LE BOT'];
     this.ui.push(
       this.add.text(this.W / 2, this.H * (L.portrait ? 0.3 : 0.36), lines.join('\n'), { fontFamily: FONT, fontSize: L.portrait ? '20px' : '18px', color: '#ffe9a8', stroke: '#000', strokeThickness: 5, align: 'center', lineSpacing: 12 }).setOrigin(0.5).setDepth(101)
     );
     const list = [];
     list.push({ label: 'CHANGER DE PSEUDO', col: 0x4cc9f0, fn: () => this.renameFlow() });
     list.push({ label: 'CLASSEMENT', col: 0xffb703, fn: () => this.showLeaderboard() });
-    list.push(Auth.session ? { label: 'DECONNEXION', col: 0xf72585, fn: () => this.logoutFlow() } : { label: 'CREER UN COMPTE', col: 0x6ee7b7, fn: () => this.logoutFlow() });
+    list.push(Auth.session ? { label: 'DÉCONNEXION', col: 0xf72585, fn: () => this.logoutFlow() } : { label: 'CRÉER UN COMPTE', col: 0x6ee7b7, fn: () => this.logoutFlow() });
     list.push({ label: 'RETOUR', col: 0x888888, fn: () => (onlineStage ? this.showOnlineMenu() : this.showMenu()) });
     this.menuButtons(list, this.H * (L.portrait ? 0.4 : 0.5));
   },
@@ -471,7 +471,7 @@ Object.assign(GameScene.prototype, {
           if (m.t === 'error') {
             done = true;
             q.close();
-            return this.onlineMsg('ERREUR', m.e === 'banned' ? 'TROP DE RESULTATS CONTESTES :\nDUEL CLASSE BLOQUE' : 'CONNEXION REFUSEE');
+            return this.onlineMsg('ERREUR', m.e === 'banned' ? 'TROP DE RÉSULTATS CONTESTÉS :\nDUEL CLASSÉ BLOQUÉ' : 'CONNEXION REFUSÉE');
           }
           if (m.t === 'match') {
             done = true;
@@ -531,7 +531,7 @@ Object.assign(GameScene.prototype, {
     if (!this.scene || !this.sys || !this.sys.isActive() || Online.leaving) return;
     if (c && Online.conn && c !== Online.conn) return; // ancienne connexion, déjà remplacée
     if (this.net && !this.over) this.netReconnect();
-    else if (this.state !== 'play' && !this.over) this.onlineMsg('DECONNECTE', 'LA CONNEXION A ETE PERDUE');
+    else if (this.state !== 'play' && !this.over) this.onlineMsg('DÉCONNECTÉ', 'LA CONNEXION A ÉTÉ PERDUE');
   },
 
   // coupure pendant un combat : on retente pendant 10 s (le serveur garde la place)
@@ -562,7 +562,7 @@ Object.assign(GameScene.prototype, {
     if (m.t === 'error') {
       Online.conn && Online.conn.close();
       Online.conn = null;
-      return this.onlineMsg('IMPOSSIBLE', m.e === 'full' ? 'SALLE PLEINE' : m.e === 'forbidden' ? 'ACCES REFUSE' : 'CONNEXION REFUSEE');
+      return this.onlineMsg('IMPOSSIBLE', m.e === 'full' ? 'SALLE PLEINE' : m.e === 'forbidden' ? 'ACCÈS REFUSÉ' : 'CONNEXION REFUSÉE');
     }
     if (m.t === 'hello' && this.net && !this.over) {
       // reconnecté pendant le combat : on continue
@@ -571,7 +571,7 @@ Object.assign(GameScene.prototype, {
       if (this.reco) {
         this.reco = null;
         if (this.recoTxt) this.recoTxt.destroy();
-        this.popup(this.W / 2, this.H * 0.3, 'RECONNECTE', '#6ee7b7');
+        this.popup(this.W / 2, this.H * 0.3, 'RECONNECTÉ', '#6ee7b7');
       }
       this.netResend(NET_KEEP - 2);
       return;
@@ -620,7 +620,7 @@ Object.assign(GameScene.prototype, {
       return;
     }
     if (m.t === 'rematch?') return this.sub && !Online.rematchAsked && this.sub.setText("L'ADVERSAIRE VEUT UNE REVANCHE");
-    if (m.t === 'final') return m.disputed && this.sub && this.sub.setText('RESULTAT CONTESTE : SANS EFFET');
+    if (m.t === 'final') return m.disputed && this.sub && this.sub.setText('RÉSULTAT CONTESTÉ : SANS EFFET');
   },
 
   // ----- Salon : choix du personnage -----------------------------------------------
@@ -631,23 +631,23 @@ Object.assign(GameScene.prototype, {
     const me = Online.peers[Online.idx], other = Online.peers[1 - Online.idx];
     const D = 100;
     this.ui.push(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.92).setDepth(D));
-    const title = Online.ranked ? 'DUEL CLASSE' : 'SALLE  ' + Online.code;
+    const title = Online.ranked ? 'DUEL CLASSÉ' : 'SALLE  ' + Online.code;
     this.ui.push(this.add.text(this.W / 2, 56, title, { fontFamily: FONT, fontSize: '36px', color: '#fff', stroke: '#f72585', strokeThickness: 8 }).setOrigin(0.5).setDepth(D + 1));
     const line = (p, y, label) => {
-      const txt = p ? `${label} ${p.name}  ${p.char ? CHARS[p.char].name : '...'}  ${p.ready ? 'PRET' : ''}` : `${label} EN ATTENTE...`;
+      const txt = p ? `${label} ${p.name}  ${p.char ? CHARS[p.char].name : '...'}  ${p.ready ? 'PRÊT' : ''}` : `${label} EN ATTENTE...`;
       this.ui.push(this.add.text(this.W / 2, y, txt, { fontFamily: FONT, fontSize: '18px', color: p && p.ready ? '#6ee7b7' : '#cfd3ff' }).setOrigin(0.5).setDepth(D + 1));
     };
     line(me, 120, 'TOI:');
     line(other, 156, 'ADV:');
     if (!Online.ranked && Online.stage)
-      this.ui.push(this.add.text(this.W - 40, 56, 'ARENE : ' + (STAGE_NAMES[Online.stage] || '?'), { fontFamily: FONT, fontSize: '16px', color: '#ffd166', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5).setDepth(D + 1));
+      this.ui.push(this.add.text(this.W - 40, 56, 'ARÈNE : ' + (STAGE_NAMES[Online.stage] || '?'), { fontFamily: FONT, fontSize: '16px', color: '#ffd166', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5).setDepth(D + 1));
     const buttons = [];
     if (!me || !me.char || !me.ready) buttons.push({ label: me && me.char ? 'CHANGER DE PERSO' : 'CHOISIR MON PERSO', fn: () => this.lobbyPick() });
     if (!Online.ranked) buttons.push({ label: 'COPIER LE LIEN', col: 0x4cc9f0, fn: () => this.copyInvite() });
     buttons.push({ label: 'QUITTER', col: 0x888888, fn: () => leaveOnline() });
     if (me && me.char && !me.ready && other) {
-      this.ui.push(this.add.text(this.W / 2, 200, 'TOUCHE PRET QUAND TU ES BON', { fontFamily: FONT, fontSize: '12px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(D + 1));
-      buttons.unshift({ label: 'PRET !', col: 0x6ee7b7, fn: () => Online.conn.send({ t: 'ready' }) });
+      this.ui.push(this.add.text(this.W / 2, 200, 'TOUCHE PRÊT QUAND TU ES BON', { fontFamily: FONT, fontSize: '12px', color: '#9aa0d0' }).setOrigin(0.5).setDepth(D + 1));
+      buttons.unshift({ label: 'PRÊT !', col: 0x6ee7b7, fn: () => Online.conn.send({ t: 'ready' }) });
     }
     if (me && me.ready && !other) this.ui.push(this.add.text(this.W / 2, 220, 'EN ATTENTE DE L\'ADVERSAIRE...', { fontFamily: FONT, fontSize: '14px', color: '#ffe9a8' }).setOrigin(0.5).setDepth(D + 1));
     this.menuButtons(buttons, this.H * 0.42);
@@ -666,7 +666,7 @@ Object.assign(GameScene.prototype, {
 
   copyInvite() {
     const url = location.origin + location.pathname + '?room=' + Online.code;
-    const done = () => this.popup(this.W / 2, 240, 'LIEN COPIE', '#6ee7b7');
+    const done = () => this.popup(this.W / 2, 240, 'LIEN COPIÉ', '#6ee7b7');
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => prompt('Copie ce lien', url));
     else prompt('Copie ce lien', url);
   },
@@ -683,7 +683,7 @@ Object.assign(GameScene.prototype, {
     this.beginNetMatch({ me: Online.idx, chars: m.chars, names: m.names, send: (o) => Online.conn && Online.conn.send(o), rtt: () => (Online.conn ? Online.conn.rtt : 0) });
     this.state = 'countdown';
     this.setControls(true);
-    this.onDesync = (f) => this.onlineEndNoResult('DESYNCHRONISATION');
+    this.onDesync = (f) => this.onlineEndNoResult('DÉSYNCHRONISATION');
     const D = 120;
     const t = this.add.text(this.W / 2, this.H * 0.35, '3', { fontFamily: FONT, fontSize: '96px', color: '#fff', stroke: '#f72585', strokeThickness: 14 }).setOrigin(0.5).setDepth(D);
     const names = this.add.text(this.W / 2, this.H * 0.2, `${m.names[0]}  VS  ${m.names[1]}`, { fontFamily: FONT, fontSize: '22px', color: '#ffe9a8', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D);
@@ -724,7 +724,7 @@ Object.assign(GameScene.prototype, {
   onlineEndNoResult(msg) {
     if (this.over) return;
     this.over = true;
-    this.banner.setText('MATCH ANNULE').setFontSize('36px');
+    this.banner.setText('MATCH ANNULÉ').setFontSize('36px');
     this.sub.setText(msg);
     this.onlineOverButtons();
   },
@@ -732,7 +732,7 @@ Object.assign(GameScene.prototype, {
   onlineFinish(winnerPlayer) {
     const widx = winnerPlayer === this.p1 ? 0 : 1;
     const won = widx === Online.idx;
-    this.banner.setText(won ? 'VICTOIRE !' : 'DEFAITE...');
+    this.banner.setText(won ? 'VICTOIRE !' : 'DÉFAITE...');
     this.sub.setText(Online.ranked ? 'CALCUL DU CLASSEMENT...' : '');
     Online.conn && Online.conn.send({ t: 'result', winner: widx });
     this.onlineOverButtons();

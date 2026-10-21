@@ -4,7 +4,7 @@
 // Le décor ne change rien au combat : mêmes plateformes, mêmes dimensions.
 // ===========================================================================
 const STAGES = ['night', 'dune'];
-const STAGE_NAMES = { night: 'NUIT', dune: 'DESERT' };
+const STAGE_NAMES = { night: 'NUIT', dune: 'DÉSERT' };
 // salle sans arène choisie (duel classé) : tirée du code de la salle, identique sur les deux téléphones
 function stageFromCode(code) {
   let h = 0;
@@ -24,12 +24,12 @@ Object.assign(GameScene.prototype, {
   // ----- écran de choix de l'arène (avant le choix du perso) -----
   // next(id) : appelé avec l'arène choisie ; back : bouton RETOUR (menu JOUER par défaut)
   showStagePick(next, back) {
-    this.menuBase('CHOISIS L\'ARENE', { small: true, noBar: true });
+    this.menuBase('CHOISIS L\'ARÈNE', { small: true, noBar: true });
     const D = 120;
     const port = L.portrait;
     const opts = [
       { id: 'night', name: 'NUIT', tex: 'bg', plat: 'main', soft: 'soft' },
-      { id: 'dune', name: 'DESERT', tex: 'bg_dune', plat: 'main_dune', soft: 'soft_dune' },
+      { id: 'dune', name: 'DÉSERT', tex: 'bg_dune', plat: 'main_dune', soft: 'soft_dune' },
       { id: 'rand', name: 'HASARD' },
     ];
     const cur = SETTINGS.stage === undefined ? 2 : SETTINGS.stage;

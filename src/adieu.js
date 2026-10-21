@@ -10,12 +10,12 @@
 // ===========================================================================
 const ADIEU_NAIR = { type: 'melee', pose: 'header', startup: 60, active: 100, total: 300, w: 70, h: 56, ox: 50, oy: -18, dmg: 5, kb: 250, ks: 5.8, ang: -0.6, stun: 170, fx: { cres: 'cres_white', s: 2.8, ang: -20 } };
 CHARS.adieulescure = {
-  id: 'adieulescure', name: 'ADIEULESCURE', role: 'CTRL+Z + CONTROLE', roleCol: '#7fb2ff', cardCol: '#2c3866',
+  id: 'adieulescure', name: 'ADIEULESCURE', role: 'CTRL+Z + CONTRÔLE', roleCol: '#7fb2ff', cardCol: '#2c3866',
   speed: 320, jump: 650, weight: 1.0, jumps: 2,
   rewind: true, idleFx: true,
   pal: { main: '#1b2346', dark: '#0c1024', skin: '#f4c4a0', skin2: '#e0a07a', hair: '#3e2414', accent: '#ffffff', glove: '#f4c4a0' },
   fx: { main: 0x2c3866, alt: 0xffffff, core: 0xdfe3ee, cres: 'cres_white' },
-  help: ['NEUTRE  PASSE+TETE', 'AVANT   ECHAPPEE', 'HAUT    IPA', 'BAS     CTRL+Z', 'ARRIERE CONTROLE', 'AIR     VIOLON', 'AIR+AV  TOMATE'],
+  help: ['NEUTRE  PASSE+TÊTE', 'AVANT   ÉCHAPPÉE', 'HAUT    IPA', 'BAS     CTRL+Z', 'ARRIÈRE CONTRÔLE', 'AIR     VIOLON', 'AIR+AV  TOMATE'],
   moves: {
     // PASSE puis TÊTE (Girondins)
     neutral: { type: 'melee', pose: 'kick', startup: 60, active: 90, total: 250, w: 74, h: 40, ox: 52, oy: 16, dmg: 4, kb: 120, ks: 1.4, ang: -0.25, stun: 150, chain: [ADIEU_NAIR], fx: { cres: 'cres_white', s: 2.4, ang: 10 } },
@@ -136,7 +136,7 @@ Object.assign(GameScene.prototype, {
     this.hitstop(60);
     if (this.resim) return;
     const c = v.sprite.body.center;
-    this.popup(c.x, c.y - 90, 'CONTROLE !', '#7fb2ff');
+    this.popup(c.x, c.y - 90, 'CONTRÔLE !', '#7fb2ff');
     const r = this.add.image(c.x, c.y - 10, 'ring').setTint(0xffffff).setDepth(31).setScale(0.8);
     this.tweens.add({ targets: r, scale: 4, alpha: 0, duration: 280, onComplete: () => r.destroy() });
     this.sfx('catch');

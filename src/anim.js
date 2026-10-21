@@ -34,6 +34,7 @@
   // la posture existe-t-elle vraiment dans la planche dessinée ? (sinon la texture n'est qu'une copie de la garde)
   const PNG_HAS = (ch, n) => !(typeof PNG_CHARS !== 'undefined' && PNG_CHARS[ch]) || PNG_CHARS[ch].names.includes(n);
 
+  const CAM_MIN_Z = 0.72; // dézoom maximal quand les persos sont très loin (plus de place sur les côtés et en haut)
   Object.assign(P, {
     // --- CAMÉRA À LA BRAWLHALLA : elle suit les deux persos et zoome quand ils sont proches.
     // Une deuxième caméra, fixe, affiche l'interface (profondeur >= 50 : barre de vie, boutons, menus).
@@ -48,10 +49,19 @@
         this.camY = this.H / 2;
       }
       const ui = this.uiCam;
+      // 3e caméra, dessinée en premier : le décor du fond (profondeur <= -5). Quand la caméra du combat
+      // dézoome (persos très loin), le fond, lui, ne rapetisse pas : il couvre toujours tout l'écran.
+      if (!this.bgCam || !this.cameras.cameras.includes(this.bgCam)) {
+        this.bgCam = this.cameras.add(0, 0, this.W, this.H);
+        const arr = this.cameras.cameras;
+        arr.splice(arr.indexOf(this.bgCam), 1);
+        arr.unshift(this.bgCam);
+      }
+      const bgc = this.bgCam;
       const list = this.children.list;
       for (let i = 0; i < list.length; i++) {
         const o = list[i];
-        o.cameraFilter = o.depth >= 50 ? cam.id : ui.id;
+        o.cameraFilter = o.depth >= 50 ? cam.id | bgc.id : o.depth <= -5 ? cam.id | ui.id : ui.id | bgc.id;
       }
       // cible : les deux persos (vivants) avec de la marge
       let tz = 1, tx = this.W / 2, ty = this.H / 2;
@@ -66,7 +76,7 @@
           const x0 = Math.min(...pts.map((p) => p.x)), x1 = Math.max(...pts.map((p) => p.x));
           const y0 = Math.min(...pts.map((p) => p.y)), y1 = Math.max(...pts.map((p) => p.y));
           const w = x1 - x0 + 520, h = y1 - y0 + 380;
-          tz = Math.max(1, Math.min(L.portrait ? 1.9 : 1.75, this.W / w, this.H / h));
+          tz = Math.max(CAM_MIN_Z, Math.min(L.portrait ? 1.9 : 1.75, this.W / w, this.H / h));
           tx = (x0 + x1) / 2;
           ty = (y0 + y1) / 2 - 30;
         }
@@ -76,7 +86,20 @@
       this.camX += (tx - this.camX) * Math.min(1, dt * 6);
       this.camY += (ty - this.camY) * Math.min(1, dt * 6);
       cam.setZoom(this.camZ);
+      // dézoomé (< 1) : on peut voir un peu au-delà de l'écran de base (zone de jeu plus grande)
+      const zo = Math.min(this.camZ, 1);
+      const vw = this.W / zo, vh = this.H / zo;
+      cam.setBounds(this.W / 2 - vw / 2, L.baseY - L.baseY / zo, vw, vh);
       cam.centerOn(this.camX, this.camY);
+      // le fond suit la caméra du combat quand elle zoome (> 1), reste fixe quand elle dézoome
+      if (this.camZ >= 1) {
+        bgc.setZoom(this.camZ);
+        bgc.setBounds(0, 0, this.W, this.H);
+        bgc.centerOn(cam.midPoint.x, cam.midPoint.y);
+      } else {
+        bgc.setZoom(1);
+        bgc.centerOn(this.W / 2, this.H / 2);
+      }
     },
 
     hasTex(key) {

@@ -3,7 +3,7 @@
 // Le jeu ne lit que des "inputs" par joueur : { sx, sy, jump, attack }
 // (sx, sy = joystick de -1 à 1). En ligne, ces inputs partiront au serveur.
 // ===========================================================================
-const FONT = '"Press Start 2P", monospace';
+const FONT = '"BrawlPixel", "Press Start 2P", monospace';
 const PX = 4; // 1 pixel d'art = 4 pixels logiques
 
 // --- Simulation déterministe : pas de temps fixe + maths identiques sur tous les appareils
@@ -51,7 +51,7 @@ const CHARS = {
     speed: 315, jump: 650, weight: 1.0, jumps: 2,
     pal: { main: '#e63946', dark: '#8c1c26', skin: '#f1c27d', skin2: '#c9955a', hair: '#2b1b17', accent: '#ffb703', glove: '#ffffff' },
     fx: { main: 0xff7b00, alt: 0xffd166, core: 0xfff3b0, cres: 'cres_fire' },
-    help: ['NEUTRE  JAB x3', 'AVANT   POING FEU', 'HAUT    DRAGON', 'BAS     BALAYAGE', 'ARRIERE COUP PIED', 'AIR     TOUPIE/FUSEE'],
+    help: ['NEUTRE  JAB x3', 'AVANT   POING FEU', 'HAUT    DRAGON', 'BAS     BALAYAGE', 'ARRIÈRE COUP PIED', 'AIR     TOUPIE/FUSÉE'],
     moves: {
       neutral: { type: 'melee', pose: 'jab', startup: 50, active: 80, total: 230, w: 66, h: 48, ox: 52, oy: -4, dmg: 3, kb: 110, ks: 1.2, ang: -0.15, stun: 150, chain: [TORO_J2, TORO_J3], fx: { cres: 'cres_white', s: 2.6, ang: 0 } },
       forward: { type: 'melee', pose: 'heavy', startup: 170, active: 120, total: 650, w: 88, h: 56, ox: 64, oy: -2, dmg: 12, kb: 340, ks: 9, ang: -0.3, stun: 220, lunge: 280, armor: 6, fx: { cres: 'cres_fire', s: 4.4, ang: 0, flames: 7, ghosts: 3 } },
@@ -70,7 +70,7 @@ const CHARS = {
     speed: 325, jump: 660, weight: 0.95, jumps: 2,
     pal: { main: '#7a5cff', dark: '#3b2a8c', skin: '#e8c8a9', skin2: '#b99a7c', hair: '#1a1030', accent: '#ffd166', glove: '#7df9ff', eye: '#7df9ff' },
     fx: { main: 0x7a5cff, alt: 0x7df9ff, core: 0xffffff, cres: 'cres_arc' },
-    help: ['NEUTRE  ORBE', 'AVANT   SPHERE', 'HAUT    COMETE', 'BAS     MINE', 'ARRIERE SAUT+TIR', 'AIR     ECLAT RUNE'],
+    help: ['NEUTRE  ORBE', 'AVANT   SPHÈRE', 'HAUT    COMÈTE', 'BAS     MINE', 'ARRIÈRE SAUT+TIR', 'AIR     ÉCLAT RUNE'],
     moves: {
       neutral: { type: 'proj', pose: 'cast', startup: 60, total: 320, max: 2, fx: { rune: true }, proj: { kind: 'orb', tex: 'orb_s', s: 3, vx: 950, life: 650, w: 24, h: 24, ox: 50, oy: -8, dmg: 8, kb: 230, ks: 5.2, ang: -0.25, stun: 130, trail: 0x7df9ff, small: true } },
       forward: { type: 'proj', pose: 'castBig', startup: 160, total: 660, fx: { rune: true, big: true }, proj: { kind: 'orb', tex: 'orb_l', s: 4, vx: 660, life: 1200, w: 54, h: 54, ox: 56, oy: -6, dmg: 13, kb: 330, ks: 8.5, ang: -0.3, stun: 230, trail: 0x7a5cff, explode: true } },
@@ -87,7 +87,7 @@ const CHARS = {
     speed: 290, jump: 600, weight: 1.2, jumps: 2,
     pal: { main: '#2e2824', dark: '#1e1e28', skin: '#dca282', skin2: '#a86a4c', hair: '#2e2824', accent: '#3a62b8', glove: '#dca282' },
     fx: { main: 0xd9c3a0, alt: 0xffd166, core: 0xffffff, cres: 'cres_earth' },
-    help: ['NEUTRE  CLAQUE', 'AVANT   SUPLEX', 'HAUT    BELIER', 'BAS     SEISME', 'ARRIERE MICRO', 'AIR     PLAQUAGE'],
+    help: ['NEUTRE  CLAQUE', 'AVANT   SUPLEX', 'HAUT    BÉLIER', 'BAS     SÉISME', 'ARRIÈRE MICRO', 'AIR     PLAQUAGE'],
     moves: {
       neutral: { type: 'melee', pose: 'jab', startup: 90, active: 110, total: 320, w: 74, h: 56, ox: 56, oy: -4, dmg: 7, kb: 260, ks: 6, ang: -0.35, stun: 160, fx: { cres: 'cres_earth', s: 3.2, ang: 0, dust: true } },
       forward: { type: 'grab', pose: 'grab', startup: 130, active: 110, total: 800, w: 76, h: 80, ox: 54, oy: -4, fx: { grabFx: true }, throw: { dmg: 13, kb: 380, ks: 9.2, ang: -0.75, stun: 260 } },
@@ -106,7 +106,7 @@ const CHARS = {
     shout: 'SUPER COUP FINAL',
     pal: { main: '#8b929d', dark: '#5d6470', skin: '#e9b896', skin2: '#c98f6a', hair: '#33200f', accent: '#3f5fb8', glove: '#e9b896' },
     fx: { main: 0xc9a56a, alt: 0xffd166, core: 0xfff3d6, cres: 'cres_wood' },
-    help: ['NEUTRE  GUITARE', 'AVANT   GUITARE+', 'HAUT    JAMBE FEU', 'BAS     CODE PENAL', 'ARRIERE OBJECTION !', 'AIR     MOULINET'],
+    help: ['NEUTRE  GUITARE', 'AVANT   GUITARE+', 'HAUT    JAMBE FEU', 'BAS     CODE PÉNAL', 'ARRIÈRE OBJECTION !', 'AIR     MOULINET'],
     moves: {
       neutral: { type: 'melee', pose: 'guitar', startup: 60, active: 110, total: 270, w: 72, h: 52, ox: 54, oy: -4, dmg: 7, kb: 245, ks: 5.5, ang: -0.35, stun: 160, fx: { cres: 'cres_wood', s: 2.8, ang: 0, notes: true } },
       forward: { type: 'melee', pose: 'guitarBig', startup: 170, active: 130, total: 560, w: 96, h: 80, ox: 58, oy: -14, dmg: 12, kb: 340, ks: 9, ang: -0.55, stun: 230, lunge: 200, fx: { cres: 'cres_wood', s: 4.6, ang: -30, notes: true, ghosts: 2 } },
@@ -126,7 +126,7 @@ const CHARS = {
     speed: 315, jump: 640, weight: 0.95, jumps: 2,
     pal: { main: '#2e2e3c', dark: '#16161e', skin: '#c18a60', skin2: '#9a6a46', hair: '#15110f', accent: '#d9a82b', glove: '#c18a60' },
     fx: { main: 0xe70013, alt: 0xffe27a, core: 0xffffff, cres: 'cres_steel' },
-    help: ['NEUTRE  PISTOLETS', 'AVANT   SABRE', 'HAUT    AIGLE', 'BAS     HERMINE', 'AIR+BAS POELE', 'ARRIERE HANDBALL', 'AIR     SABRE/TIR'],
+    help: ['NEUTRE  PISTOLETS', 'AVANT   SABRE', 'HAUT    AIGLE', 'BAS     HERMINE', 'AIR+BAS POÊLE', 'ARRIÈRE HANDBALL', 'AIR     SABRE/TIR'],
     moves: {
       neutral: PISTOLS,
       forward: SABER,
@@ -156,7 +156,7 @@ const CHARS = {
     speed: 320, jump: 650, weight: 1.0, jumps: 2,
     pal: { main: '#f4f0e8', dark: '#6f93c9', skin: '#d9a077', skin2: '#b57c55', hair: '#3a2216', accent: '#6b7a2e', glove: '#d9a077' },
     fx: { main: 0xff7eb6, alt: 0xffd1e6, core: 0xffffff, cres: 'cres_pink' },
-    help: ['NEUTRE  GRIFFES', 'AVANT   BOND DU CHAT', 'HAUT    PIVOINE', 'BAS     CORGI', 'ARRIERE COUP DE FOUDRE', 'AIR     VENT / VALISE', 'PASSIF  COLERE'],
+    help: ['NEUTRE  GRIFFES', 'AVANT   BOND DU CHAT', 'HAUT    PIVOINE', 'BAS     CORGI', 'ARRIÈRE COUP DE FOUDRE', 'AIR     VENT / VALISE', 'PASSIF  COLÈRE'],
     // Nini ne frappe jamais elle-même : c'est Scarlett (le chat sur ses épaules), le corgi, l'amour, les fleurs, le vent
     moves: {
       // GRIFFES : Scarlett griffe deux fois depuis l'épaule
@@ -186,6 +186,9 @@ const CHARS = {
 
 };
 const ORDER = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini'];
+// persos mis de côté pour l'instant (le code et les dessins restent, ils ne sont juste plus proposés)
+const BENCH = ['astra', 'nini'];
+const playable = () => ORDER.filter((id) => !BENCH.includes(id));
 const RAGE_MAX = 60, RAGE_MS = 8000;
 const RAGE_DMG = 1.3;
 
@@ -196,11 +199,12 @@ const STUN_BASE = 0.7, STUN_GROW = 0.2; // étourdissement : base du coup x 0,7 
 const DI_MAX = 0.26; // influence directionnelle : jusqu'à 15° de déviation
 const BUF_MS = 100; // tampon d'entrée (6 images)
 const STUN_ESCAPE = 417; // au bout de 25 images d'étourdissement, on peut esquiver en l'air
-const BLAST_X = 740, BLAST_TOP = 640, BLAST_BOTTOM = 420; // zones de KO depuis le centre / le sol
+const BLAST_X = 1000, BLAST_TOP = 860, BLAST_BOTTOM = 440; // zones de KO depuis le centre / le sol
+const KO_GRACE = 250; // ms après l'étourdissement pendant lesquelles on peut encore sortir de l'écran (KO)
 const MATCH_MS = 180000; // chrono de 3 min, puis mort subite
 // attaque en remontant du rebord
-const HELP_TXT = "LEGER / LOURD / SPECIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLEGER SANS DIRECTION x3 = ENCHAINEMENT\nUN LEGER QUI TOUCHE SE COUPE EN\nLOURD, SPECIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGE\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + COTE = SPRINT";
-const HELP_KB = "CLAVIER : ZQSD OU FLECHES, ESPACE = SAUT\nJ = LEGER, K = LOURD, I = SPECIAL, L = ESQUIVE\n(OU X, C, V ET MAJ) - ECHAP = QUITTER";
+const HELP_TXT = "LÉGER / LOURD / SPÉCIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLÉGER SANS DIRECTION x3 = ENCHAÎNEMENT\nUN LÉGER QUI TOUCHE SE COUPE EN\nLOURD, SPÉCIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGÉ\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + CÔTÉ = SPRINT";
+const HELP_KB = "CLAVIER : ZQSD OU FLÈCHES, ESPACE = SAUT\nJ = LÉGER, K = LOURD, I = SPÉCIAL, L = ESQUIVE\n(OU X, C, V ET MAJ) - ÉCHAP = QUITTER";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -237,6 +241,12 @@ if (typeof window !== 'undefined') {
       const sc = game && game.scene.getScene('game');
       if (sc && sc.state === 'play' && !sc.over && sc.askQuit) (sc.quitUi ? sc.closeQuit() : sc.askQuit());
       return;
+    }
+    const sel = game && game.scene.getScene('game');
+    if (sel && sel.state === 'select' && sel.cards && sel.cards.length) {
+      const mv = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1, ArrowUp: -3, KeyW: -3, ArrowDown: 3, KeyS: 3 }[e.code];
+      if (mv) { e.preventDefault(); sel.selectCard(sel.selIdx + mv); return; }
+      if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyJ' || e.code === 'KeyX') { e.preventDefault(); if (!e.repeat) sel.confirmSelect(); return; }
     }
     const a = KEYMAP[e.code];
     if (!a) return;
@@ -317,6 +327,15 @@ function mkCanvas(scene, key, w, h, fn, mode) {
 const HRTEX = new Set();
 const TEXSCALE = {}; // textures des persos dessinés (PNG) : échelle propre
 const texK = (o) => (o && o.texture ? TEXSCALE[o.texture.key] || (HRTEX.has(o.texture.key) ? 1 / RES : 1) : 1);
+// Textes : Phaser mesure la hauteur des lettres avec une chaîne mal encodée dans sa propre version (« |MÃ‰qgy ») ;
+// on lui donne la bonne, avec nos majuscules accentuées plus hautes, sinon les accents sont coupés.
+{
+  const F = Phaser.GameObjects.GameObjectFactory.prototype;
+  const origText = F.text;
+  F.text = function (x, y, txt, style) {
+    return origText.call(this, x, y, txt, Object.assign({ testString: '|MÉÈÊÔqgy' }, style));
+  };
+}
 ['Image', 'Sprite'].forEach((n) => {
   const P = Phaser.GameObjects[n].prototype;
   const orig = P.setScale;
@@ -903,7 +922,7 @@ class GameScene extends Phaser.Scene {
   }
 
   beginMatch(charId) {
-    const others = ORDER.filter((c) => c !== charId);
+    const others = playable().filter((c) => c !== charId);
     const botChar = this.forceBot || (this.training ? trainDummy : others[Math.floor(Math.random() * others.length)]);
     this.p1 = this.makePlayer(charId, this.W / 2 - 150, L.baseY - 110, true);
     this.p2 = this.makePlayer(botChar, this.W / 2 + 150, L.baseY - 110, false);
@@ -1063,75 +1082,161 @@ class GameScene extends Phaser.Scene {
     this.ui.push(tap);
   }
 
+  // ----- Choix du perso : grille de cartes (buste) + grand perso en pied + VALIDER --------
+  cardTex(id, on) {
+    const key = `card_${id}${on ? '_on' : ''}`;
+    if (this.textures.exists(key)) return key;
+    const NW = 46, NH = 38, K = 8;
+    const def = CHARS[id];
+    const src = this.textures.get(`${id}_idle0`).getSourceImage();
+    const sw = src.width, sh = src.height;
+    // zone dessinée du perso : haut de la tête et centre de la tête
+    const tmp = document.createElement('canvas');
+    tmp.width = sw;
+    tmp.height = sh;
+    const tc = tmp.getContext('2d');
+    tc.drawImage(src, 0, 0);
+    const px = tc.getImageData(0, 0, sw, sh).data;
+    let top = sh, xs = 0, n = 0;
+    for (let y = 0; y < sh && top === sh; y++) for (let x = 0; x < sw; x++) if (px[(y * sw + x) * 4 + 3] > 0) { top = y; break; }
+    for (let y = top; y < Math.min(sh, top + 12); y++) for (let x = 0; x < sw; x++) if (px[(y * sw + x) * 4 + 3] > 0) { xs += x; n++; }
+    const hx = n ? Math.round(xs / n) : sw / 2;
+    const col = Phaser.Display.Color.HexStringToColor(def.cardCol || def.pal.main);
+    const border = on ? '#ffd166' : `rgb(${col.red},${col.green},${col.blue})`;
+    const mix = (k) => `rgb(${Math.round(26 + (col.red - 26) * k)},${Math.round(29 + (col.green - 29) * k)},${Math.round(51 + (col.blue - 51) * k)})`;
+    mkCanvas(this, key, NW, NH, (c) => {
+      for (let y = 0; y < NH; y++) {
+        const x0 = Math.round(K * (1 - y / (NH - 1))), x1 = x0 + NW - K - 1;
+        // fond : sombre en haut, couleur du perso en bas
+        c.fillStyle = mix((on ? 0.15 : 0.05) + (y / NH) * (on ? 0.55 : 0.35));
+        c.fillRect(x0, y, x1 - x0 + 1, 1);
+        // bande claire en diagonale
+        const bx = x0 + 10 + Math.round((NH - y) * 0.2);
+        c.fillStyle = 'rgba(255,255,255,0.06)';
+        c.fillRect(bx, y, 6, 1);
+        // le buste, ligne par ligne, coupé au bord de la carte
+        const sy = top - 3 + y;
+        const sx = hx - Math.round(NW / 2) + 0;
+        const from = Math.max(x0 + 2, -sx), to = Math.min(x1 - 1, sw - sx - 1);
+        if (sy >= 0 && sy < sh && to >= from) c.drawImage(tmp, sx + from, sy, to - from + 1, 1, from, y, to - from + 1, 1);
+        // contour
+        c.fillStyle = border;
+        if (y < 2 || y >= NH - 2) c.fillRect(x0, y, x1 - x0 + 1, 1);
+        else {
+          c.fillRect(x0, y, 2, 1);
+          c.fillRect(x1 - 1, y, 2, 1);
+        }
+      }
+    }, 'raw');
+    return key;
+  }
+
   showSelect() {
     this.clearUi();
     if (typeof MUSIC !== 'undefined') MUSIC.play('menu');
     const D = 100;
     this.state = 'select';
     this.cards = [];
-    this.ui.push(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.9).setDepth(D));
+    const ids = playable();
+    this.selIds = ids;
+    this.selIdx = Math.max(0, ids.indexOf(chosen));
+    const P = L.portrait;
+    this.ui.push(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.92).setDepth(D));
     this.ui.push(
       this.add
-        .text(this.W / 2, L.portrait ? 60 : 44, 'CHOISIS TON COMBATTANT', { fontFamily: FONT, fontSize: L.portrait ? '20px' : '24px', color: '#ffffff', stroke: '#f72585', strokeThickness: 6 })
+        .text(this.W / 2, P ? 60 : 44, 'CHOISIS TON COMBATTANT', { fontFamily: FONT, fontSize: P ? '22px' : '24px', color: '#ffffff', stroke: '#f72585', strokeThickness: 6 })
         .setOrigin(0.5)
         .setDepth(D + 1)
     );
-
-    const portrait = L.portrait;
-    const top = portrait ? 110 : 90;
-    const avail = this.H - top - 24;
-    const sprites = [];
-    ORDER.forEach((id, i) => {
-      const def = CHARS[id];
-      let cx, cy, cw, ch;
-      if (portrait) {
-        cw = this.W - 48;
-        ch = Math.min(Math.floor((avail - 20 * ORDER.length) / ORDER.length), 400);
-        cx = this.W / 2;
-        cy = top + ch / 2 + i * (ch + 20);
-      } else {
-        cw = Math.min(400, Math.floor((this.W - 80) / ORDER.length) - 16);
-        ch = Math.min(this.H - top - 24, 560);
-        cx = this.W / 2 + (i - (ORDER.length - 1) / 2) * (cw + 20);
-        cy = top + ch / 2;
-      }
-      this.cards.push({ id, cx, cy, cw, ch });
-      const bg = this.add.rectangle(cx, cy, cw, ch, 0x1a1d33, 1).setStrokeStyle(4, Phaser.Display.Color.HexStringToColor(def.cardCol || def.pal.main).color).setDepth(D + 1);
-      this.ui.push(bg);
-
-      const compact = ORDER.length > 5;
-      const sprScale = portrait ? (compact ? 5 : 7) : (compact ? 6 : 8);
-      const sx = portrait ? cx - cw / 2 + (compact ? 80 : 110) : cx;
-      const sy = portrait ? cy : cy - ch / 2 + (compact ? 100 : 130);
-      const spr = this.add.image(sx, sy, `${id}_idle0`).setScale(sprScale).setDepth(D + 2);
-      sprites.push([spr, id]);
-      this.ui.push(spr);
-
-      const tx = portrait ? cx - cw / 2 + (compact ? 160 : 210) : cx - cw / 2 + 16;
-      const ty = portrait ? cy - ch / 2 + 14 : cy - ch / 2 + (compact ? 200 : 250);
-      const name = this.add.text(tx, ty, def.name, { fontFamily: FONT, fontSize: portrait ? (compact ? '26px' : '34px') : (compact ? '20px' : '28px'), color: '#ffffff', stroke: '#000', strokeThickness: 6 }).setDepth(D + 2);
-      const roleY = portrait ? (compact ? 36 : 50) : (compact ? 32 : 42);
-      const role = this.add.text(tx, ty + roleY, def.role, { fontFamily: FONT, fontSize: portrait ? (compact ? '13px' : '16px') : (compact ? '9px' : '13px'), color: def.roleCol }).setDepth(D + 2);
-      const maxLen = Math.max(...def.help.map((h) => h.length));
-      const helpY = ty + roleY + (portrait ? (compact ? 28 : 42) : 32);
-      const nl = def.help.length;
-      let fs;
-      if (portrait) fs = Math.max(6, Math.min(compact ? 12 : 15, Math.floor((ty + ch - 10 - helpY) / (nl * 1.9)), Math.floor((cw - (tx - (cx - cw / 2)) - 12) / maxLen)));
-      else fs = Math.max(6, Math.min(10, Math.floor((cw - 28) / maxLen)));
-      const help = this.add
-        .text(tx, helpY, def.help.join('\n'), { fontFamily: FONT, fontSize: fs + 'px', color: '#cfd3ff', lineSpacing: Math.round(fs * 0.65) })
-        .setDepth(D + 2);
-      this.ui.push(name, role, help);
+    const NW = 46, NH = 38, K = 8, cols = 3, rows = Math.ceil(ids.length / cols);
+    // zones : grille (gauche / bas) et grand perso (droite / haut)
+    let grid, pane, btnH;
+    if (P) {
+      btnH = 96;
+      const gsc = Math.min(5, Math.floor((this.W - 48) / (cols * NW + (cols - 1) * 3)));
+      const gh = rows * NH * gsc + (rows - 1) * 3 * gsc;
+      const gy = this.H - 40 - btnH - 40 - gh;
+      pane = { x: 40, y: 104, w: this.W - 80, h: gy - 104 - 110 };
+      grid = { x: 24, y: gy, w: this.W - 48, h: gh };
+    } else {
+      btnH = 80;
+      const pw = Math.min(430, Math.round(this.W * 0.3));
+      pane = { x: this.W - pw - 60, y: 92, w: pw, h: this.H - 92 - btnH - 120 };
+      grid = { x: 40, y: 100, w: pane.x - 100, h: this.H - 140 };
+    }
+    // taille des cartes : un multiple entier des pixels du dessin (net)
+    const gap = 3;
+    const sc = Math.max(2, Math.min(Math.floor(grid.w / (cols * NW + (cols - 1) * gap)), Math.floor(grid.h / (rows * NH + (rows - 1) * gap)), 7));
+    const cw = NW * sc, ch = NH * sc, g = gap * sc;
+    const gx0 = grid.x + (grid.w - (cols * cw + (cols - 1) * g)) / 2, gy0 = grid.y + (grid.h - (rows * ch + (rows - 1) * g)) / 2;
+    ids.forEach((id, i) => {
+      const cx = gx0 + (i % cols) * (cw + g) + cw / 2, cy = gy0 + Math.floor(i / cols) * (ch + g) + ch / 2;
+      const img = this.add.image(cx, cy, this.cardTex(id, false)).setScale(sc).setDepth(D + 2);
+      this.cardTex(id, true);
+      this.ui.push(img);
+      this.cards.push({ id, cx, cy, cw, ch, img, sc });
     });
-    // animation "respiration" des persos
+    // grand perso en pied
+    this.ui.push(this.add.rectangle(pane.x + pane.w / 2, pane.y + pane.h / 2, pane.w, pane.h, 0x14162a, 1).setDepth(D + 1));
+    this.selFrame = this.add.rectangle(pane.x + pane.w / 2, pane.y + pane.h / 2, pane.w, pane.h).setStrokeStyle(6, 0xffffff).setDepth(D + 3);
+    this.selGlow = this.add.ellipse(pane.x + pane.w / 2, pane.y + pane.h - 30, pane.w * 0.7, 34, 0x000000, 0.45).setDepth(D + 1);
+    const k = Math.max(3, Math.floor(Math.min((pane.h - 30) / 64, (pane.w - 20) / 70)));
+    this.selBig = this.add.image(pane.x + pane.w / 2, pane.y + pane.h - 18, `${ids[0]}_idle0`).setOrigin(0.5, 1).setScale(k).setDepth(D + 2);
+    this.selBigK = k;
+    this.selName = this.add
+      .text(pane.x, pane.y + pane.h + (P ? 22 : 18), '', { fontFamily: FONT, fontSize: P ? '34px' : '30px', color: '#ffffff', stroke: '#000', strokeThickness: 6 })
+      .setDepth(D + 2);
+    const by = P ? this.H - 40 - btnH / 2 : pane.y + pane.h + 80 + btnH / 2;
+    const bx = pane.x + pane.w / 2;
+    const bw = P ? this.W - 80 : pane.w;
+    const btn = this.add.rectangle(bx, by, bw, btnH, 0xf72585, 1).setStrokeStyle(4, 0x000000).setDepth(D + 2);
+    const btnT = this.add.text(bx, by, 'VALIDER', { fontFamily: FONT, fontSize: P ? '30px' : '26px', color: '#ffffff', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(D + 3);
+    this.selBtn = { x: bx, y: by, w: bw, h: btnH };
+    this.ui.push(this.selFrame, this.selGlow, this.selBig, this.selName, btn, btnT);
+    this.tweens.add({ targets: btn, scaleX: 1.03, scaleY: 1.06, duration: 520, yoyo: true, repeat: -1 });
+    this.selectCard(this.selIdx);
+    // respiration du grand perso
     this.cardTimer = this.time.addEvent({
       delay: 420,
       loop: true,
       callback: () => {
         this.cardFrame = !this.cardFrame;
-        sprites.forEach(([spr, id]) => spr.setTexture(`${id}_${this.cardFrame ? 'idle0' : 'idle1'}`));
+        const id = this.selIds[this.selIdx];
+        if (this.selBig && this.selBig.active) this.selBig.setTexture(`${id}_${this.cardFrame ? 'idle0' : 'idle1'}`);
       },
     });
+  }
+
+  selectCard(i) {
+    if (!this.cards || !this.cards.length) return;
+    i = (i + this.cards.length) % this.cards.length;
+    this.selIdx = i;
+    this.cards.forEach((c, j) => {
+      c.img.setTexture(`card_${c.id}${j === i ? '_on' : ''}`).setScale(j === i ? c.sc * 1.06 : c.sc).setDepth(j === i ? 103 : 102);
+      if (j === i) c.img.clearTint();
+      else c.img.setTint(0x8a8aa6);
+    });
+    const id = this.cards[i].id, def = CHARS[id];
+    const col = Phaser.Display.Color.HexStringToColor(def.cardCol || def.pal.main).color;
+    this.selBig.setTexture(`${id}_idle0`).setScale(this.selBigK / (TEXSCALE[`${id}_idle0`] || 1));
+    this.selFrame.setStrokeStyle(6, col);
+    this.selName.setText(def.name);
+  }
+
+  confirmSelect() {
+    const id = this.selIds[this.selIdx];
+    if (typeof SFX !== 'undefined' && SFX.play) SFX.play('ui');
+    if (onlinePick) onlinePick(id);
+    else if (campPick) this.campNew(id);
+    else this.startMatch(id);
+  }
+
+  selectTap(p) {
+    if (this.selBtn && Math.abs(p.x - this.selBtn.x) <= this.selBtn.w / 2 && Math.abs(p.y - this.selBtn.y) <= this.selBtn.h / 2) return this.confirmSelect();
+    const i = this.cardAt(p.x, p.y);
+    if (i < 0) return;
+    if (i === this.selIdx && p.wasTouch === false) return this.confirmSelect(); // double clic à la souris
+    this.selectCard(i);
   }
 
   cardAt(x, y) {
@@ -1215,12 +1320,7 @@ class GameScene extends Phaser.Scene {
         return;
       }
       if (this.state === 'select') {
-        const i = this.cardAt(p.x, p.y);
-        if (i >= 0) {
-          if (onlinePick) onlinePick(ORDER[i]);
-          else if (campPick) this.campNew(ORDER[i]);
-          else this.startMatch(ORDER[i]);
-        }
+        this.selectTap(p);
         return;
       }
       if (this.quitTap && this.quitTap(p)) return;
@@ -1827,9 +1927,33 @@ class GameScene extends Phaser.Scene {
       this.flame(s.x + (Math.random() - 0.5) * 40, s.y + 10, pl.def.fx);
     }
 
-    // Zones de KO (mêmes distances depuis le centre en portrait et en paysage)
+    // Zones de KO (mêmes distances depuis le centre en portrait et en paysage).
+    // On ne meurt que projeté par l'adversaire (encore étourdi, + une petite marge) : seul, on bute sur un
+    // mur invisible sur les côtés et en haut, et en bas un REBOND DE SECOURS renvoie vers le terrain.
     const cx = this.W / 2;
-    if (s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y > L.baseY + BLAST_BOTTOM || s.y < L.baseY - BLAST_TOP) this.die(pl, now);
+    const out = s.x < cx - BLAST_X || s.x > cx + BLAST_X || s.y > L.baseY + BLAST_BOTTOM || s.y < L.baseY - BLAST_TOP;
+    const launched = now < pl.stunUntil + KO_GRACE || !!(pl.grab || [this.p1, this.p2].some((o) => o.grab && o.grab.victim === pl));
+    if (out && launched) return this.die(pl, now);
+    if (launched) return;
+    const bd = s.body;
+    const xl = cx - BLAST_X + 40, xr = cx + BLAST_X - 40, yt = L.baseY - BLAST_TOP + 40;
+    if (s.x < xl || s.x > xr || s.y < yt) {
+      const vx = bd.velocity.x, vy = bd.velocity.y, ox = s.x, oy = s.y;
+      const nx = Phaser.Math.Clamp(ox, xl, xr), ny = Math.max(oy, yt);
+      this.putAt(s, nx, ny);
+      bd.setVelocity(nx !== ox ? 0 : vx, ny !== oy ? Math.max(vy, 0) : vy);
+    }
+    if (s.y > L.baseY + BLAST_BOTTOM - 120 && bd.velocity.y > 0) {
+      // REBOND DE SECOURS : assez fort pour remonter au-dessus du terrain, vers le centre
+      const h = s.y - (L.baseY - 140);
+      bd.setVelocity(Math.sign(cx - s.x) * 320, -Math.sqrt(2 * GRAVITY * h));
+      this.landReset(pl);
+      pl.atk = null;
+      if (!this.resim) {
+        this.popup(s.x, s.y - 60, 'REBOND !', '#6ee7b7');
+        this.sfx('jump');
+      }
+    }
   }
 
   // key : clé du coup (voir moveKey) ; gc : coup du sol fait en l'air (Gravity Cancel)
@@ -2001,7 +2125,7 @@ class GameScene extends Phaser.Scene {
     vic.rageUntil = now + RAGE_MS;
     vic.rageOn = true;
     const b = vic.sprite.body.center;
-    this.popup(b.x, b.y - 100, 'SCARLETT SE FACHE !', '#ff4d4d');
+    this.popup(b.x, b.y - 100, 'SCARLETT SE FÂCHE !', '#ff4d4d');
     this.shockwave(b.x, b.y + 20, { main: 0xff2b2b, alt: 0xffa23b });
     this.cameras.main.shake(260, 0.012);
     this.hitstop(120);
@@ -2346,7 +2470,7 @@ class GameScene extends Phaser.Scene {
     } else if (spec.heavy && att.def.judge && now < (vic.markUntil || 0)) {
       spec = Object.assign({}, spec, { dmg: spec.dmg * 1.25, kb: spec.kb * 1.25 });
       vic.markUntil = 0;
-      this.popup(vc0.x, vc0.y - 110, 'CONDAMNE !', '#ff5a5a');
+      this.popup(vc0.x, vc0.y - 110, 'CONDAMNÉ !', '#ff5a5a');
     }
     // BIGZINZIN : en OR il frappe plus fort et encaisse mieux ; l'argent monte quand il touche, baisse quand il est touché
     if (this.bzHit) spec = this.bzHit(att, vic, spec, now);
@@ -2907,7 +3031,7 @@ class GameScene extends Phaser.Scene {
     if (this.net) {
       this.onlineFinish(winner);
     } else {
-      this.banner.setText(winner === this.p1 ? 'VICTOIRE !' : 'DEFAITE...');
+      this.banner.setText(winner === this.p1 ? 'VICTOIRE !' : 'DÉFAITE...');
       this.sub.setText('TOUCHE POUR REJOUER');
     }
     this.clearCharge(this.p1);
@@ -3080,7 +3204,7 @@ class GameScene extends Phaser.Scene {
     if (this.resim) return;
     this.runeFx(from.x, from.y - 20, pl.def.fx, 2);
     this.runeFx(s.x, s.y - 20, pl.def.fx, 2.4);
-    this.popup(s.x, s.y - 80, star ? 'TELEPORT !' : 'ENVOL', '#b79cff');
+    this.popup(s.x, s.y - 80, star ? 'TÉLÉPORT !' : 'ENVOL', '#b79cff');
     this.sfx('magic', 0.8);
   }
 
@@ -3196,7 +3320,7 @@ window.addEventListener('orientationchange', onResize);
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 Promise.race([
-  document.fonts ? document.fonts.load('16px "Press Start 2P"') : Promise.resolve(),
+  document.fonts ? document.fonts.load('16px "BrawlPixel"') : Promise.resolve(),
   new Promise((r) => setTimeout(r, 2000)),
 ])
   .catch(() => {})

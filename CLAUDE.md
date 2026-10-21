@@ -95,6 +95,17 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   (Autant en emporte le vent). Le corgi est sur SPÉCIAL + BAS avec une recharge, pas sur un coup de base.
 - Les coups « signature » (tirs, invocations, contres, CTRL+Z…) vont en LOURD ou en SPÉCIAL, jamais en LÉGER
   (demande de Noah) : les légers sont des coups simples faits pour enchaîner.
+- ZONES DE KO (`BLAST_X`, `BLAST_TOP`, `BLAST_BOTTOM` dans `game.js`) : on ne meurt QUE projeté par l'adversaire
+  (encore étourdi + `KO_GRACE`, ou tenu par une prise). Seul, on bute sur un mur invisible (côtés, haut) et en bas un
+  REBOND DE SECOURS renvoie vers le terrain (sauts et retours rendus). La caméra peut dézoomer jusqu'à `CAM_MIN_Z`
+  (`anim.js`) ; le fond (profondeur <= -5) est rendu par une 3e caméra `bgCam` qui ne dézoome pas.
+- Persos en réserve : `BENCH` (`game.js`, Astra et Nini) : code et dessins gardés, mais absents du choix, de la
+  campagne, des bots et de l'entraînement (`playable()` = la liste proposée).
+- POLICE : `BrawlPixel` = Press Start 2P retouchée (`tools/art/patch_font.py`) avec de vraies majuscules accentuées
+  (l'original écrase É en « é »), intégrée en base64 dans `head.html`. Écrire les textes AVEC les accents (LÉGER, DÉFAITE…).
+- Écran de choix du perso (`showSelect` dans `game.js`) : grille de cartes en parallélogramme avec le buste
+  (`cardTex`, dessinées en pixels depuis `idle0`), grand perso en pied à droite (en haut en portrait), nom, VALIDER.
+  Toucher une carte la sélectionne ; clavier : flèches + Entrée.
 - Chrono de 3 min puis mort subite (premier coup gagne). 3 vies.
 - Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
 - Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en

@@ -9,7 +9,7 @@ function campSave() {
 function campLoad() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-    if (s && ORDER.includes(s.hero) && s.ch >= 0 && s.ch < 6) return s;
+    if (s && playable().includes(s.hero) && s.ch >= 0 && s.ch < 6) return s;
   } catch (e) {}
   return null;
 }
@@ -62,7 +62,7 @@ const STORY = {
 const SPEAKER = { nar: { n: '', c: '#cfd3ff' }, ombre: { n: 'L\'OMBRE', c: '#9b8cff' } };
 
 function campOpp(hero, ch) {
-  const others = ORDER.filter((x) => x !== hero);
+  const others = playable().filter((x) => x !== hero);
   return ch < 5 ? others[ch] : hero;
 }
 function campChapterLines(ch) {
@@ -107,7 +107,7 @@ Object.assign(GameScene.prototype, {
   drawBar() {
     const p = Auth.profile;
     let txt = Auth.name.toUpperCase().slice(0, 16);
-    txt += Auth.session ? (p ? `  -  ${p.rating} PTS` : '') : '  (INVITE)';
+    txt += Auth.session ? (p ? `  -  ${p.rating} PTS` : '') : '  (INVITÉ)';
     const w = Math.min(Math.max(300, txt.length * 20 + 80), this.W - 40), h = 46, x = this.W / 2, y = 32;
     this.ui.push(
       this.add.rectangle(x, y, w, h, 0x1a1d33, 1).setStrokeStyle(3, 0xffe9a8).setDepth(130),
@@ -123,7 +123,7 @@ Object.assign(GameScene.prototype, {
       [
         { label: 'JOUER', fn: () => this.showPlayMenu() },
         { label: 'CAMPAGNE', col: 0x4cc9f0, fn: () => this.showCampMenu() },
-        { label: 'REGLAGES', col: 0xffb703, fn: () => this.showSettings() },
+        { label: 'RÉGLAGES', col: 0xffb703, fn: () => this.showSettings() },
         { label: 'COMMENT JOUER', col: 0x6ee7b7, fn: () => this.showHelp() },
       ],
       y0
@@ -146,7 +146,7 @@ Object.assign(GameScene.prototype, {
     const list = [{ label: 'VS BOT', fn: () => { campPick = false; camp = null; trainingMode = false; this.training = false; this.showStagePick(() => this.showSelect()); } }];
     if (typeof ONLINE_OK !== 'undefined' && ONLINE_OK)
       list.push({ label: 'EN LIGNE', col: 0xffb703, fn: async () => { if (await Auth.ensure()) setTimeout(goOnline, 0); } });
-    list.push({ label: 'ENTRAINEMENT', col: 0x6ee7b7, fn: () => { campPick = false; camp = null; trainingMode = true; this.training = true; this.showStagePick(() => this.showSelect()); } });
+    list.push({ label: 'ENTRAÎNEMENT', col: 0x6ee7b7, fn: () => { campPick = false; camp = null; trainingMode = true; this.training = true; this.showStagePick(() => this.showSelect()); } });
     list.push({ label: 'RETOUR', col: 0x888888, fn: () => this.showMenu() });
     this.menuButtons(list, this.H * (L.portrait ? 0.38 : 0.5));
   },
@@ -275,10 +275,10 @@ Object.assign(GameScene.prototype, {
   showCampLost() {
     this.state = 'menu';
     this.ui.push(this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x0b0d1f, 0.92).setDepth(100));
-    this.ui.push(this.add.text(this.W / 2, this.H * 0.2, 'DEFAITE...', { fontFamily: FONT, fontSize: '44px', color: '#ff5a6e', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(101));
+    this.ui.push(this.add.text(this.W / 2, this.H * 0.2, 'DÉFAITE...', { fontFamily: FONT, fontSize: '44px', color: '#ff5a6e', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(101));
     this.menuButtons(
       [
-        { label: 'REESSAYER', fn: () => { camp.phase = 'match'; this.scene.restart(); } },
+        { label: 'RÉESSAYER', fn: () => { camp.phase = 'match'; this.scene.restart(); } },
         { label: 'MENU PRINCIPAL', col: 0x888888, fn: () => { camp = null; chosen = null; goSelect = false; this.scene.restart(); } },
       ],
       this.H * (L.portrait ? 0.4 : 0.5)
