@@ -23,6 +23,9 @@ const GRAVITY = 1700;
 const FAST_FALL = 1050;
 const STOCKS = 3;
 const STICK_R = 90;
+// commandes tactiles déplaçables (réglages > PLACER LES BOUTONS) et leur rayon de base
+const CTRL_KEYS = ['stick', 'attack', 'heavy', 'special', 'jump', 'block'];
+const CTRL_R = { stick: 88, attack: 80, heavy: 66, special: 58, jump: 62, block: 56 };
 
 const OUT = '#14121c';
 const BOOT = '#2b2740';
@@ -282,6 +285,8 @@ let chosen = null; // personnage choisi par le joueur
 let goSelect = false;
 let camp = null; // état de la campagne (null = combat rapide)
 let campPick = false;
+let reopenSettings = false; // retour aux réglages après l'éditeur de boutons
+let editButtons = false; // ouvrir l'éditeur de boutons au prochain démarrage de la scène
 let lastPortrait = null;
 
 // ---------------------------------------------------------------------------
@@ -527,7 +532,10 @@ class GameScene extends Phaser.Scene {
     this.setupInput();
     this.buildControlsUi();
 
-    if (onlineStage) {
+    this.editing = false;
+    if (editButtons) {
+      this.startButtonEditor();
+    } else if (onlineStage) {
       this.onlineEnter();
     } else if (camp && camp.phase) {
       this.campEnter();
@@ -541,6 +549,10 @@ class GameScene extends Phaser.Scene {
     } else if (sessionReady) {
       this.state = 'menu';
       this.showMenu();
+      if (reopenSettings) {
+        reopenSettings = false;
+        this.showSettings();
+      }
     } else {
       this.state = 'title';
       this.showTitle();
@@ -1287,47 +1299,89 @@ class GameScene extends Phaser.Scene {
   }
 
   // ----- Interface tactile ------------------------------------------------
-  buildControlsUi() {
-    const D = 90;
+  // Disposition des commandes : par défaut (selon MAINS et BOUTONS) ou celle placée par le joueur dans les réglages
+  // (SETTINGS.layout.L / .P : position en fraction de l'écran + taille, par commande)
+  defaultLayout() {
     const z = SETTINGS.btnSize === 0 ? 0.82 : SETTINGS.btnSize === 2 ? 1.2 : 1;
     const fx = (x) => (SETTINGS.flip ? this.W - x : x);
-    this.stickHome = { x: fx(180), y: this.H - 170 };
-    this.stickBase = this.add.image(this.stickHome.x, this.stickHome.y, 'stickBase').setScale(PX).setAlpha(0.35).setDepth(D);
-    this.stickKnob = this.add.image(this.stickHome.x, this.stickHome.y, 'stickKnob').setScale(PX).setAlpha(0.35).setDepth(D + 1);
+    const P = L.portrait;
+    const at = (lx, ly, px, py) => (P ? [this.W - px * z, this.H - py * z] : [this.W - lx * z, this.H - ly * z]);
+    const o = { stick: { x: fx(180), y: this.H - 170, s: 1 } };
+    const put = (k, [x, y]) => (o[k] = { x: fx(x), y, s: z });
+    put('attack', at(150, 150, 140, 190));
+    put('heavy', at(335, 108, 300, 118));
+    put('special', at(312, 282, 290, 290));
+    put('jump', at(132, 338, 128, 370));
+    put('block', at(490, 132, 268, 450));
+    return o;
+  }
+
+  ctrlLayout() {
+    const def = this.defaultLayout();
+    const cus = SETTINGS.layout && SETTINGS.layout[L.portrait ? 'P' : 'L'];
+    if (!cus) return def;
+    const o = {};
+    for (const k of CTRL_KEYS) {
+      const c = cus[k];
+      o[k] = c ? { x: c.fx * this.W, y: c.fy * this.H, s: c.s } : def[k];
+    }
+    return o;
+  }
+
+  buildControlsUi() {
+    const D = 90;
+    const lay = this.ctrlLayout();
+    this.stickHome = { x: lay.stick.x, y: lay.stick.y };
+    this.stickS = lay.stick.s;
+    this.stickBase = this.add.image(this.stickHome.x, this.stickHome.y, 'stickBase').setScale(PX * this.stickS).setAlpha(0.35).setDepth(D);
+    this.stickKnob = this.add.image(this.stickHome.x, this.stickHome.y, 'stickKnob').setScale(PX * this.stickS).setAlpha(0.35).setDepth(D + 1);
     this.ctrlObjs = [this.stickBase, this.stickKnob];
     this.touchObjs = [this.stickBase, this.stickKnob]; // cachés quand on joue au clavier
 
-    const mkBtn = (key, tex, ico, x, y, r) => {
-      x = fx(x);
-      r *= z;
-      const img = this.add.image(x, y, tex).setScale((r * 2) / (tex === 'btnAtk' || tex === 'btnHeavy' ? 28 : 24)).setAlpha(0.75).setDepth(D);
-      const icon = this.add.image(x, y, ico).setScale(PX * z).setAlpha(0.95).setDepth(D + 1);
+    const mkBtn = (key, tex, ico) => {
+      const c = lay[key];
+      const img = this.add.image(c.x, c.y, tex).setAlpha(0.75).setDepth(D);
+      const icon = this.add.image(c.x, c.y, ico).setAlpha(0.95).setDepth(D + 1);
       this.ctrlObjs.push(img, icon);
       this.touchObjs.push(img, icon);
-      return { key, x, y, r, img, id: null };
+      const b = { key, x: c.x, y: c.y, r: CTRL_R[key] * c.s, s: c.s, img, icon, id: null, texW: tex === 'btnAtk' || tex === 'btnHeavy' ? 28 : 24 };
+      this.sizeBtn(b);
+      return b;
     };
     // 5 boutons : LÉGER (le plus gros, sous le pouce), LOURD, SPÉCIAL, SAUT, ESQUIVE
-    const P = L.portrait;
-    const at = (lx, ly, px, py) => (P ? [this.W - px * z, this.H - py * z] : [this.W - lx * z, this.H - ly * z]);
     this.btn = {
-      attack: mkBtn('attack', 'btnAtk', 'icoAtk', ...at(150, 150, 140, 190), 80),
-      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy', ...at(335, 108, 300, 118), 66),
-      special: mkBtn('special', 'btnSp', 'icoSp', ...at(312, 282, 290, 290), 58),
-      jump: mkBtn('jump', 'btnJump', 'icoJump', ...at(132, 338, 128, 370), 62),
-      block: mkBtn('block', 'btnBlk', 'icoBlk', ...at(490, 132, 268, 450), 56),
+      attack: mkBtn('attack', 'btnAtk', 'icoAtk'),
+      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy'),
+      special: mkBtn('special', 'btnSp', 'icoSp'),
+      jump: mkBtn('jump', 'btnJump', 'icoJump'),
+      block: mkBtn('block', 'btnBlk', 'icoBlk'),
     };
     // 3 points autour du bouton SPÉCIAL : haut, côté, bas (allumés = capacité prête)
-    const sb = this.btn.special;
-    const dr = sb.r + 12;
-    this.spDots = [['uS', 0, -dr], ['nS', SETTINGS.flip ? dr : -dr, 0], ['dS', 0, dr]].map(([k, dx, dy]) => {
-      const d = this.add.circle(sb.x + dx, sb.y + dy, 8 * z, 0x3a3f5c).setStrokeStyle(2, 0x000000, 0.6).setDepth(D + 1);
+    this.spDots = ['uS', 'nS', 'dS'].map((k) => {
+      const d = this.add.circle(0, 0, 8, 0x3a3f5c).setStrokeStyle(2, 0x000000, 0.6).setDepth(D + 1);
       this.ctrlObjs.push(d);
       this.touchObjs.push(d);
       return { k, d };
     });
+    this.placeSpDots();
     this.fsBtn = { x: this.W / 2, y: 40, r: 34 };
     this.ctrlObjs.push(this.add.image(this.fsBtn.x, this.fsBtn.y, 'icoFs').setScale(3).setAlpha(0.6).setDepth(D));
     if (this.buildQuitBtn) this.buildQuitBtn(D);
+  }
+
+  // taille d'un bouton tactile (rayon = rayon de base x taille choisie)
+  sizeBtn(b) {
+    b.r = CTRL_R[b.key] * b.s;
+    b.img.setPosition(b.x, b.y).setScale((b.r * 2) / b.texW);
+    b.icon.setPosition(b.x, b.y).setScale(PX * b.s);
+  }
+
+  // les 3 points de SPÉCIAL : en haut, en bas, et sur le côté qui regarde le centre de l'écran
+  placeSpDots() {
+    const sb = this.btn.special;
+    const dr = sb.r + 12, side = sb.x > this.W / 2 ? -1 : 1;
+    const off = { uS: [0, -dr], nS: [side * dr, 0], dS: [0, dr] };
+    this.spDots.forEach(({ k, d }) => d.setPosition(sb.x + off[k][0], sb.y + off[k][1]).setRadius(8 * Math.min(sb.s, 1.2)));
   }
 
   setupInput() {
@@ -1336,6 +1390,7 @@ class GameScene extends Phaser.Scene {
     this.queue = { jump: false, attack: false, heavy: false, special: false };
 
     this.input.on('pointerdown', (p) => {
+      if (this.state === 'editor') return this.editorDown(p);
       if (p.wasTouch) KB.used = false; // on touche l'écran : retour des boutons tactiles
       if (this.state === 'lobby' || this.state === 'menu' || this.state === 'story') {
         this.uiTap(p);
@@ -1392,7 +1447,7 @@ class GameScene extends Phaser.Scene {
         best.img.setAlpha(1);
         return;
       }
-      if ((SETTINGS.flip ? p.x > this.W * 0.5 : p.x < this.W * 0.5) && this.stick.id === null) {
+      if ((this.stickHome.x >= this.W / 2 ? p.x >= this.W * 0.5 : p.x < this.W * 0.5) && this.stick.id === null) {
         this.stick.id = p.id;
         this.stick.ox = p.x;
         this.stick.oy = p.y;
@@ -1403,24 +1458,27 @@ class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (p) => {
+      if (this.state === 'editor') return this.editorMove(p);
       if (p.id !== this.stick.id) return;
       let dx = p.x - this.stick.ox;
       let dy = p.y - this.stick.oy;
       const d = hyp(dx, dy);
-      if (d > STICK_R) {
-        const k = (d - STICK_R) / d;
+      const SR = STICK_R * (this.stickS || 1);
+      if (d > SR) {
+        const k = (d - SR) / d;
         this.stick.ox += dx * k;
         this.stick.oy += dy * k;
         dx = p.x - this.stick.ox;
         dy = p.y - this.stick.oy;
         this.stickBase.setPosition(this.stick.ox, this.stick.oy);
       }
-      this.stick.sx = Phaser.Math.Clamp(dx / STICK_R, -1, 1);
-      this.stick.sy = Phaser.Math.Clamp(dy / STICK_R, -1, 1);
-      this.stickKnob.setPosition(this.stick.ox + this.stick.sx * STICK_R, this.stick.oy + this.stick.sy * STICK_R);
+      this.stick.sx = Phaser.Math.Clamp(dx / SR, -1, 1);
+      this.stick.sy = Phaser.Math.Clamp(dy / SR, -1, 1);
+      this.stickKnob.setPosition(this.stick.ox + this.stick.sx * SR, this.stick.oy + this.stick.sy * SR);
     });
 
     const release = (p) => {
+      if (this.state === 'editor') return this.editorUp(p);
       if (p.id === this.stick.id) {
         this.stick.id = null;
         this.stick.sx = this.stick.sy = 0;
@@ -1562,6 +1620,7 @@ class GameScene extends Phaser.Scene {
   // Les commandes de chaque joueur pour cette image : joystick local, bot, ou (plus tard) réseau
   inputFor(pl, other, i, now) {
     if (this.netInput) return this.netInput(i, now);
+    if (this.editing) return { sx: 0, sy: 0 }; // fausse partie derrière l'éditeur de boutons
     if (i === 0 && !this.autoP1) {
       return this.localInput();
     }

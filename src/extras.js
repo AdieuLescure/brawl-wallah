@@ -158,8 +158,9 @@ Object.assign(GameScene.prototype, {
       music: () => { SETTINGS.music = SETTINGS.music === false; if (typeof MUSIC !== 'undefined') MUSIC.setVolume(); },
       zoom: () => (SETTINGS.zoom = SETTINGS.zoom === false),
       vib: () => (SETTINGS.vib = !SETTINGS.vib),
-      btnSize: () => (SETTINGS.btnSize = (SETTINGS.btnSize + 1) % 3),
-      flip: () => (SETTINGS.flip = !SETTINGS.flip),
+      // taille / côté par défaut : remet aussi les boutons placés à la main à leur place d'origine
+      btnSize: () => { SETTINGS.btnSize = (SETTINGS.btnSize + 1) % 3; delete SETTINGS.layout; },
+      flip: () => { SETTINGS.flip = !SETTINGS.flip; delete SETTINGS.layout; },
       timer: () => (SETTINGS.timer = !SETTINGS.timer),
       botLevel: () => (SETTINGS.botLevel = (SETTINGS.botLevel + 1) % 3),
     };
@@ -179,11 +180,218 @@ Object.assign(GameScene.prototype, {
     });
     const rows = two ? Math.ceil(keys.length / 2) : keys.length;
     const yb = y0 + rows * (bh + gap) + 10;
-    const r = this.add.rectangle(this.W / 2, yb, 360, bh, 0x1a1d33, 1).setStrokeStyle(4, 0x888888).setDepth(D);
-    const t = this.add.text(this.W / 2, yb, 'RETOUR', { fontFamily: FONT, fontSize: '17px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
+    // placer chaque bouton tactile soi-même (sur une fausse partie)
+    const pw = two ? bw * 2 + 28 : bw;
+    const rp = this.add.rectangle(this.W / 2, yb, pw, bh, 0x1a1d33, 1).setStrokeStyle(4, 0xf72585).setDepth(D);
+    const tp = this.add.text(this.W / 2, yb, 'PLACER LES BOUTONS' + (SETTINGS.layout ? ' (PERSO)' : ''), { fontFamily: FONT, fontSize: '17px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
+    this.ui.push(rp, tp);
+    this.uiBtns.push({ x: this.W / 2, y: yb, w: pw, h: bh, fn: () => { saveSettings(); this.showButtonEditor(); } });
+    const yr = yb + bh + gap;
+    const r = this.add.rectangle(this.W / 2, yr, 360, bh, 0x1a1d33, 1).setStrokeStyle(4, 0x888888).setDepth(D);
+    const t = this.add.text(this.W / 2, yr, 'RETOUR', { fontFamily: FONT, fontSize: '17px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(D + 1);
     this.ui.push(r, t);
     // les boutons de combat changent de taille / de côté : on recrée la scène en revenant
-    this.uiBtns.push({ x: this.W / 2, y: yb, w: 360, h: bh, fn: () => this.scene.restart() });
+    this.uiBtns.push({ x: this.W / 2, y: yr, w: 360, h: bh, fn: () => this.scene.restart() });
+  },
+
+  // --- Éditeur de boutons : on déplace et on redimensionne chaque commande sur une fausse partie -----------------
+  // Glisser = déplacer (les boutons se contournent : jamais deux l'un sur l'autre) ; toucher = choisir, puis - / + = taille.
+  showButtonEditor() {
+    // une fausse partie immobile derrière (on garde la recréation de scène pour les boutons d'origine)
+    editButtons = true;
+    this.scene.restart();
+  },
+
+  startButtonEditor() {
+    editButtons = false;
+    this.editing = true;
+    this.beginMatch(chosen || playable()[0]);
+    for (let i = 0; i < 40; i++) this.simTick();
+    this.updateHud();
+    this.state = 'editor';
+    KB.used = false;
+    this.setControls(true);
+    if (this.touchObjs) this.touchObjs.forEach((o) => o.setVisible(true));
+    this.edPos = this.ctrlLayout();
+    this.edSel = null;
+    this.edDrag = null;
+    this.edUi = [];
+    this.edRing = this.add.circle(0, 0, 10).setStrokeStyle(4, 0xffd166).setFillStyle(0xffd166, 0.12).setDepth(89).setVisible(false);
+    this.drawEditorBar();
+  },
+
+  // la barre d'outils (en haut au centre, sous le chrono)
+  drawEditorBar() {
+    (this.edUi || []).forEach((o) => o.destroy());
+    this.edUi = [];
+    this.edBtns = [];
+    const D = 96, W = this.W, P = L.portrait;
+    const cy = P ? 230 : 190;
+    const add = (o) => (this.edUi.push(o), o);
+    add(this.add.rectangle(W / 2, cy, Math.min(W - 40, 680), 170, 0x0b0d1f, 0.86).setStrokeStyle(3, 0xf72585).setDepth(D));
+    const txt = (x, y, s, size, col) => add(this.add.text(x, y, s, { fontFamily: FONT, fontSize: size + 'px', color: col || '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5).setDepth(D + 2));
+    const btn = (x, y, w, label, col, fn) => {
+      add(this.add.rectangle(x, y, w, 44, 0x1a1d33, 1).setStrokeStyle(3, col).setDepth(D + 1));
+      txt(x, y, label, 13);
+      this.edBtns.push({ x, y, w, h: 44, fn });
+    };
+    const sel = this.edSel;
+    const NAMES = { stick: 'JOYSTICK', attack: 'LÉGER', heavy: 'LOURD', special: 'SPÉCIAL', jump: 'SAUT', block: 'ESQUIVE' };
+    txt(W / 2, cy - 62, sel ? NAMES[sel] : 'PLACE TES BOUTONS', 15, '#ffd166');
+    txt(W / 2, cy - 34, sel ? 'GLISSE-LE OU CHANGE SA TAILLE' : 'GLISSE UN BOUTON POUR LE DÉPLACER\nTOUCHE-LE POUR CHANGER SA TAILLE', 10, '#cfd3ff');
+    if (sel) {
+      const s = this.edPos[sel].s;
+      btn(W / 2 - 120, cy + 12, 70, '-', 0x4cc9f0, () => this.editorResize(-0.1));
+      txt(W / 2, cy + 12, Math.round(s * 100) + ' %', 15);
+      btn(W / 2 + 120, cy + 12, 70, '+', 0x4cc9f0, () => this.editorResize(0.1));
+    }
+    const bw = P ? 200 : 210;
+    btn(W / 2 - bw / 2 - 8, cy + 60, bw, 'PAR DÉFAUT', 0x888888, () => this.editorReset());
+    btn(W / 2 + bw / 2 + 8, cy + 60, bw, 'TERMINÉ', 0x6ee7b7, () => this.editorDone());
+    this.edTop = cy + 85 + 8; // les boutons restent sous la barre d'outils
+  },
+
+  editorR(k, s) {
+    return CTRL_R[k] * s;
+  },
+
+  // pose une commande à (x, y) sans chevaucher les autres : elle glisse autour d'elles, et reste dans l'écran
+  editorFit(k, x, y, s) {
+    const r = this.editorR(k, s), GAP = 10;
+    const top = this.edTop + r, bot = this.H - r - 4, lef = r + 4, rig = this.W - r - 4;
+    const clamp = () => {
+      x = Phaser.Math.Clamp(x, lef, rig);
+      y = Phaser.Math.Clamp(y, top, bot);
+    };
+    clamp();
+    for (let it = 0; it < 12; it++) {
+      let moved = false;
+      for (const o of CTRL_KEYS) {
+        if (o === k) continue;
+        const q = this.edPos[o], ro = this.editorR(o, q.s);
+        let dx = x - q.x, dy = y - q.y;
+        let d = Math.hypot(dx, dy);
+        const min = r + ro + GAP;
+        if (d < min) {
+          if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+          x = q.x + (dx / d) * min;
+          y = q.y + (dy / d) * min;
+          moved = true;
+        }
+      }
+      clamp();
+      if (!moved) break;
+    }
+    // encore un chevauchement (coincé contre le bord) : refusé
+    for (const o of CTRL_KEYS) {
+      if (o === k) continue;
+      const q = this.edPos[o];
+      if (Math.hypot(x - q.x, y - q.y) < r + this.editorR(o, q.s) + GAP - 0.5) return null;
+    }
+    return { x, y };
+  },
+
+  // applique la position / taille d'une commande à son image
+  editorApply(k) {
+    const c = this.edPos[k];
+    if (k === 'stick') {
+      this.stickHome = { x: c.x, y: c.y };
+      this.stickS = c.s;
+      this.stickBase.setPosition(c.x, c.y).setScale(PX * c.s);
+      this.stickKnob.setPosition(c.x, c.y).setScale(PX * c.s);
+    } else {
+      const b = this.btn[k];
+      b.x = c.x;
+      b.y = c.y;
+      b.s = c.s;
+      this.sizeBtn(b);
+      if (k === 'special') this.placeSpDots();
+    }
+    if (this.edSel === k) this.edRing.setPosition(c.x, c.y).setRadius(this.editorR(k, c.s) + 8).setVisible(true);
+  },
+
+  editorDown(p) {
+    for (const b of this.edBtns || []) {
+      if (Math.abs(p.x - b.x) <= b.w / 2 && Math.abs(p.y - b.y) <= b.h / 2) {
+        if (SETTINGS.sound && typeof SFX !== 'undefined') SFX.play('ui');
+        return b.fn();
+      }
+    }
+    let best = null, bd = 1e9;
+    for (const k of CTRL_KEYS) {
+      const c = this.edPos[k];
+      const d = Math.hypot(p.x - c.x, p.y - c.y);
+      if (d < this.editorR(k, c.s) + 12 && d < bd) { best = k; bd = d; }
+    }
+    if (!best) {
+      this.edSel = null;
+      this.edRing.setVisible(false);
+      return this.drawEditorBar();
+    }
+    const c = this.edPos[best];
+    this.edDrag = { id: p.id, k: best, dx: c.x - p.x, dy: c.y - p.y };
+    if (this.edSel !== best) {
+      this.edSel = best;
+      this.drawEditorBar();
+    }
+    this.editorApply(best);
+  },
+
+  editorMove(p) {
+    const g = this.edDrag;
+    if (!g || g.id !== p.id) return;
+    const c = this.edPos[g.k];
+    const at = this.editorFit(g.k, p.x + g.dx, p.y + g.dy, c.s);
+    if (!at) return;
+    c.x = at.x;
+    c.y = at.y;
+    this.editorApply(g.k);
+  },
+
+  editorUp(p) {
+    if (this.edDrag && this.edDrag.id === p.id) this.edDrag = null;
+  },
+
+  editorResize(ds) {
+    const k = this.edSel;
+    if (!k) return;
+    const c = this.edPos[k];
+    const s = Phaser.Math.Clamp(Math.round((c.s + ds) * 10) / 10, 0.7, 1.4);
+    const at = this.editorFit(k, c.x, c.y, s);
+    if (!at) return this.popup(this.W / 2, this.edTop + 40, 'PAS ASSEZ DE PLACE', '#ff8fa3');
+    c.s = s;
+    c.x = at.x;
+    c.y = at.y;
+    this.editorApply(k);
+    this.drawEditorBar();
+  },
+
+  editorReset() {
+    this.edPos = this.defaultLayout();
+    CTRL_KEYS.forEach((k) => this.editorApply(k));
+    if (SETTINGS.layout) delete SETTINGS.layout[L.portrait ? 'P' : 'L'];
+    this.edSel = null;
+    this.edRing.setVisible(false);
+    this.drawEditorBar();
+  },
+
+  editorDone() {
+    const o = {};
+    for (const k of CTRL_KEYS) {
+      const c = this.edPos[k];
+      o[k] = { fx: Math.round((c.x / this.W) * 1000) / 1000, fy: Math.round((c.y / this.H) * 1000) / 1000, s: c.s };
+    }
+    // disposition différente de celle par défaut : on la garde (une pour le téléphone en largeur, une en hauteur)
+    const def = this.defaultLayout();
+    const same = CTRL_KEYS.every((k) => Math.abs(def[k].x - this.edPos[k].x) < 1 && Math.abs(def[k].y - this.edPos[k].y) < 1 && def[k].s === this.edPos[k].s);
+    SETTINGS.layout = SETTINGS.layout || {};
+    if (same) delete SETTINGS.layout[L.portrait ? 'P' : 'L'];
+    else SETTINGS.layout[L.portrait ? 'P' : 'L'] = o;
+    if (!Object.keys(SETTINGS.layout).length) delete SETTINGS.layout;
+    saveSettings();
+    this.editing = false;
+    reopenSettings = true;
+    this.scene.restart();
   },
 
   // --- Entraînement ---------------------------------------------------------------

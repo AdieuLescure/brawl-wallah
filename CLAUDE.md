@@ -117,6 +117,12 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Écran de choix du perso (`showSelect` dans `game.js`) : grille de cartes en parallélogramme avec le buste
   (`cardTex`, dessinées en pixels depuis `idle0`), grand perso en pied à droite (en haut en portrait), nom, VALIDER.
   Toucher une carte la sélectionne ; clavier : flèches + Entrée.
+- BOUTONS TACTILES PLACÉS PAR LE JOUEUR : réglages > PLACER LES BOUTONS (`showButtonEditor` / `startButtonEditor` dans
+  `extras.js`, état `editor`, fausse partie immobile derrière avec `this.editing`). Glisser = déplacer (`editorFit` : les
+  commandes se contournent, 10 px d'écart minimum, restent dans l'écran sous la barre d'outils), toucher puis - / + =
+  taille 70 à 140 %. Gardé dans `SETTINGS.layout.L` (téléphone en largeur) et `.P` (en hauteur), en fraction de l'écran ;
+  `ctrlLayout()` / `defaultLayout()` dans `game.js`. Changer MAINS ou BOUTONS remet la disposition d'origine. Le joystick
+  apparaît où l'on touche, dans la moitié d'écran où il est placé.
 - Chrono de 8 min (`MATCH_MS`), PAS de mort subite : à la fin, plus de vies gagne, puis le moins de % ; sinon ÉGALITÉ. 3 vies.
 - SALONS À 4 (en ligne, hors duel classé) : `RoomCore` (`server/core.js`) a 4 places (`cap`), un mode choisi à la création
   (`mode` : 'ffa' chacun pour soi / 'team' par équipes, envoyé avec `join`), et le CHEF (`host()` = 1re place occupée)
