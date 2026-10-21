@@ -54,12 +54,18 @@ const BOT_MOVES = {
     ['sA', [20, 130], [-50, 50], 3], ['uA', [0, 100], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 60], [60, 260], 1],
     ['nS', [120, 420], [-80, 60], 2, { any: true }],
   ],
+  bigzinzin: [
+    ['nL', [0, 90], [-60, 50], 4], ['sL', [50, 160], [-50, 50], 2.5], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sH', [50, 160], [-60, 50], 2], ['uH', [0, 80], [-220, -20], 1.5], ['dH', [0, 130], [-20, 50], 1.2],
+    ['sA', [30, 140], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5], ['dAH', [0, 60], [60, 260], 1],
+    ['nS', [140, 520], [-60, 60], 2, { any: true }], ['dS', [60, 200], [-20, 60], 1, { tgtGround: true }], ['uS', [0, 140], [-80, 80], 0.5],
+  ],
 };
 const BOT_AIR = { sA: 1, uA: 1, dA: 1, uAH: 1, dAH: 1 };
 const BOT_KIND = { sH: 'H', uH: 'H', dH: 'H', uAH: 'H', dAH: 'H', nS: 'S', uS: 'S', dS: 'S' };
 for (const id in BOT_MOVES)
   BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], kind: BOT_KIND[k] || 'L' }, ex || {}));
-const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90 };
+const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90, bigzinzin: 120 };
 // le coup peut-il servir dans cette situation (au sol / en l'air) ?
 const botFits = (o, grounded) => o.any || o.air === !grounded;
 
@@ -70,7 +76,10 @@ Object.assign(GameScene.prototype, {
     const lv = BOT_LV[bot.lvl === undefined ? 1 : bot.lvl];
     const aggr = lv.aggr * (bot.aggr || 1);
     const s = bot.sprite, b = s.body, ts = tgt.sprite, tb = ts.body;
-    const dx = ts.x - s.x, dy = ts.y - s.y, adx = Math.abs(dx), dir = Math.sign(dx) || 1;
+    // adversaire invisible (DOUBLURE) : le bot ne voit que la silhouette de billets
+    const dcy = now < (tgt.invisUntil || 0) && this.projs.find((q) => !q.dead && q.id === tgt.decoyId);
+    const tx = dcy ? dcy.x : ts.x, ty = dcy ? dcy.y : ts.y;
+    const dx = tx - s.x, dy = ty - s.y, adx = Math.abs(dx), dir = Math.sign(dx) || 1;
     const cx = this.W / 2, half = L.mainW / 2;
     const grounded = b.blocked.down || b.touching.down;
     const tGround = tb.blocked.down || tb.touching.down;
@@ -194,10 +203,10 @@ Object.assign(GameScene.prototype, {
 
     // --- déplacement : distance préférée, sans tomber du terrain
     const pref = BOT_PREF[bot.char] || 90;
-    const tOff = Math.abs(ts.x - cx) > half || ts.y > L.baseY + 10;
+    const tOff = Math.abs(tx - cx) > half || ty > L.baseY + 10;
     if (tOff) {
       // l'adversaire est dehors : on se place près du bord pour le gêner
-      const ex = cx + Math.sign(ts.x - cx) * (half - 50);
+      const ex = cx + Math.sign(tx - cx) * (half - 50);
       if (Math.abs(ex - s.x) > 20) i.sx = Math.sign(ex - s.x) * 0.9;
     } else if (adx > pref + 40) i.sx = dir * 0.9;
     else if (adx < pref - 40) i.sx = -dir * 0.7;
@@ -345,7 +354,7 @@ Object.assign(GameScene.prototype, {
     for (const k of ['uS', 'nS']) {
       const m = bot.def.moves[k];
       if (!m) continue;
-      const mobile = m.rise || m.type === 'blink' || m.type === 'float' || m.type === 'rewind' || (k === 'nS' && m.dashV);
+      const mobile = m.rise || m.type === 'blink' || m.type === 'vanish' || m.type === 'float' || m.type === 'rewind' || (k === 'nS' && m.dashV);
       if (!mobile || !this.botReady(bot, { k }, false, now)) continue;
       i.special = true;
       i.sy = k === 'uS' ? -1 : 0;

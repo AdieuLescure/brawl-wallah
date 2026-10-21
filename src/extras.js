@@ -120,7 +120,7 @@ Object.assign(GameScene.prototype, {
         };
       }
       const m = 40;
-      const out = pl.stocks > 0 && (s.x < 0 || s.x > this.W || s.y < 0 || s.y > this.H);
+      const out = pl.stocks > 0 && !(now < (pl.invisUntil || 0)) && (s.x < 0 || s.x > this.W || s.y < 0 || s.y > this.H);
       [o.bg, o.ico, o.arrow].forEach((g) => g.setVisible(out));
       if (out) {
         const x = Phaser.Math.Clamp(s.x, m, this.W - m), y = Phaser.Math.Clamp(s.y, m, this.H - m);

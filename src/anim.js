@@ -31,6 +31,8 @@
   };
 
   const lerp = (a, b, k) => a + (b - a) * k;
+  // la posture existe-t-elle vraiment dans la planche dessinée ? (sinon la texture n'est qu'une copie de la garde)
+  const PNG_HAS = (ch, n) => !(typeof PNG_CHARS !== 'undefined' && PNG_CHARS[ch]) || PNG_CHARS[ch].names.includes(n);
 
   Object.assign(P, {
     // --- CAMÉRA À LA BRAWLHALLA : elle suit les deux persos et zoome quand ils sont proches.
@@ -55,7 +57,11 @@
       let tz = 1, tx = this.W / 2, ty = this.H / 2;
       const inMatch = this.p1 && this.p2 && this.p1.view && (this.state === 'play' || this.state === 'countdown') && !this.over;
       if (inMatch && SETTINGS.zoom !== false) {
-        const pts = [this.p1, this.p2].filter((p) => p.stocks > 0 || this.training).map((p) => p.sprite);
+        // un perso invisible (DOUBLURE) : la caméra suit sa silhouette de billets, pas lui
+        const pts = [this.p1, this.p2].filter((p) => p.stocks > 0 || this.training).map((p) => {
+          const d = (this.nowT || 0) < (p.invisUntil || 0) && this.projs.find((q) => !q.dead && q.id === p.decoyId);
+          return d ? { x: d.x, y: d.y } : p.sprite;
+        });
         if (pts.length) {
           const x0 = Math.min(...pts.map((p) => p.x)), x1 = Math.max(...pts.map((p) => p.x));
           const y0 = Math.min(...pts.map((p) => p.y)), y1 = Math.max(...pts.map((p) => p.y));
@@ -170,14 +176,16 @@
       // --- posture affichée (variantes dessinées si elles existent)
       let key = s.texture.key;
       const ch = pl.char;
-      const name = key.slice(ch.length + 1);
+      // version dorée (BIGZINZIN en JACKPOT) : même posture, suffixe « _g »
+      const gs = key.endsWith('_g') ? '_g' : '';
+      const name = key.slice(ch.length + 1, key.length - gs.length);
       if (atk && !stunned && now < atk.hitAt && !atk.m.prePose && !atk.charging) {
-        const pre = `${ch}_${atk.pose || atk.m.pose}Pre`;
-        if (this.hasTex(pre)) key = pre;
-      } else if (name === 'jump' && vy > 140 && this.hasTex(`${ch}_fall`)) key = `${ch}_fall`;
-      else if ((name === 'idle0' || name === 'idle1') && a.land > 0 && this.hasTex(`${ch}_crouch`)) key = `${ch}_crouch`;
-      else if ((name === 'run0' || name === 'run1') && this.hasTex(`${ch}_run2`)) {
-        key = `${ch}_${['run0', 'run2', 'run1', 'run3'][Math.floor(now / 85) % 4]}`;
+        const pre = `${ch}_${atk.pose || atk.m.pose}Pre${gs}`;
+        if (this.hasTex(pre) && PNG_HAS(ch, `${atk.pose || atk.m.pose}Pre`)) key = pre;
+      } else if (name === 'jump' && vy > 140 && this.hasTex(`${ch}_fall${gs}`)) key = `${ch}_fall${gs}`;
+      else if ((name === 'idle0' || name === 'idle1') && a.land > 0 && this.hasTex(`${ch}_crouch${gs}`)) key = `${ch}_crouch${gs}`;
+      else if ((name === 'run0' || name === 'run1') && this.hasTex(`${ch}_run2${gs}`)) {
+        key = `${ch}_${['run0', 'run2', 'run1', 'run3'][Math.floor(now / 85) % 4]}${gs}`;
       }
       if (key !== a.key) {
         v.setTexture(key);

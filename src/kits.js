@@ -225,11 +225,44 @@
     }, ['LEGER  PASSES / REPRISE', 'LOURD  ECHAPPEE', 'LOURD H/B IPA / RUADE', 'SPECIAL POMME D\'AMOUR', 'SPEC H/B CTRL+Z/CONTROLE', 'CTRL+Z : 1 S EN ARRIERE']);
   }
 
+  // ---------------- BIGZINZIN : JACKPOT (argent), DOUBLURE, KEY FRAME, FEUILLE A4 ----------------
+  {
+    set('bigzinzin', { speed: 360, jump: 690, weight: 1.03, role: 'MONTEUR EN OR' }, {
+      nL: J({ pose: 'tap', fx: { cres: 'cres_white', s: 2.4, ang: 0 }, chain: [
+        J({ pose: 'tap', fx: { cres: 'cres_white', s: 2.4, ang: -10 } }),
+        FIN({ pose: 'flash', fx: { flash: true } }), // FLASH (l'appareil photo du téléphone)
+      ] }), // TAP, TAP
+      sL: SL({ pose: 'swipe', lunge: 240, fx: { cres: 'cres_white', s: 3, ang: 10, ghosts: 1 } }), // SWIPE
+      uL: UL({ pose: 'selfie', fx: { flash: 'up' } }), // SELFIE
+      dL: DL({ pose: 'low', fx: { cres: 'cres_white', s: 3, ang: 15, dust: true } }), // SCROLL
+      sA: SA({ pose: 'swipe', fx: { cres: 'cres_white', s: 3, ang: 0 } }), // NOTIF
+      uA: UA({ pose: 'selfie', fx: { flash: 'up' } }), // STORY
+      dA: DA({ pose: 'dive', fx: { cres: 'cres_white', s: 3, ang: 90 } }), // DROP
+      // VIRAL : téléphone poussé à bout de bras, une pluie de cœurs
+      sH: { type: 'melee', pose: 'push', startup: 160, active: 120, total: 600, w: 92, h: 64, ox: 62, oy: -6, dmg: 12, kb: 340, ks: 8.8, ang: -0.45, stun: 220, lunge: 160, fx: { hearts: true, cres: 'cres_white', s: 4.2, ang: -10, ghosts: 2 } },
+      // BUZZ : l'antenne lâche un éclair vers le haut
+      uH: { type: 'melee', pose: 'antenna', startup: 140, active: 150, total: 560, w: 72, h: 124, ox: 8, oy: -92, dmg: 11, kb: 330, ks: 8.6, ang: -1.45, stun: 220, fx: { zap: true } },
+      // KRACH : il frappe le sol, les pièces volent des deux côtés
+      dH: { type: 'melee', pose: 'slam', startup: 160, active: 140, total: 600, w: 190, h: 46, ox: 0, oy: 26, dmg: 11, kb: 320, ks: 8, ang: -0.9, stun: 220, fx: { shock: true, coins: true } },
+      // ANTENNE : il s'envole porté par le signal (retour)
+      uAH: { type: 'melee', pose: 'antenna', startup: 60, active: 220, total: 520, w: 66, h: 96, ox: 14, oy: -56, dmg: 9, kb: 300, ks: 7, ang: -1.35, stun: 200, rise: 800, riseX: 90, inv: 50, helpless: true, fx: { zap: true, ghosts: 2 } },
+      dAH: GP({ pose: 'dive', fx: { ghosts: 2 } }), // CHUTE LIBRE
+      // FEUILLE A4 : elle plane lentement en ondulant, coupe et ralentit
+      nS: { type: 'proj', pose: 'toss', startup: 90, total: 420, max: 1, cd: 1400, fx: {},
+        proj: { kind: 'paper', tex: 'paper', s: 3.2, vx: 380, life: 1900, w: 40, h: 34, ox: 36, oy: -14, dmg: 6, kb: 200, ks: 4, ang: -0.4, stun: 220, slow: 800, small: true } },
+      // DOUBLURE : téléport vers le haut, invisible, une silhouette de billets encaisse un coup à sa place
+      uS: { type: 'vanish', pose: 'antenna', startup: 90, total: 300, cd: 7000, onceAir: 'vanish', fx: {} },
+      // KEY FRAME : une image clé posée au sol (4 s) ; qui marche dessus reste figé un instant
+      dS: { type: 'proj', pose: 'low', startup: 120, total: 420, max: 1, replace: true, cd: 2500, fx: {},
+        proj: { kind: 'keyframe', tex: 'keyframe', s: 3.4, vx: 0, life: 4000, arm: 250, w: 54, h: 40, ox: 90, oy: 28, ground: true, dmg: 6, kb: 120, ks: 1.5, ang: -1.45, stun: 750, freeze: 550, explode: true, small: true } },
+    }, ['LEGER  TAP x3 / SWIPE', 'LOURD  VIRAL', 'LOURD H/B BUZZ / KRACH', 'SPECIAL FEUILLE A4', 'SPEC H/B DOUBLURE/KEYFRAME', 'PASSIF JACKPOT (ARGENT)']);
+  }
+
   // ---- finitions communes : catégories, identifiants (usure), charge des lourds, tirs que le mur arrête ----
   const LIGHTS = ['nL', 'sL', 'uL', 'dL', 'sA', 'uA', 'dA'];
   const HEAVIES = ['sH', 'uH', 'dH', 'uAH', 'dAH'];
   const SPECIALS = ['nS', 'uS', 'dS', 'nSA', 'uSA', 'dSA'];
-  const BLOCKABLE = { orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1 };
+  const BLOCKABLE = { orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1 };
   for (const id of Object.keys(K)) {
     const mv = K[id];
     for (const k of Object.keys(mv)) {

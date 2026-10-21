@@ -521,8 +521,10 @@ class GameScene extends Phaser.Scene {
       if (png) {
         // perso dessiné en pixel art : une case par posture dans la planche (posture absente -> garde)
         const all = new Set([...SPR48.namesFor(id), ...png.names]);
+        // perso avec une version dorée (BIGZINZIN) : chaque posture existe aussi en « _g »
+        if (png.names.some((n) => n.endsWith('_g'))) [...all].forEach((n) => !n.endsWith('_g') && all.add(n + '_g'));
         all.forEach((name) => {
-          const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf('idle0');
+          const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf(name.endsWith('_g') ? 'idle0_g' : 'idle0');
           mkCanvas(this, `${id}_${name}`, png.w, png.h, (c) => c.drawImage(PNG_IMG[id], fi * png.w, 0, png.w, png.h, 0, 0, png.w, png.h), 'raw');
           TEXSCALE[`${id}_${name}`] = png.scale / PX;
         });
@@ -866,6 +868,7 @@ class GameScene extends Phaser.Scene {
       bufAtk: 0,
       bufHeavy: 0,
       bufSp: 0,
+      bufAim: 'n',
       gcUntil: 0,
       heat: 0,
       markUntil: 0,
@@ -937,7 +940,7 @@ class GameScene extends Phaser.Scene {
       const gfg = this.add.rectangle(gx, gy, gw, 8 * k, 0x7df9ff).setOrigin(0, 0.5).setDepth(51);
       const air = this.add.rectangle(align === 'left' ? gx + gw + 10 * k : gx - 10 * k, gy, 8 * k, 8 * k, 0xffe9a8).setDepth(51);
       let rfg = null;
-      if (pl.char === 'nini' || pl.def.heat) {
+      if (pl.char === 'nini' || pl.def.heat || pl.def.money) {
         const ry = gy + 14 * k;
         this.add.rectangle(gx, ry, gw, 8 * k, 0x000000, 0.55).setOrigin(0, 0.5).setDepth(50).setStrokeStyle(2, 0xffffff, 0.5);
         rfg = this.add.rectangle(gx, ry, 1, 8 * k, 0xff4d8d).setOrigin(0, 0.5).setDepth(51);
@@ -970,7 +973,12 @@ class GameScene extends Phaser.Scene {
       pl.hud.gfg.width = Math.max(pl.hud.gw * gk, 1);
       pl.hud.gfg.setFillStyle(gk >= 1 ? 0x7df9ff : 0x5b6b8c);
       pl.hud.air.setFillStyle(pl.airDodged ? 0x3a3f5c : 0xffe9a8);
-      if (pl.hud.rfg && pl.def.heat) {
+      if (pl.hud.rfg && pl.def.money) {
+        const gold = now < (pl.goldUntil || 0);
+        const mk = gold ? (pl.goldUntil - now) / BZ.goldMs : Math.min((pl.money || 0) / BZ.max, 1);
+        pl.hud.rfg.width = Math.max(pl.hud.gw * mk, 1);
+        pl.hud.rfg.setFillStyle(gold ? (Math.floor(now / 110) % 2 ? 0xffd23a : 0xfff3a0) : 0x4caf50);
+      } else if (pl.hud.rfg && pl.def.heat) {
         const hk = Math.min((pl.heat || 0) / 100, 1);
         pl.hud.rfg.width = Math.max(pl.hud.gw * hk, 1);
         pl.hud.rfg.setFillStyle(hk >= 1 ? (Math.floor(now / 120) % 2 ? 0xffd166 : 0xff5a1f) : hk >= 0.25 ? 0xff7b00 : 0x8a4a20);
@@ -1108,7 +1116,7 @@ class GameScene extends Phaser.Scene {
       const helpY = ty + roleY + (portrait ? (compact ? 28 : 42) : 32);
       const nl = def.help.length;
       let fs;
-      if (portrait) fs = Math.max(8, Math.min(compact ? 12 : 15, Math.floor((ty + ch - 14 - helpY) / (nl * 2.0)), Math.floor((cw - (tx - (cx - cw / 2)) - 12) / maxLen)));
+      if (portrait) fs = Math.max(6, Math.min(compact ? 12 : 15, Math.floor((ty + ch - 10 - helpY) / (nl * 1.9)), Math.floor((cw - (tx - (cx - cw / 2)) - 12) / maxLen)));
       else fs = Math.max(6, Math.min(10, Math.floor((cw - 28) / maxLen)));
       const help = this.add
         .text(tx, helpY, def.help.join('\n'), { fontFamily: FONT, fontSize: fs + 'px', color: '#cfd3ff', lineSpacing: Math.round(fs * 0.65) })
@@ -1419,6 +1427,8 @@ class GameScene extends Phaser.Scene {
       this.bookLand(pl, this.pl(1 - d.pi), d, now);
     } else if (t.kind === 'lunge') {
       if (pl.atk && pl.atk.id === d.aid) pl.sprite.setVelocityX(pl.facing * pl.atk.m.lunge);
+    } else if (t.kind === 'vanish') {
+      if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.bzVanish(pl, now);
     } else if (t.kind === 'blink') {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doBlink(pl, now);
     } else if (t.kind === 'rewind') {
@@ -1464,6 +1474,8 @@ class GameScene extends Phaser.Scene {
     if (inp.attack) { pl.bufAtk = now + BUF_MS; pl.bufHeavy = pl.bufSp = 0; }
     if (inp.heavy) { pl.bufHeavy = now + BUF_MS; pl.bufAtk = pl.bufSp = 0; }
     if (inp.special) { pl.bufSp = now + BUF_MS; pl.bufAtk = pl.bufHeavy = 0; }
+    // direction au moment de l'appui (si le coup part un peu plus tard et que le joystick est relâché entre-temps)
+    if (inp.attack || inp.heavy || inp.special) pl.bufAim = this.aimOf(pl, inp);
     if (inp.jump) pl.bufJump = now + BUF_MS;
     const dEdge = !!inp.block && !pl.prevBlock;
     pl.prevBlock = !!inp.block;
@@ -1626,7 +1638,8 @@ class GameScene extends Phaser.Scene {
         const gc = !grounded && now < (pl.gcUntil || 0);
         if ((wantL || wantH || wantS) && !pl.grab && (!spotLock || now < (pl.chaseAtkUntil || 0) || gc) && !pl.helpless) {
           const a0 = pl.atk;
-          const aim = this.aimOf(pl, inp);
+          let aim = this.aimOf(pl, inp);
+          if (aim === 'n' && pl.bufAim && pl.bufAim !== 'n') aim = pl.bufAim;
           const kind = wantH ? 'H' : wantS ? 'S' : 'L';
           const gnd = grounded || gc; // Gravity Cancel : on choisit le coup du sol
           const nextKey = this.moveKey(pl, aim, gnd, kind);
@@ -1753,10 +1766,14 @@ class GameScene extends Phaser.Scene {
             this.sfx('parry');
           }
         }
+        // la silhouette de billets de l'adversaire encaisse le coup à sa place
+        if (this.bzDecoyHit && this.bzDecoyHit(pl, other, box, now)) {
+          pl.atk.done = true;
+        }
         const vb = other.sprite.body;
         const vr = new Phaser.Geom.Rectangle(vb.x, vb.y, vb.width, vb.height);
         const vGround = vb.blocked.down || vb.touching.down;
-        if (now >= other.invulnUntil && other.stocks > 0 && !other.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
+        if (!pl.atk.done && now >= other.invulnUntil && other.stocks > 0 && !other.grab && (!m.groundOnly || vGround) && Phaser.Geom.Intersects.RectangleToRectangle(box, vr)) {
           pl.atk.done = true;
           pl.atk.landed = now;
           const dir = Math.sign(other.sprite.x - s.x) || pl.facing;
@@ -1783,7 +1800,7 @@ class GameScene extends Phaser.Scene {
     else if (!grounded) name = 'jump';
     else if (Math.abs(b.velocity.x) > 60) name = Math.floor(now / 130) % 2 ? 'run0' : 'run1';
     else name = Math.floor(now / 450) % 2 ? 'idle0' : 'idle1';
-    s.setTexture(`${pl.char}_${name}${raging && pl.char === 'nini' ? '_r' : ''}`);
+    s.setTexture(`${pl.char}_${name}${raging && pl.char === 'nini' ? '_r' : ''}${def.money && now < (pl.goldUntil || 0) ? '_g' : ''}`);
     if (def.idleFx && !this.resim) this.idleFx(pl, name, now);
     // teinte décidée à chaque image d'après l'état (jamais par minuterie : en ligne, un rejeu sautait la minuterie
     // et le perso restait tout blanc)
@@ -1794,7 +1811,8 @@ class GameScene extends Phaser.Scene {
     else if (pl.shade) s.setTint(pl.shade);
     else if (s.isTinted) s.clearTint();
     s.setAlpha(now < pl.dodgeUntil ? 0.4 : now < pl.invulnUntil ? (Math.floor(now / 90) % 2 ? 0.35 : 0.8) : pl.helpless ? 0.75 : 1);
-    pl.tag.setPosition(s.x, s.y - 66).setVisible(pl.stocks > 0);
+    pl.tag.setPosition(s.x, s.y - 66).setVisible(pl.stocks > 0 && !(now < (pl.invisUntil || 0)));
+    if (this.bzStep) this.bzStep(pl, other, now);
     // COUPABLE ! : un petit marteau de juge au-dessus de la tête (affichage seulement)
     if (now < (pl.markUntil || 0) && pl.stocks > 0) {
       if (!pl.markImg && !this.resim) pl.markImg = this.add.text(s.x, s.y - 96, '§', { fontFamily: FONT, fontSize: '26px', color: '#ffd166', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(41);
@@ -1831,6 +1849,8 @@ class GameScene extends Phaser.Scene {
       pl.cdUntil = now + 250;
       return;
     }
+    // invisible (DOUBLURE) : attaquer fait réapparaître
+    if (now < (pl.invisUntil || 0) && this.bzReveal) this.bzReveal(pl, now);
     // ÉRUPTION (Toro) : il faut un peu de CHAUFFE ; l'explosion grandit avec la jauge, qui se vide
     if (m.type === 'burst') {
       const heat = pl.heat || 0;
@@ -1913,6 +1933,12 @@ class GameScene extends Phaser.Scene {
       pl.atk.done = true;
       pl.atk.moveLock = now + m.total;
       s.setVelocityX(s.body.velocity.x * 0.2);
+    }
+    // DOUBLURE (BIGZINZIN) : téléport vers le haut, invisible, une silhouette de billets reste à sa place
+    if (m.type === 'vanish') {
+      pl.atk.done = true;
+      pl.atk.moveLock = now + m.startup;
+      this.sched(m.startup, 'vanish', { pi: pl.i, aid: pl.atk.id });
     }
     // TÉLÉPORT (Astra)
     if (m.type === 'blink') {
@@ -2322,12 +2348,14 @@ class GameScene extends Phaser.Scene {
       vic.markUntil = 0;
       this.popup(vc0.x, vc0.y - 110, 'CONDAMNE !', '#ff5a5a');
     }
+    // BIGZINZIN : en OR il frappe plus fort et encaisse mieux ; l'argent monte quand il touche, baisse quand il est touché
+    if (this.bzHit) spec = this.bzHit(att, vic, spec, now);
     // CHAUFFE (Toro) : la jauge monte quand il touche et quand il est touché
     if (att.def.heat && att !== vic) att.heat = Math.min(100, (att.heat || 0) + spec.dmg * 2);
     if (vic.def.heat) vic.heat = Math.min(100, (vic.heat || 0) + spec.dmg * 1.2);
     this.gainRage(vic, spec.dmg, now);
     vic.damage += spec.dmg;
-    const power = (spec.kb * KB_BASE + vic.damage * spec.ks * KB_GROW) / vic.def.weight;
+    const power = ((spec.kb * KB_BASE + vic.damage * spec.ks * KB_GROW) / vic.def.weight) * (vic.def.money && now < (vic.goldUntil || 0) ? 0.85 : 1);
     let ux = dirSign * dcos(spec.ang), uy = dsin(spec.ang);
     // influence directionnelle : le joystick tenu dévie la trajectoire (15° au plus)
     const sx = vic.lastSx || 0, sy = vic.lastSy || 0;
@@ -2360,7 +2388,9 @@ class GameScene extends Phaser.Scene {
     vic.dodgeLock = 0;
     vic.rollUntil = 0;
     vic.gcUntil = 0;
-    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = false; // être touché rend aussi les capacités de retour
+    if (spec.freeze) vic.freezeUntil = now + spec.freeze; // KEY FRAME : image figée
+    if (spec.slow) vic.slowUntil = now + spec.slow;
+    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = false; // être touché rend aussi les capacités de retour
     if (vic.jumps === 0) vic.jumps = 1; // être touché rend un saut
     if (this.training) this.trainReport(att, vic, spec, stunMs, rem, combo);
     const lethal = this.isLethal(vic, now);
@@ -2733,6 +2763,7 @@ class GameScene extends Phaser.Scene {
         continue;
       }
       if (sp.kind === 'hermine' && now - p.born > sp.act) p.spent = true;
+      if (this.bzProj && this.bzProj(p, now)) continue;
       // MUR DE ROCHE (Grom) : arrête les tirs adverses ; il ne frappe qu'en sortant du sol
       if (sp.kind === 'wall') {
         if (now - p.born > sp.act) p.spent = true;
@@ -2835,6 +2866,8 @@ class GameScene extends Phaser.Scene {
     s.setAngle(0).clearTint();
     pl.rage = 0; pl.rageUntil = 0; pl.charmUntil = 0; pl.slowUntil = 0; pl.armorUntil = 0;
     pl.markUntil = 0; pl.heat = 0;
+    if (pl.def.money) { pl.money = Math.floor((pl.money || 0) / 2); pl.goldUntil = 0; }
+    if (now < (pl.invisUntil || 0) && this.bzReveal) this.bzReveal(pl, now);
     pl.ledgeSide = 0;
     this.landReset(pl);
     if (pl.umb) { pl.umb.destroy(); pl.umb = null; }
@@ -2895,7 +2928,7 @@ class GameScene extends Phaser.Scene {
     pl.floatUsed = false;
     pl.dashUsed = false;
     pl.ledgeInvUsed = false;
-    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = false;
+    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = pl.vanishUsed = false;
     pl.gcUntil = 0;
   }
 

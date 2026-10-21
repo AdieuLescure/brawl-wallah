@@ -33,7 +33,12 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
     projectile attrapé et renvoyé de volée, ou attaquant attrapé et projeté (réutilise `startGrab`).
-  - `kits.js` : MOVESETS des 7 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
+  - `bigzinzin.js` : le perso BIGZINZIN (données de base, textures feuille/key frame/billet, mécaniques). JACKPOT
+    (`money`, `goldUntil`, réglages dans `BZ`) : argent gagné en touchant, perdu en étant touché, à 100 € version dorée
+    8 s (postures `_g` de la planche, choisies dans `step`/`anim.js`). DOUBLURE (`type: 'vanish'`) : téléport vers le
+    haut, invisible (`invisUntil`), silhouette de billets = projectile `decoy` qui encaisse un coup (`bzDecoyHit`,
+    `bzProj`). KEY FRAME : projectile `keyframe`, `freeze` = image figée (`freezeUntil`). FEUILLE A4 : projectile `paper`.
+  - `kits.js` : MOVESETS des 8 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
     Boutons LÉGER / LOURD / SPÉCIAL + direction (neutre, avant, haut, bas ; haut/bas seulement si on pousse franchement).
     Clés : `nL` (neutre : enchaînement de 3 coups, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air ;
     lourds `sH` `uH` `dH` (se chargent : `chargeMax`, LOURD tenu) ; en l'air `uAH` (retour) et `dAH` (plongeon) ;
@@ -54,8 +59,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py` = postures de Toro, Deadlulu,
-  Denodoom et AdieuLescure) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py` = postures de Toro,
+  Deadlulu, Denodoom, AdieuLescure et BIGZINZIN — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
   préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
