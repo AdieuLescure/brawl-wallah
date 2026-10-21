@@ -96,7 +96,7 @@
     }, ['LEGER  RUNES / IMPULSION', 'LOURD  SPHERE', 'LOURD H/B COMETE / NOVA', 'SPECIAL ORBES', 'SPEC H/B TELEPORT/ETOILE', 'TELEPORT : VERS L\'ETOILE']);
   }
 
-  // ---------------- GROM : tank lutteur, PEAU DE PIERRE ----------------
+  // ---------------- MÉNÈS (id 'grom') : tank lutteur, PEAU DE PIERRE ----------------
   {
     const o = O.grom;
     const ARM = 8; // PEAU DE PIERRE : ses lourds encaissent les coups jusqu'à 8 de dégâts pendant leur préparation
@@ -116,11 +116,11 @@
       dH: Object.assign({}, o.down, { armor: ARM }), // SÉISME
       uAH: o.upAir, // CATAPULTE (armure)
       dAH: o.downAir, // PIÉTINEMENT
-      nS: Object.assign({}, o.back, { cd: 1800, proj: Object.assign({}, o.back.proj, { stun: 300 }) }), // GRAPPIN
-      uS: { type: 'melee', pose: 'up', startup: 100, active: 220, total: 600, w: 80, h: 90, ox: 10, oy: -40, dmg: 8, kb: 280, ks: 6, ang: -1.3, stun: 200, rise: 860, riseX: 120, armor: ARM, armorActive: true, cd: 3000, onceAir: 'leap', fx: { dust: true, ghosts: 3 } }, // SAUT DU BÉLIER
-      dS: { type: 'proj', pose: 'slam', startup: 150, total: 520, max: 1, replace: true, cd: 4000, fx: {}, // MUR DE ROCHE
-        proj: { kind: 'wall', tex: 'rockwall', s: 5.4, vx: 0, life: 3000, act: 220, w: 50, h: 140, ox: 74, oy: 0, bottom: true, dmg: 7, kb: 260, ks: 5, ang: -1.35, stun: 200 } },
-    }, ['LEGER  CLAQUES / EPAULE', 'LOURD  SUPLEX', 'LOURD H/B BELIER / SEISME', 'SPECIAL GRAPPIN', 'SPEC H/B SAUT / MUR', 'PASSIF PEAU DE PIERRE']);
+      nS: Object.assign({}, o.back, { cd: 1800, proj: Object.assign({}, o.back.proj, { tex: 'mic', s: 3.4, stun: 300 }) }), // MICRO (au bout d'un long fil)
+      uS: { type: 'melee', pose: 'bellyUp', startup: 100, active: 220, total: 600, w: 80, h: 90, ox: 10, oy: -40, dmg: 8, kb: 280, ks: 6, ang: -1.3, stun: 200, rise: 860, riseX: 120, armor: ARM, armorActive: true, cd: 3000, onceAir: 'leap', fx: { dust: true, ghosts: 3 } }, // VENTRE AU CIEL : il fonce vers le haut, ventre en avant
+      dS: { type: 'proj', pose: 'slam', startup: 150, total: 520, max: 1, replace: true, cd: 4000, fx: {}, // MUR DE PRISON
+        proj: { kind: 'wall', tex: 'prisonwall', s: 5, vx: 0, life: 3000, act: 220, w: 50, h: 140, ox: 74, oy: 0, bottom: true, dmg: 7, kb: 260, ks: 5, ang: -1.35, stun: 200 } },
+    }, ['LEGER  CLAQUES / EPAULE', 'LOURD  SUPLEX', 'LOURD H/B BELIER / SEISME', 'SPECIAL MICRO', 'SPEC H/B VENTRE / PRISON', 'PASSIF PEAU DE PIERRE']);
   }
 
   // ---------------- DEADLULU : technique, COUPABLE ! + OBJECTION ----------------
@@ -287,14 +287,17 @@
     CHARS[id].jumps = 3; // un saut au sol + deux en l'air
   }
 
-  // texture du MUR DE ROCHE (Grom)
+  // textures de MÉNÈS : le MUR DE PRISON et le MICRO
   const baseExtra = GameScene.prototype.makeExtraTextures;
   GameScene.prototype.makeExtraTextures = function () {
     if (baseExtra) baseExtra.call(this);
-    iconTex(this, 'rockwall', [
-      '..kkkkk...', '.kllmmmk..', 'kllmmmmmk.', 'klmmmdmmkk', 'kmmmddmmmk', 'kmmdkdmmlk', 'kmmmmmmllk', 'kdmmmmllmk', 'kkdmmmlmmk',
-      'kmkdmmmmdk', 'kmmmkdmmmk', 'klmmmmkddk', 'kllmmmmmmk', 'kmlmmmdmmk', 'kmmmmddmmk', 'kdmmmmmdkk', 'kkdmmmmmmk', 'kmmkdmmmlk',
-      'kmmmmkmllk', 'klmmmmmmmk', 'kllmmmdmmk', 'kmmmmmmddk', 'kdmmmmmmdk', 'kddmmmdddk', 'kdddddddk.', '.kkkkkkkk.',
-    ], '#000', { k: '#1a1410', d: '#5a4a3c', m: '#8a7864', l: '#b8a690' });
+    iconTex(this, 'prisonwall', [
+      'kkkkkkkkkkk', 'kccccccccck', 'kdddddddddk', 'klllldllllk', 'kmmmmdmmmmk', 'kdddddddddk', 'kldllllldlk', 'kmdmmmmmdmk', 'kdddddddddk',
+      'kdkkkkkkkdk', 'kdkwbwbwkdk', 'kdkwbwbwkdk', 'kdkwbwbwkdk', 'kdkwbwbwkdk', 'kdkwbwbwkdk', 'kdkwbwbwkdk', 'kdkkkkkkkdk', 'kdddddddddk',
+      'klllldllllk', 'kmmmmdmmmmk', 'kdddddddddk', 'kldllllldlk', 'kmdmmmmmdmk', 'kdddddddddk', 'klllldllllk', 'kmmmmdmmmmk', 'kdddddddddk', 'kkkkkkkkkkk',
+    ], '#000', { k: '#14121c', c: '#c9ccd4', d: '#4a4d58', m: '#7d818e', l: '#a4a8b4', w: '#0d1530', b: '#9aa0ac' });
+    // micro : la grille en haut (le jeu le tourne vers l'avant), le manche en bas
+    iconTex(this, 'mic', ['.kkkk.', 'kLgLgk', 'kgLgGk', 'kLgGGk', '.kkkk.', '.kBBk.', '.kBBk.', '.kRBk.', '.kBBk.', '..kk..'], '#000',
+      { k: '#14121c', L: '#e6e8ee', g: '#9aa0ac', G: '#5a5f6a', B: '#2a2a34', R: '#e63946' });
   };
 })();

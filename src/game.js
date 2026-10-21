@@ -83,11 +83,11 @@ const CHARS = {
     },
   },
   grom: {
-    id: 'grom', name: 'GROM', role: 'ATTRAPE', roleCol: '#6ee7b7',
+    id: 'grom', name: 'MÉNÈS', role: 'ATTRAPE', roleCol: '#6ee7b7', cardCol: '#dfe3ee',
     speed: 290, jump: 600, weight: 1.2, jumps: 2,
-    pal: { main: '#2a9d8f', dark: '#17594f', skin: '#eab995', skin2: '#b9805a', hair: '#7a3b12', accent: '#ffd166', glove: '#aeb6c4' },
+    pal: { main: '#2e2824', dark: '#1e1e28', skin: '#dca282', skin2: '#a86a4c', hair: '#2e2824', accent: '#3a62b8', glove: '#dca282' },
     fx: { main: 0xd9c3a0, alt: 0xffd166, core: 0xffffff, cres: 'cres_earth' },
-    help: ['NEUTRE  CLAQUE', 'AVANT   SUPLEX', 'HAUT    BELIER', 'BAS     SEISME', 'ARRIERE GRAPPIN', 'AIR     PLAQUAGE'],
+    help: ['NEUTRE  CLAQUE', 'AVANT   SUPLEX', 'HAUT    BELIER', 'BAS     SEISME', 'ARRIERE MICRO', 'AIR     PLAQUAGE'],
     moves: {
       neutral: { type: 'melee', pose: 'jab', startup: 90, active: 110, total: 320, w: 74, h: 56, ox: 56, oy: -4, dmg: 7, kb: 260, ks: 6, ang: -0.35, stun: 160, fx: { cres: 'cres_earth', s: 3.2, ang: 0, dust: true } },
       forward: { type: 'grab', pose: 'grab', startup: 130, active: 110, total: 800, w: 76, h: 80, ox: 54, oy: -4, fx: { grabFx: true }, throw: { dmg: 13, kb: 380, ks: 9.2, ang: -0.75, stun: 260 } },
@@ -2642,7 +2642,7 @@ class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: q, alpha: 0, scale: 0.2, duration: 260, onComplete: () => q.destroy() });
       }
 
-      // grappin de Grom hors du terrain : s'il touche un coin, il ramène Grom au rebord
+      // micro de Ménès hors du terrain : s'il touche un coin, il ramène Ménès au rebord
       if (sp.kind === 'hook') {
         const o = p.owner, ob = o.sprite.body;
         const offstage = Math.abs(ob.center.x - this.W / 2) > L.mainW / 2 - 4 || ob.bottom > L.baseY + 4;
@@ -2655,21 +2655,22 @@ class GameScene extends Phaser.Scene {
           }
           if (hit) {
             this.grabLedge(o, hit, now);
-            this.popup(p.x, p.y - 40, 'GRAPPIN !', '#6ee7b7');
+            this.popup(p.x, p.y - 40, 'MICRO !', '#6ee7b7');
             this.killProj(p, false);
             continue;
           }
         }
       }
-      // chaîne du grappin
+      // fil du micro (MÉNÈS) : un long câble noir qui pend un peu
       if (sp.kind === 'hook') {
         const o = p.owner.sprite.body.center;
-        const hx = o.x + p.f * 20, hy = o.y - 10;
-        const n = Math.max(Math.floor(hyp(p.x - hx, p.y - hy) / 14), 1);
-        this.chainGfx.fillStyle(0xaab2bd, 1);
-        for (let i = 0; i < n; i++) {
+        const hx = o.x + p.f * 20, hy = o.y - 6;
+        const d = hyp(p.x - hx, p.y - hy), n = Math.max(Math.floor(d / 4), 1);
+        const sag = Math.min(d * 0.12, 30);
+        this.chainGfx.fillStyle(0x14121c, 1);
+        for (let i = 0; i <= n; i++) {
           const t = i / n;
-          this.chainGfx.fillRect(Math.round(hx + (p.x - hx) * t) - 3, Math.round(hy + (p.y - hy) * t) - 3, 6, 6);
+          this.chainGfx.fillRect(Math.round(hx + (p.x - hx) * t) - 2, Math.round(hy + (p.y - hy) * t + sag * 4 * t * (1 - t)) - 2, 4, 4);
         }
       }
 
@@ -2764,7 +2765,7 @@ class GameScene extends Phaser.Scene {
       }
       if (sp.kind === 'hermine' && now - p.born > sp.act) p.spent = true;
       if (this.bzProj && this.bzProj(p, now)) continue;
-      // MUR DE ROCHE (Grom) : arrête les tirs adverses ; il ne frappe qu'en sortant du sol
+      // MUR DE PRISON (Ménès) : arrête les tirs adverses ; il ne frappe qu'en sortant du sol
       if (sp.kind === 'wall') {
         if (now - p.born > sp.act) p.spent = true;
         for (const q of this.projs) {
@@ -2841,7 +2842,7 @@ class GameScene extends Phaser.Scene {
         v.sprite.setVelocity(toward * sp.pull, -140);
         v.stunUntil = now + sp.stun;
         v.atk = null;
-        this.popup(v.sprite.x, v.sprite.y - 70, 'GRAPPIN !', '#6ee7b7');
+        this.popup(v.sprite.x, v.sprite.y - 70, 'MICRO !', '#6ee7b7');
         this.impactFx(p.owner, v, { dmg: 4 }, null);
         this.killProj(p, false);
       } else {

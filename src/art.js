@@ -74,10 +74,10 @@ const HD_ASTRA = {
   mustache: false, hood: true, skirt: true, noStripe: true,
 };
 const HD_GROM = {
-  skin: '#eab995', skin2: '#b9805a', hair: '#7a3b12', hairHl: '#9b5424',
-  jacket: '#2a9d8f', jacketDk: '#17594f', jacketLt: '#4fc5b5', thigh: '#17594f', shin: '#17594f',
-  sleeve: '#eab995', foreSleeve: null, backArm: '#b9805a', hand: '#aeb6c4', shirt: null, tie: null, shoe: '#2b2740',
-  mustache: false, hairStyle: 'short', beard: '#7a3b12', pauldron: '#7d8794', noStripe: true,
+  skin: '#dca282', skin2: '#a86a4c', hair: '#2e2824', hairHl: '#4a423c',
+  jacket: '#eef0f6', jacketDk: '#b4b8c8', jacketLt: '#ffffff', thigh: '#1e1e28', shin: '#1e1e28',
+  sleeve: '#eef0f6', foreSleeve: null, backArm: '#a86a4c', hand: '#dca282', shirt: null, tie: null, shoe: '#1e3a7a',
+  mustache: false, hairStyle: 'short', noStripe: true,
 };
 const HD_DENO = {
   skin: '#c18a60', skin2: '#9a6a46', hair: '#15110f', hairHl: '#2d2622',

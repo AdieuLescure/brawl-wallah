@@ -44,8 +44,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     lourds `sH` `uH` `dH` (se chargent : `chargeMax`, LOURD tenu) ; en l'air `uAH` (retour) et `dAH` (plongeon) ;
     spéciales `nS` `uS` `dS` (recharges `cd`, `onceAir` = une fois par saut). Chaque coup a un identifiant `mid` (usure).
     Mécaniques signature : CHAUFFE + ÉRUPTION (Toro, `heat`, type `burst`), ÉTOILE PIÈGE + TÉLÉPORT (Astra, type
-    `blink`), PEAU DE PIERRE + MUR DE ROCHE (Grom, `armor` sur ses lourds sauf la prise, projectile `wall` qui arrête les tirs
-    `blockable`), COUPABLE ! (Deadlulu, `mark` sur le livre, lourd renforcé), l'aigle (Denodoom), colère de Scarlett
+    `blink`), PEAU DE PIERRE + MUR DE PRISON (MÉNÈS, id `grom`, `armor` sur ses lourds sauf la prise, projectile `wall`
+    texture `prisonwall` qui arrête les tirs `blockable` ; MICRO au bout d'un long fil = l'ancien grappin, texture `mic` ;
+    VENTRE AU CIEL = spéciale haut, posture `bellyUp` ; la prise affiche toujours « SUPLEX ! »), COUPABLE ! (Deadlulu, `mark` sur le livre, lourd renforcé), l'aigle (Denodoom), colère de Scarlett
     (Nini), CTRL+Z (AdieuLescure). Vitesse, saut, poids et textes d'aide de chaque perso sont aussi ici.
   - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
@@ -59,8 +60,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py` = postures de Toro,
-  Deadlulu, Denodoom, AdieuLescure et BIGZINZIN — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py` = postures de Toro,
+  Deadlulu, Denodoom, AdieuLescure, BIGZINZIN et MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
   préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).

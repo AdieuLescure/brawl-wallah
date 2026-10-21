@@ -2,7 +2,7 @@
 import base64, io, sys, json, importlib
 from PIL import Image
 OUT_JS = sys.argv[1]
-CHARS = {'toro': ('toro_set', 0), 'deadlulu': ('lulu_set', 0), 'denodoom': ('deno_set', 0), 'adieulescure': ('adieu_set', 0), 'bigzinzin': ('bz_set', 0)}  # module, décalage horizontal pour centrer le perso dans la case
+CHARS = {'toro': ('toro_set', 0), 'deadlulu': ('lulu_set', 0), 'denodoom': ('deno_set', 0), 'adieulescure': ('adieu_set', 0), 'bigzinzin': ('bz_set', 0), 'grom': ('menes_set', 0)}  # module, décalage horizontal pour centrer le perso dans la case
 data = {}
 for cid, (mod, dx) in CHARS.items():
     m = importlib.import_module(mod)

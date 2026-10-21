@@ -47,7 +47,7 @@ const STORY = {
   outro: {
     toro: [['toro', 'Aïe... Bon combat. Prends-le. Et mange un truc, t\'es pâle.'], ['nar', 'Premier éclat récupéré.']],
     astra: [['astra', 'Intéressant. Les étoiles se sont trompées, pour une fois.'], ['nar', 'Éclat suivant en poche.']],
-    grom: [['grom', 'Tu cognes fort. Prends-le... mais lâche-moi le bras.'], ['nar', 'La main de Grom s\'ouvre enfin.']],
+    grom: [['grom', 'Tu cognes fort. Prends-le... mais lâche-moi le bras.'], ['nar', 'La main de Ménès s\'ouvre enfin.']],
     deadlulu: [['deadlulu', 'Mon plectre ! ...Garde-le. Je me ferai un rappel.'], ['nar', 'Le Cristal vibre encore d\'un ré dièse.']],
     denodoom: [['denodoom', 'Courage constaté. L\'Aigle s\'incline. Prends l\'éclat, brave.'], ['nar', 'Cinq éclats. Il ne reste que l\'Ombre.']],
     nini: [['nini', 'Le chat dit que tu peux l\'avoir. Le corgi est vexé.'], ['nar', 'Un éclat de plus, sous l\'oeil du chat.']],
