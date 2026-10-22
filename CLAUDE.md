@@ -14,6 +14,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Supabase (`vtwmiavajwotunrowlou`) : table `profiles` (pseudo, points Elo, victoires/défaites) et `matches`,
   fonction `record_match` (Elo K=32) appelable seulement avec la clé service. Comptes = pseudo + mot de passe,
   l'e-mail est fabriqué (`pseudo@brawl-players.app`) et créé confirmé par le Worker (`/api/signup`).
+  CONNEXION par le Worker (`/api/login`) : il retrouve le compte par son pseudo dans `profiles` (sans tenir compte des
+  majuscules, même renommé), lit son adresse avec la clé service, puis vérifie le mot de passe chez Supabase et renvoie
+  la session (le jeu fait `setSession`). `/api/rename` remet aussi l'adresse au nouveau pseudo. Mots de passe : jamais
+  stockés ni affichés par le jeu (Supabase ne garde qu'une empreinte). Champs de saisie sans correction automatique.
 
 ## Organisation
 
