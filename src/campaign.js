@@ -44,6 +44,7 @@ const STORY = {
     nini: [['nini', 'Je suis non-violente. Vraiment. Mais mon chat, lui, a des opinions.'], ['hero', 'Ton chat me regarde bizarrement.']],
     adieulescure: [['adieulescure', 'Ton éclat ? Je l\'ai déjà joué en une-deux, du pied gauche.'], ['hero', 'Alors je vais faire CTRL+Z sur ta passe.']],
     bigzinzin: [['bigzinzin', 'Cet éclat, je l\'ai monté en 4K. Tu veux l\'original ? Ça va te coûter cher.'], ['hero', 'Je paie en coups de poing.']],
+    natanax: [['natanax', 'L\'éclat ? Je l\'ai mis en équation. Il me manque juste une variable : toi.'], ['hero', 'Résous ça avec tes poings.']],
     ln4: [['ln4', 'Feux éteints ! L\'éclat est au bout de la ligne droite, si tu tiens le rythme.'], ['hero', 'Je ne freine jamais.']],
     ombre: [['nar', 'Cinq éclats brillent. Un sixième manque, et une silhouette sombre barre la route.'], ['ombre', 'Tu as réuni cinq éclats. Il manque le tien. Je suis tout ce que tu n\'as pas osé être.'], ['hero', 'Alors on règle ça ici.']],
   },
@@ -56,6 +57,7 @@ const STORY = {
     nini: [['nini', 'Le chat dit que tu peux l\'avoir. Le corgi est vexé.'], ['nar', 'Un éclat de plus, sous l\'oeil du chat.']],
     adieulescure: [['adieulescure', 'Bien joué... Pas de CTRL+Z sur une défaite, hein.'], ['nar', 'L\'éclat roule jusqu\'à tes pieds.']],
     bigzinzin: [['bigzinzin', 'Coupez ! ...On la garde, celle-là. Prends l\'éclat, c\'est offert.'], ['nar', 'Un éclat de plus, et pas un centime dépensé.']],
+    natanax: [['natanax', 'Ma casquette... Bon, tu as gagné, by order of moi-même. Prends-le.'], ['nar', 'Un éclat de plus, et pas une seule explosion.']],
     ln4: [['ln4', 'La ligne d\'arrivée, ce n\'est pas une fin, c\'est un nouveau départ. Prends-le.'], ['nar', 'Un éclat de plus, arrosé au champagne.']],
   },
   epilogue: [

@@ -46,7 +46,16 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     VOLANT (`shuttle` : part vite puis freine, `LN.drag`), CHAMPAGNE (spéciale haut, `rise`), ARRÊT AU STAND
     (`type: 'pit'`, au sol : immobile 0,5 s puis PNEUS NEUFS `tyreUntil` 6 s = `spdMul` 1,25 et FEUX ÉTEINTS +30 %),
     FEUX ÉTEINTS (lourd avant, `dashV`, 5 feux rouges). Branché sur `bzStep`/`bzProj`/`extraFx` (enveloppés).
-  - `kits.js` : MOVESETS des 8 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
+  - `natanax.js` : le perso NATANAX (cape verte, veste beige, casquette « Peaky Blinders » à lames À LA MAIN, sans écusson).
+    CASQUETTE (spéciale avant, projectile `cap`) : boomerang (`decel`, `fallAt`), touche à l'aller et au retour (`p.back`,
+    `p.hits`), RATTRAPÉE au retour = recharge immédiate, ratée = posée au sol (`p.spent`) à ramasser, revient seule après
+    `life` ; tant qu'elle est partie (`nxCapOut`) : postures « _n » sans casquette et LÉGERS à 75 %. TABLEAU E = MC² :
+    SPÉCIAL + BAS TENU au sol (bit d'entrée 22 `shold`, champ `pl.sHold`) = il écrit (`eqMs`, 0,5 s par morceau, 1,5 s
+    en tout), attaquable ; interrompu, ce qui est écrit reste ; effacé quand il perd une vie. FISSION (appui court,
+    type `fission`, 2 `neutron`) ; formule complète = RÉACTION EN CHAÎNE (`dSX`, `nuke`, préparation 0,42 s, consomme la
+    formule au moment où elle part). ALLEY-OOP (spéciale haut, `dunk` : ballon `bball` lancé vers le bas).
+    Branché sur `nxPick`/`nxStart`/`nxTimer` (`game.js`) et `bzStep`/`bzProj`/`bzHit`/`die`/`botInput` (enveloppés).
+  - `kits.js` : MOVESETS des 9 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
     Boutons LÉGER / LOURD / SPÉCIAL + direction (neutre, avant, haut, bas ; haut/bas seulement si on pousse franchement).
     Clés : `nL` (neutre : enchaînement de 3 coups, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air ;
     lourds `sH` `uH` `dH` (se chargent : `chargeMax`, LOURD tenu) ; en l'air `uAH` (retour) et `dAH` (plongeon) ;
@@ -68,8 +77,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py`, `ln4_set.py` = postures de Toro,
-  Deadlulu, Denodoom, AdieuLescure, BIGZINZIN, MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes) et LN4 (raquette `rq`, casque `hm`, champagne `bt`, volant `sc`) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py`, `ln4_set.py`, `natanax_set.py` = postures de Toro,
+  Deadlulu, Denodoom, AdieuLescure, BIGZINZIN, MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes), LN4 (raquette `rq`, casque `hm`, champagne `bt`, volant `sc`) et NATANAX (casquette `cap`, ballon `bb`, craie, atome, `armBehind` = bras levé derrière la tête, version sans casquette `_n` avec `NOCAP_SKIN`) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
   préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
   Les persos pas encore redessinés utilisent l'ancien dessin par code (`sprites48.js`, `chars48.js`).
@@ -92,7 +101,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   spéciale) ou par l'esquive de poursuite, 3 annulations au plus. USURE : un coup déjà dans les 5 derniers qui ont
   touché (`st0..4`) perd 10 % par répétition (40 % au plus) et ne garantit plus l'enchaînement à partir de 2 répétitions.
 - GRAVITY CANCEL : esquive aérienne sur place puis attaque dans les 0,3 s (`gcUntil`) = coup du sol en l'air.
-- 5 boutons : LÉGER, LOURD, SPÉCIAL (3 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21.
+- 5 boutons : LÉGER, LOURD, SPÉCIAL (3 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21,
+  SPÉCIAL tenu = bit 22 (`shold`, le TABLEAU de NATANAX). Variantes de postures : suffixes `VARIANTS` (`_g` doré, `_n` sans casquette).
 - CLAVIER (ordinateur, `KEYMAP`/`KB` dans `game.js`, touches physiques donc AZERTY = QWERTY) : ZQSD ou flèches, Espace
   saut, J/X léger, K/C lourd (tenu = charge), I/V spéciale, L/Maj esquive, Échap quitter. `localInput()` mélange
   écran tactile et clavier (hors ligne et en ligne) ; au clavier les boutons tactiles se cachent.

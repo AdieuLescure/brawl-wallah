@@ -197,7 +197,7 @@
       let key = s.texture.key;
       const ch = pl.char;
       // version dorée (BIGZINZIN en JACKPOT) : même posture, suffixe « _g »
-      const gs = key.endsWith('_g') ? '_g' : '';
+      const gs = VARIANTS.find((v) => key.endsWith(v)) || '';
       const name = key.slice(ch.length + 1, key.length - gs.length);
       if (atk && !stunned && now < atk.hitAt && !atk.m.prePose && !atk.charging) {
         const pre = `${ch}_${atk.pose || atk.m.pose}Pre${gs}`;

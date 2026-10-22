@@ -22,10 +22,10 @@ const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boo
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
 function packInput(i) {
   const q = (v) => Math.max(-127, Math.min(127, Math.round(v * 127))) + 127;
-  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0) | (i.heavy ? 1 << 20 : 0) | (i.special ? 1 << 21 : 0);
+  return q(i.sx || 0) | (q(i.sy || 0) << 8) | (i.jump ? 1 << 16 : 0) | (i.attack ? 1 << 17 : 0) | (i.hold ? 1 << 18 : 0) | (i.block ? 1 << 19 : 0) | (i.heavy ? 1 << 20 : 0) | (i.special ? 1 << 21 : 0) | (i.shold ? 1 << 22 : 0);
 }
 function unpackInput(v) {
-  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)), special: !!(v & (1 << 21)) };
+  return { sx: ((v & 255) - 127) / 127, sy: (((v >> 8) & 255) - 127) / 127, jump: !!(v & (1 << 16)), attack: !!(v & (1 << 17)), hold: !!(v & (1 << 18)), block: !!(v & (1 << 19)), heavy: !!(v & (1 << 20)), special: !!(v & (1 << 21)), shold: !!(v & (1 << 22)) };
 }
 const NEUTRAL_IN = packInput({});
 // entrée spéciale « ce joueur a quitté la partie » (à plusieurs) : il est éliminé à cette image chez tout le monde
@@ -64,7 +64,7 @@ Object.assign(GameScene.prototype, {
       .filter((p) => !p.dead)
       .map((p) => ({
         id: p.id, o: p.owner.i, t: p.target.i, spec: p.spec, x: p.x, y: p.y, vx: p.vx, vy: p.vy, born: p.born, armedAt: p.armedAt, lastTrail: p.lastTrail, f: p.f,
-        spent: !!p.spent, bounced: !!p.bounced, carry: p.carry ? { ...p.carry } : null, hits: p.hits ? [...p.hits].map((q) => q.i) : null,
+        spent: !!p.spent, bounced: !!p.bounced, back: !!p.back, carry: p.carry ? { ...p.carry } : null, hits: p.hits ? [...p.hits].map((q) => q.i) : null,
       }));
     return JSON.stringify({ pls, projs, timers: this.timers, frame: this.frame, simFrames: this.simFrames, freeze: this.freezeLeft, atkSeq: this.atkSeq, projSeq: this.projSeq, sudden: !!this.sudden });
   },
@@ -103,7 +103,7 @@ Object.assign(GameScene.prototype, {
       let p = live.get(d.id);
       keep.add(d.id);
       const owner = this.pl(d.o), target = this.pl(d.t);
-      const fields = { owner, target, spec: d.spec, x: d.x, y: d.y, vx: d.vx, vy: d.vy, born: d.born, armedAt: d.armedAt, lastTrail: d.lastTrail, f: d.f, spent: d.spent, bounced: d.bounced, carry: d.carry, dead: false, hits: d.hits ? new Set(d.hits.map((j) => this.pl(j))) : null };
+      const fields = { owner, target, spec: d.spec, x: d.x, y: d.y, vx: d.vx, vy: d.vy, born: d.born, armedAt: d.armedAt, lastTrail: d.lastTrail, f: d.f, spent: d.spent, bounced: d.bounced, back: d.back, carry: d.carry, dead: false, hits: d.hits ? new Set(d.hits.map((j) => this.pl(j))) : null };
       if (!p) {
         p = { id: d.id, ...fields, sprite: null };
         p.sprite = this.makeProjSprite(p);
@@ -184,7 +184,7 @@ Object.assign(GameScene.prototype, {
     // une texture par posture (mêmes noms que les originales ; absente de la planche = garde)
     this.textures.getTextureKeys().filter((k) => k.startsWith(id + '_')).forEach((key) => {
       const name = key.slice(id.length + 1);
-      const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf(name.endsWith('_g') ? 'idle0_g' : 'idle0');
+      const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf('idle0' + (VARIANTS.find((v) => name.endsWith(v)) || ''));
       mkCanvas(this, `${prefix}_${name}`, png.w, png.h, (c2) => c2.drawImage(cv, fi * png.w, 0, png.w, png.h, 0, 0, png.w, png.h), 'raw');
       TEXSCALE[`${prefix}_${name}`] = TEXSCALE[key];
     });

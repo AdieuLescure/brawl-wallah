@@ -2,7 +2,7 @@
 import base64, io, sys, json, importlib
 from PIL import Image
 OUT_JS = sys.argv[1]
-CHARS = {'toro': ('toro_set', 0), 'deadlulu': ('lulu_set', 0), 'denodoom': ('deno_set', 0), 'adieulescure': ('adieu_set', 0), 'bigzinzin': ('bz_set', 0), 'grom': ('menes_set', 0), 'ln4': ('ln4_set', 0)}  # module, décalage horizontal pour centrer le perso dans la case
+CHARS = {'toro': ('toro_set', 0), 'deadlulu': ('lulu_set', 0), 'denodoom': ('deno_set', 0), 'adieulescure': ('adieu_set', 0), 'bigzinzin': ('bz_set', 0), 'grom': ('menes_set', 0), 'ln4': ('ln4_set', 0), 'natanax': ('natanax_set', 0)}  # module, décalage horizontal pour centrer le perso dans la case
 data = {}
 for cid, (mod, dx) in CHARS.items():
     m = importlib.import_module(mod)
@@ -11,6 +11,8 @@ for cid, (mod, dx) in CHARS.items():
         m.POSES.setdefault(k, v)  # postures en plus (course en 4 temps, réception, chute, préparations)
     if getattr(m, 'GOLD_SKIN', False):  # version dorée de chaque posture (BIGZINZIN en JACKPOT)
         for n in list(m.POSES): m.POSES[n + '_g'] = dict(m.POSES[n], gold=True)
+    if getattr(m, 'NOCAP_SKIN', False):  # version sans casquette (NATANAX l'a lancée)
+        for n in list(m.POSES): m.POSES[n + '_n'] = dict(m.POSES[n], nocap=True)
     names = list(m.POSES)
     CW, CH = getattr(m, 'W', 80), getattr(m, 'H', 64)
     sheet = Image.new('RGBA', (CW * len(names), CH), (0, 0, 0, 0))

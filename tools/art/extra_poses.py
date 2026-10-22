@@ -92,7 +92,7 @@ MOVES = {
     },
 }
 # même allure que la garde pour chaque perso (cape, cheveux, ceinture : valeurs neutres)
-EXTRA_KEYS = {'toro': dict(swing=-15, flow=1), 'denodoom': dict(swing=20), 'deadlulu': dict(flow=1), 'adieulescure': {}}
+EXTRA_KEYS = {'natanax': dict(swing=30, flow=1), 'toro': dict(swing=-15, flow=1), 'denodoom': dict(swing=20), 'deadlulu': dict(flow=1), 'adieulescure': {}}
 
 
 def extra_for(cid):

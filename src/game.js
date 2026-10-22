@@ -249,6 +249,8 @@ const KEYMAP = {
   KeyL: 'block', ShiftLeft: 'block', ShiftRight: 'block',
 };
 const KB = { held: {}, q: {}, used: false };
+// suffixes des variantes de postures dessinées (dorée de BIGZINZIN, sans casquette de NATANAX)
+const VARIANTS = ['_g', '_n'];
 if (typeof window !== 'undefined') {
   const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
   window.addEventListener('keydown', (e) => {
@@ -566,10 +568,10 @@ class GameScene extends Phaser.Scene {
       if (png) {
         // perso dessiné en pixel art : une case par posture dans la planche (posture absente -> garde)
         const all = new Set([...SPR48.namesFor(id), ...png.names]);
-        // perso avec une version dorée (BIGZINZIN) : chaque posture existe aussi en « _g »
-        if (png.names.some((n) => n.endsWith('_g'))) [...all].forEach((n) => !n.endsWith('_g') && all.add(n + '_g'));
+        // variantes de chaque posture : dorée « _g » (BIGZINZIN), sans casquette « _n » (NATANAX)
+        for (const sfx of VARIANTS) if (png.names.some((n) => n.endsWith(sfx))) [...all].forEach((n) => !VARIANTS.some((v) => n.endsWith(v)) && all.add(n + sfx));
         all.forEach((name) => {
-          const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf(name.endsWith('_g') ? 'idle0_g' : 'idle0');
+          const fi = png.names.indexOf(name) >= 0 ? png.names.indexOf(name) : png.names.indexOf('idle0' + (VARIANTS.find((v) => name.endsWith(v)) || ''));
           mkCanvas(this, `${id}_${name}`, png.w, png.h, (c) => c.drawImage(PNG_IMG[id], fi * png.w, 0, png.w, png.h, 0, 0, png.w, png.h), 'raw');
           TEXSCALE[`${id}_${name}`] = png.scale / PX;
         });
@@ -1638,6 +1640,7 @@ class GameScene extends Phaser.Scene {
       sx, sy,
       jump: q.jump || !!k.jump, attack: q.attack || !!k.attack, heavy: q.heavy || !!k.heavy, special: q.special || !!k.special,
       hold: this.btn.heavy.id !== null || !!h.heavy || !!this.forceHold, block: this.btn.block.id !== null || !!h.block,
+      shold: this.btn.special.id !== null || !!h.special, // SPÉCIAL tenu (TABLEAU de NATANAX)
     };
     q.jump = q.attack = q.heavy = q.special = q.block = false;
     KB.q = {};
@@ -1688,6 +1691,8 @@ class GameScene extends Phaser.Scene {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.lnPit(pl, now);
     } else if (t.kind === 'rewind') {
       if (pl.atk && pl.atk.id === d.aid && pl.stocks > 0 && !this.over) this.doRewind(pl, now);
+    } else if (this.nxTimer && t.kind.startsWith('nx')) {
+      this.nxTimer(t, pl, now);
     }
   }
 
@@ -1732,6 +1737,7 @@ class GameScene extends Phaser.Scene {
     // direction au moment de l'appui (si le coup part un peu plus tard et que le joystick est relâché entre-temps)
     if (inp.attack || inp.heavy || inp.special) pl.bufAim = this.aimOf(pl, inp);
     if (inp.jump) pl.bufJump = now + BUF_MS;
+    pl.sHold = !!inp.shold; // SPÉCIAL tenu
     const dEdge = !!inp.block && !pl.prevBlock;
     pl.prevBlock = !!inp.block;
     if (dEdge) pl.bufDodge = now + BUF_MS;
@@ -2063,7 +2069,7 @@ class GameScene extends Phaser.Scene {
     else if (!grounded) name = 'jump';
     else if (Math.abs(b.velocity.x) > 60) name = Math.floor(now / 130) % 2 ? 'run0' : 'run1';
     else name = Math.floor(now / 450) % 2 ? 'idle0' : 'idle1';
-    s.setTexture(`${pl.char}_${name}${raging && pl.char === 'nini' ? '_r' : ''}${def.money && now < (pl.goldUntil || 0) ? '_g' : ''}`);
+    s.setTexture(`${pl.char}_${name}${raging && pl.char === 'nini' ? '_r' : ''}${def.money && now < (pl.goldUntil || 0) ? '_g' : ''}${def.cap && this.nxCapOut(pl) ? '_n' : ''}`);
     if (def.idleFx && !this.resim) this.idleFx(pl, name, now);
     // teinte décidée à chaque image d'après l'état (jamais par minuterie : en ligne, un rejeu sautait la minuterie
     // et le perso restait tout blanc)
@@ -2109,6 +2115,7 @@ class GameScene extends Phaser.Scene {
     const mv = pl.def.moves;
     let m = mv[key];
     if (!m) return;
+    if (this.nxPick) { m = this.nxPick(pl, m, now); if (!m) return; } // NATANAX : casquette partie, RÉACTION EN CHAÎNE
     // coup de côté : on se tourne d'abord du côté poussé
     if (inp && Math.abs(inp.sx || 0) > 0.2 && this.aimOf(pl, inp) === 's') {
       pl.facing = inp.sx > 0 ? 1 : -1;
@@ -2232,6 +2239,7 @@ class GameScene extends Phaser.Scene {
       pl.atk.moveLock = now + m.total;
       this.sched(m.startup, 'rewind', { pi: pl.i, aid: pl.atk.id });
     }
+    if (this.nxStart) this.nxStart(pl, m, now, grounded);
     if (m.cd) pl.moveCd[cdKey] = now + m.cd;
     this.attackFx(pl, m);
     this.sfx('swing', Math.min(((m.dmg || (m.proj && m.proj.dmg) || 6) - 3) / 10, 1));

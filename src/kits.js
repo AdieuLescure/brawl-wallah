@@ -290,11 +290,49 @@
     }, ['LÉGER  RAQUETTE x3 / CASQUE', 'LOURD  FEUX ÉTEINTS', 'LOURD H/B SMASH / BURN-OUT', 'SPÉCIAL VOLANT', 'SPÉ H/B CHAMPAGNE / STAND', 'STAND = PNEUS NEUFS (6 S)']);
   }
 
+  // ---------------- NATANAX : casquette à lames (boomerang), TABLEAU E = MC², FISSION, ALLEY-OOP ----------------
+  {
+    // FISSION : une moitié d'atome file au ras du sol de chaque côté
+    const NEUTRON = { kind: 'neutron', tex: 'neutron', s: 3, vx: 640, life: 640, w: 34, h: 28, ox: 18, oy: 0, ground: true, trail: 0x7af0ff, dmg: 6, kb: 190, ks: 3.6, ang: -0.6, stun: 220, small: true };
+    set('natanax', { speed: 355, jump: 690, weight: 1.0, role: 'ÉCLAIREUR ATOMIQUE' }, {
+      nL: J({ pose: 'slash', fx: { cres: 'cres_nx', s: 2.6, ang: 0 }, chain: [
+        J({ pose: 'slash2', fx: { cres: 'cres_nx', s: 2.6, ang: -25 } }),
+        FIN({ pose: 'slash', w: 86, fx: { cres: 'cres_nx', s: 3.6, ang: -10, ghosts: 1 } }), // TRANCHE
+      ] }), // VISIÈRE, REVERS
+      sL: SL({ pose: 'lunge', lunge: 260, w: 90, ox: 62, fx: { cres: 'cres_nx', s: 3, ang: 0, ghosts: 1 } }), // FENTE
+      uL: UL({ pose: 'slashUp', fx: { cres: 'cres_nx', s: 3, ang: -90 } }), // COUPE HAUTE
+      dL: DL({ pose: 'low', fx: { cres: 'cres_nx', s: 3, ang: 15, dust: true } }), // VISIÈRE BASSE
+      sA: SA({ pose: 'slash', fx: { cres: 'cres_nx', s: 3, ang: 0 } }), // REVERS VOLANT
+      uA: UA({ pose: 'slashUp', fx: { cres: 'cres_nx', s: 3, ang: -90 } }), // COUPE AU CIEL
+      dA: DA({ pose: 'stomp', fx: { cres: 'cres_nx', s: 3, ang: 90 } }), // TALON
+      // GRAND COUP DE LAMES : armé loin derrière, tranché à bout de bras
+      sH: { type: 'melee', pose: 'big', startup: 160, active: 120, total: 600, w: 108, h: 60, ox: 64, oy: -6, dmg: 11, kb: 340, ks: 8.6, ang: -0.42, stun: 220, lunge: 150, fx: { cres: 'cres_nx', s: 4.4, ang: -10, ghosts: 2 } },
+      // COUPE MONTANTE
+      uH: { type: 'melee', pose: 'slashUp', startup: 140, active: 130, total: 560, w: 86, h: 116, ox: 24, oy: -62, dmg: 11, kb: 330, ks: 8.6, ang: -1.4, stun: 220, fx: { cres: 'cres_nx', s: 4.4, ang: -90, ghosts: 1 } },
+      // TOUPIE : il tourne sur lui-même, casquette tendue, cape au vent (touche des deux côtés)
+      dH: { type: 'melee', pose: 'spin', anim: ['spin', 'spin2'], startup: 150, active: 220, total: 620, w: 190, h: 60, ox: 0, oy: 6, dmg: 11, kb: 320, ks: 8, ang: -0.5, stun: 220, fx: { cres: 'cres_nx', s: 4.2, ang: 10, dust: true } },
+      // VRILLE : il remonte en tournant (retour)
+      uAH: { type: 'melee', pose: 'spin', anim: ['spin', 'spin2'], startup: 60, active: 220, total: 520, w: 90, h: 96, ox: 10, oy: -40, dmg: 9, kb: 300, ks: 7, ang: -1.35, stun: 200, rise: 790, riseX: 110, inv: 50, helpless: true, fx: { ghosts: 2 } },
+      dAH: GP({ pose: 'stomp', fx: { ghosts: 2 } }), // COUP DE BOTTE
+      // CASQUETTE : boomerang (rattrapée = recharge immédiate ; ratée = à ramasser)
+      nS: { type: 'proj', pose: 'throw', startup: 120, total: 420, cd: 900, fx: {},
+        proj: { kind: 'cap', tex: 'capProj', s: 3.6, vx: 980, decel: 2300, fallAt: 900, life: 5000, w: 44, h: 30, ox: 30, oy: -14, dmg: 4, kb: 150, ks: 2.8, ang: -0.5, stun: 210, blockable: true } },
+      // ALLEY-OOP : saut très haut, dunk sur celui qui est au-dessus, puis le ballon repart vers le bas
+      uS: { type: 'melee', pose: 'dunk', startup: 90, active: 220, total: 600, w: 84, h: 100, ox: 16, oy: -64, dmg: 7, kb: 250, ks: 5, ang: -1.3, stun: 210, rise: 860, riseX: 100, cd: 3000, onceAir: 'leap', dunk: 220, fx: { ghosts: 2, dunkFx: true },
+        proj: { kind: 'ball', tex: 'bball', s: 3, vx: 240, vy: 560, grav: 900, life: 1500, w: 34, h: 34, ox: 22, oy: -46, dmg: 7, kb: 230, ks: 4.4, ang: 1.0, stun: 220 } },
+      // FISSION (appui court) ; SPÉCIAL + BAS tenu au sol = TABLEAU (dSW) ; formule complète = RÉACTION EN CHAÎNE (dSX)
+      dS: { type: 'fission', pose: 'atom', startup: 170, total: 460, cd: 1600, fx: { atomFx: true }, neutron: NEUTRON },
+      dSW: { type: 'write', pose: 'write', startup: 0, total: 200 },
+      dSX: { type: 'melee', pose: 'boom', prePose: 'boomPre', startup: 420, active: 140, total: 900, w: 270, h: 210, ox: 0, oy: -20, dmg: 15, kb: 350, ks: 9.2, ang: -1.15, stun: 240, cd: 2500, cdKey: 'dS', nuke: true, fx: { nuke: true },
+        neutron: Object.assign({}, NEUTRON, { vx: 760, life: 720, dmg: 5 }) },
+    }, ['LÉGER  CASQUETTE x3 / FENTE', 'LOURD  GRAND COUP DE LAMES', 'LOURD H/B COUPE / TOUPIE', 'SPÉCIAL CASQUETTE BOOMERANG', 'SPÉ H/B ALLEY-OOP / FISSION', 'BAS TENU : TABLEAU E = MC²']);
+  }
+
   // ---- finitions communes : catégories, identifiants (usure), charge des lourds, tirs que le mur arrête ----
   const LIGHTS = ['nL', 'sL', 'uL', 'dL', 'sA', 'uA', 'dA'];
   const HEAVIES = ['sH', 'uH', 'dH', 'uAH', 'dAH'];
   const SPECIALS = ['nS', 'uS', 'dS', 'nSA', 'uSA', 'dSA'];
-  const BLOCKABLE = { orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1, shuttle: 1 };
+  const BLOCKABLE = { neutron: 1, orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1, shuttle: 1 };
   for (const id of Object.keys(K)) {
     const mv = K[id];
     for (const k of Object.keys(mv)) {
@@ -312,6 +350,7 @@
       if (m.proj) m.proj = tag(m.proj);
       if (m.book) m.book = tag(m.book);
       if (m.ball) m.ball = tag(m.ball);
+      if (m.neutron) m.neutron = tag(m.neutron);
       if (m.throw) m.throw = Object.assign({}, m.throw, { mid, heavy: !!m.heavy });
       mv[k] = m;
     }
