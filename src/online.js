@@ -29,7 +29,7 @@ function domModal(title, fields, buttons, note) {
     el.id = 'dm';
     el.innerHTML =
       `<form><h2>${title}</h2>${note ? `<p class="n">${note}</p>` : ''}` +
-      fields.map((f) => `<label>${f.label}<input name="${f.name}" type="${f.type || 'text'}" autocomplete="${f.ac || 'off'}" ${f.max ? `maxlength="${f.max}"` : ''} ${f.upper ? 'style="text-transform:uppercase"' : ''}></label>`).join('') +
+      fields.map((f) => `<label>${f.label}<input name="${f.name}" type="${f.type || 'text'}" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="${f.ac || 'off'}" ${f.max ? `maxlength="${f.max}"` : ''} ${f.upper ? 'style="text-transform:uppercase"' : ''}></label>`).join('') +
       `<p class="e" id="dme"></p><div class="b">${buttons.map((b, i) => `<button type="button" data-i="${i}" class="${b.primary ? 'p' : ''}">${b.label}</button>`).join('')}</div></form>`;
     document.body.appendChild(el);
     const form = el.querySelector('form');
@@ -132,8 +132,20 @@ const Auth = {
     else this.profile.username = name;
   },
   async login(pseudo, pw) {
-    const { error } = await this.sb.auth.signInWithPassword({ email: this.emailOf(pseudo), password: pw });
-    if (error) throw new Error(/invalid|credentials/i.test(error.message) ? 'Pseudo ou mot de passe incorrect' : error.message);
+    // le serveur retrouve le compte par son pseudo (même renommé, sans tenir compte des majuscules)
+    let tok = null;
+    try {
+      tok = await this.call('/api/login', { pseudo, password: pw });
+    } catch (e) {
+      if (!/injoignable|Erreur 404/.test(e.message)) throw e;
+    }
+    if (tok && tok.access_token) {
+      const { error } = await this.sb.auth.setSession({ access_token: tok.access_token, refresh_token: tok.refresh_token });
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await this.sb.auth.signInWithPassword({ email: this.emailOf(pseudo), password: pw });
+      if (error) throw new Error(/invalid|credentials/i.test(error.message) ? 'Pseudo ou mot de passe incorrect' : error.message);
+    }
     const { data } = await this.sb.auth.getSession();
     this.session = data.session;
     await this.loadProfile();

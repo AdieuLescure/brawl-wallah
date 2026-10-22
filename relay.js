@@ -440,6 +440,37 @@ async function api(request, env, path) {
     return json({ ok: true });
   }
 
+  // Connexion : on retrouve le compte par son PSEUDO (sans tenir compte des majuscules), même s'il a été renommé
+  // depuis sa création ; le mot de passe est vérifié par Supabase (jamais stocké en clair, jamais dans le code).
+  if (path === '/api/login') {
+    const pseudo = String(b.pseudo || '').trim();
+    const pw = String(b.password || '');
+    if (!PSEUDO_RE.test(pseudo) || !pw) return json({ e: 'bad', msg: 'Pseudo ou mot de passe incorrect' }, 400);
+    let email = emailOf(pseudo);
+    let found = false;
+    const pr = await fetch(sbUrl(env) + '/rest/v1/profiles?select=id,username&username=ilike.' + encodeURIComponent(pseudo) + '&limit=20', { headers: svc });
+    if (pr.ok) {
+      const rows = await pr.json().catch(() => []);
+      const row = (rows || []).find((r) => String(r.username || '').toLowerCase() === pseudo.toLowerCase());
+      if (row) {
+        found = true;
+        const ur = await fetch(sbUrl(env) + '/auth/v1/admin/users/' + row.id, { headers: svc });
+        if (ur.ok) {
+          const u = await ur.json().catch(() => ({}));
+          if (u && u.email) email = u.email;
+        }
+      }
+    }
+    const tr = await fetch(sbUrl(env) + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { apikey: sKey(env, 'SUPABASE_ANON_KEY'), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw }),
+    });
+    const t = await tr.json().catch(() => ({}));
+    if (!tr.ok || !t.access_token) return json({ e: found ? 'pw' : 'pseudo', msg: found ? 'Mot de passe incorrect' : "Ce pseudo n'existe pas" }, 401);
+    return json({ access_token: t.access_token, refresh_token: t.refresh_token });
+  }
+
   if (path === '/api/rename') {
     const pseudo = String(b.pseudo || '').trim();
     if (!PSEUDO_RE.test(pseudo)) return json({ e: 'pseudo', msg: 'Pseudo : 3 à 16 caractères (lettres, chiffres, _)' }, 400);
@@ -453,6 +484,8 @@ async function api(request, env, path) {
       if (/profiles/.test(t) && /(schema cache|does not exist)/.test(t)) return json({ e: 'schema', msg: "La base n'est pas prête (script schema.sql à lancer dans Supabase)" }, 500);
       return json({ e: 'profile', msg: 'Pseudo refusé : ' + t.slice(0, 100) }, 500);
     }
+    // l'adresse de connexion suit le nouveau pseudo (si elle est libre ; sinon /api/login retrouve le compte quand même)
+    await fetch(sbUrl(env) + '/auth/v1/admin/users/' + u.id, { method: 'PUT', headers: svc, body: JSON.stringify({ email: emailOf(pseudo), email_confirm: true }) }).catch(() => {});
     return json({ ok: true });
   }
   return json({ e: 'not found' }, 404);
