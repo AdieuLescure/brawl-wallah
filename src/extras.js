@@ -236,7 +236,7 @@ Object.assign(GameScene.prototype, {
       this.edBtns.push({ x, y, w, h: 44, fn });
     };
     const sel = this.edSel;
-    const NAMES = { stick: 'JOYSTICK', attack: 'LÉGER', heavy: 'LOURD', special: 'SPÉCIAL', jump: 'SAUT', block: 'ESQUIVE' };
+    const NAMES = { stick: 'JOYSTICK', attack: 'COUP', special: 'SPÉCIAL', jump: 'SAUT', block: 'ESQUIVE' };
     txt(W / 2, cy - 62, sel ? NAMES[sel] : 'PLACE TES BOUTONS', 15, '#ffd166');
     txt(W / 2, cy - 34, sel ? 'GLISSE-LE OU CHANGE SA TAILLE' : 'GLISSE UN BOUTON POUR LE DÉPLACER\nTOUCHE-LE POUR CHANGER SA TAILLE', 10, '#cfd3ff');
     if (sel) {
@@ -441,7 +441,7 @@ Object.assign(GameScene.prototype, {
       return;
     }
     const def = this.p1.def;
-    const txt = def.name + '\n\n' + def.help.join('\n') + "\n\nLOURD TENU = COUP CHARGE\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL";
+    const txt = def.name + '\n\n' + def.help.join('\n') + "\n\nSPÉCIAL TENU = CHARGE (CERTAINES)\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL";
     const bg = this.add.rectangle(this.W / 2, this.H * 0.45, Math.min(this.W - 60, 560), 330, 0x0b0d1f, 0.9).setStrokeStyle(3, 0xffe9a8).setDepth(80);
     const t = this.add.text(this.W / 2, this.H * 0.45, txt, { fontFamily: FONT, fontSize: '12px', color: '#cfd3ff', align: 'left', lineSpacing: 8 }).setOrigin(0.5).setDepth(81);
     this.moveList = [bg, t];

@@ -24,8 +24,8 @@ const FAST_FALL = 1050;
 const STOCKS = 3;
 const STICK_R = 90;
 // commandes tactiles déplaçables (réglages > PLACER LES BOUTONS) et leur rayon de base
-const CTRL_KEYS = ['stick', 'attack', 'heavy', 'special', 'jump', 'block'];
-const CTRL_R = { stick: 88, attack: 80, heavy: 66, special: 58, jump: 62, block: 56 };
+const CTRL_KEYS = ['stick', 'attack', 'special', 'jump', 'block'];
+const CTRL_R = { stick: 88, attack: 80, special: 68, jump: 62, block: 56 };
 
 const OUT = '#14121c';
 const BOOT = '#2b2740';
@@ -206,7 +206,7 @@ const RAGE_DMG = 1.3;
 
 // --- Règles du combat (réglées par simulation) ---------------------------------
 const KB_BASE = 0.5; // part du recul de base gardée (la croissance avec les % reste entière)
-const KB_GROW = 1.0;
+const KB_GROW = 1.15;
 const STUN_BASE = 0.7, STUN_GROW = 0.2; // étourdissement : base du coup x 0,7 + recul x 0,2 ms
 const DI_MAX = 0.26; // influence directionnelle : jusqu'à 15° de déviation
 const BUF_MS = 100; // tampon d'entrée (6 images)
@@ -219,8 +219,8 @@ const tumbleFor = (dmg) => Math.max(0, Math.min(TUMBLE_MAX, (dmg - TUMBLE_FROM) 
 const TUMBLE_FROM = 50, TUMBLE_SPAN = 150, TUMBLE_MAX = 0.7;
 const MATCH_MS = 480000; // chrono de 8 min (pas de mort subite) : à la fin, plus de vies gagne, puis moins de %
 // attaque en remontant du rebord
-const HELP_TXT = "LÉGER / LOURD / SPÉCIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nLÉGER SANS DIRECTION x3 = ENCHAÎNEMENT\nUN LÉGER QUI TOUCHE SE COUPE EN\nLOURD, SPÉCIALE OU ESQUIVE\n\nLOURD TENU = COUP CHARGÉ\nEN L'AIR : LOURD = RETOUR, LOURD BAS = PLONGEON\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + CÔTÉ = SPRINT";
-const HELP_KB = "CLAVIER : ZQSD OU FLÈCHES, ESPACE = SAUT\nJ = LÉGER, K = LOURD, I = SPÉCIAL, L = ESQUIVE\n(OU X, C, V ET MAJ) - ÉCHAP = QUITTER";
+const HELP_TXT = "COUP / SPÉCIAL + JOYSTICK :\nNEUTRE, AVANT, HAUT OU BAS\n\nCOUP = L'ARME DE TON PERSO (SA FAMILLE)\nCOUP SANS DIRECTION x3 = ENCHAÎNEMENT\nUN COUP QUI TOUCHE SE COUPE EN\nUN AUTRE COUP, UNE SPÉCIALE OU UNE ESQUIVE\n\nSPÉCIAL HAUT = REMONTER, EN L'AIR BAS = PLONGEON\nCERTAINES SPÉCIALES SE CHARGENT (GARDER)\nESQUIVE EN L'AIR + ATTAQUE = COUP DU SOL\n\nSAUT x3 - ESQUIVE + CÔTÉ = SPRINT";
+const HELP_KB = "CLAVIER : ZQSD OU FLÈCHES, ESPACE = SAUT\nJ = COUP, K = SPÉCIAL, L = ESQUIVE\n(OU X, C ET MAJ) - ÉCHAP = QUITTER";
 const LEDGE_ATK = { type: 'melee', pose: 'rkick', startup: 120, active: 100, total: 420, w: 96, h: 50, ox: 50, oy: 0, dmg: 6, kb: 240, ks: 4, ang: -0.4, stun: 170, fx: { dust: true } };
 
 // --- Réglages du joueur (gardés sur le téléphone) ------------------------------
@@ -241,11 +241,11 @@ function saveSettings() {
 }
 
 // --- CLAVIER (ordinateur) : touches physiques (même place en AZERTY et en QWERTY) ------------------
-// Bouger : ZQSD ou flèches · SAUT : Espace · LÉGER : J ou X · LOURD : K ou C (tenir = charger)
+// Bouger : ZQSD ou flèches · SAUT : Espace · COUP : J ou X · SPÉCIAL : I, V, K ou C (tenir = charger)
 // SPÉCIAL : I ou V · ESQUIVE : L ou Maj · Échap : quitter le combat
 const KEYMAP = {
   KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down',
-  Space: 'jump', KeyJ: 'attack', KeyX: 'attack', KeyK: 'heavy', KeyC: 'heavy', KeyI: 'special', KeyV: 'special',
+  Space: 'jump', KeyJ: 'attack', KeyX: 'attack', KeyK: 'special', KeyC: 'special', KeyI: 'special', KeyV: 'special',
   KeyL: 'block', ShiftLeft: 'block', ShiftRight: 'block',
 };
 const KB = { held: {}, q: {}, used: false };
@@ -1311,10 +1311,9 @@ class GameScene extends Phaser.Scene {
     const o = { stick: { x: fx(180), y: this.H - 170, s: 1 } };
     const put = (k, [x, y]) => (o[k] = { x: fx(x), y, s: z });
     put('attack', at(150, 150, 140, 190));
-    put('heavy', at(335, 108, 300, 118));
-    put('special', at(312, 282, 290, 290));
+    put('special', at(330, 112, 300, 118));
     put('jump', at(132, 338, 128, 370));
-    put('block', at(490, 132, 268, 450));
+    put('block', at(318, 290, 290, 300));
     return o;
   }
 
@@ -1350,16 +1349,15 @@ class GameScene extends Phaser.Scene {
       this.sizeBtn(b);
       return b;
     };
-    // 5 boutons : LÉGER (le plus gros, sous le pouce), LOURD, SPÉCIAL, SAUT, ESQUIVE
+    // 4 boutons : COUP (le plus gros, sous le pouce), SPÉCIAL, SAUT, ESQUIVE
     this.btn = {
       attack: mkBtn('attack', 'btnAtk', 'icoAtk'),
-      heavy: mkBtn('heavy', 'btnHeavy', 'icoHeavy'),
       special: mkBtn('special', 'btnSp', 'icoSp'),
       jump: mkBtn('jump', 'btnJump', 'icoJump'),
       block: mkBtn('block', 'btnBlk', 'icoBlk'),
     };
-    // 3 points autour du bouton SPÉCIAL : haut, côté, bas (allumés = capacité prête)
-    this.spDots = ['uS', 'nS', 'dS'].map((k) => {
+    // 4 points autour du bouton SPÉCIAL : haut, avant, sans direction, bas (allumés = capacité prête)
+    this.spDots = ['uS', 'sS', 'nS', 'dS'].map((k) => {
       const d = this.add.circle(0, 0, 8, 0x3a3f5c).setStrokeStyle(2, 0x000000, 0.6).setDepth(D + 1);
       this.ctrlObjs.push(d);
       this.touchObjs.push(d);
@@ -1382,7 +1380,7 @@ class GameScene extends Phaser.Scene {
   placeSpDots() {
     const sb = this.btn.special;
     const dr = sb.r + 12, side = sb.x > this.W / 2 ? -1 : 1;
-    const off = { uS: [0, -dr], nS: [side * dr, 0], dS: [0, dr] };
+    const off = { uS: [0, -dr], sS: [side * dr, 0], nS: [-side * dr, 0], dS: [0, dr] };
     this.spDots.forEach(({ k, d }) => d.setPosition(sb.x + off[k][0], sb.y + off[k][1]).setRadius(8 * Math.min(sb.s, 1.2)));
   }
 
@@ -1638,8 +1636,9 @@ class GameScene extends Phaser.Scene {
     if (kx || ky) { sx = kx; sy = ky; }
     const inp = {
       sx, sy,
-      jump: q.jump || !!k.jump, attack: q.attack || !!k.attack, heavy: q.heavy || !!k.heavy, special: q.special || !!k.special,
-      hold: this.btn.heavy.id !== null || !!h.heavy || !!this.forceHold, block: this.btn.block.id !== null || !!h.block,
+      jump: q.jump || !!k.jump, attack: q.attack || !!k.attack, heavy: false, special: q.special || !!k.special,
+      // SPÉCIAL tenu = charge (et TABLEAU de NATANAX)
+      hold: this.btn.special.id !== null || !!h.special || !!this.forceHold, block: this.btn.block.id !== null || !!h.block,
       shold: this.btn.special.id !== null || !!h.special, // SPÉCIAL tenu (TABLEAU de NATANAX)
     };
     q.jump = q.attack = q.heavy = q.special = q.block = false;
@@ -1716,8 +1715,12 @@ class GameScene extends Phaser.Scene {
   moveKey(pl, aim, grounded, kind) {
     if (kind === 'H') return grounded ? { n: 'sH', s: 'sH', u: 'uH', d: 'dH' }[aim] : aim === 'd' ? 'dAH' : 'uAH';
     if (kind === 'S') {
-      const k = { n: 'nS', s: 'nS', u: 'uS', d: 'dS' }[aim];
-      return !grounded && pl.def.moves[k + 'A'] ? k + 'A' : k;
+      const mv = pl.def.moves;
+      let k = { n: 'nS', s: 'sS', u: 'uS', d: 'dS' }[aim];
+      if (!mv[k] && k === 'sS') k = 'nS'; // (persos en réserve : une seule spéciale de côté)
+      if (grounded) return k;
+      if (k === 'dS' && mv.dAS) return 'dAS'; // en l'air, bas = plongeon
+      return mv[k + 'A'] ? k + 'A' : k;
     }
     return grounded ? { n: 'nL', s: 'sL', u: 'uL', d: 'dL' }[aim] : { n: 'sA', s: 'sA', u: 'uA', d: 'dA' }[aim];
   }
@@ -1906,10 +1909,12 @@ class GameScene extends Phaser.Scene {
           const gnd = grounded || gc; // Gravity Cancel : on choisit le coup du sol
           const nextKey = this.moveKey(pl, aim, gnd, kind);
           // ENCHAÎNEMENT : LÉGER sans direction pendant le coup = coup suivant de la chaîne (même s'il a raté)
-          const chainLen = a0 && a0.chainKey && pl.def.moves[a0.chainKey] ? (pl.def.moves[a0.chainKey].chain || []).length : 0;
+          const fm = this.famMoves ? this.famMoves(pl) : pl.def.moves;
+          const chainLen = a0 && a0.chainKey && fm[a0.chainKey] ? (fm[a0.chainKey].chain || []).length : 0;
           const chainNext = kind === 'L' && aim === 'n' && a0 && a0.chainKey && now >= a0.hitAt + 2 * STEP_MS && a0.chainIdx < chainLen;
           // COMBO : un léger qui a TOUCHÉ peut être coupé par un autre coup (léger différent, lourd ou spéciale), 3 fois au plus
-          const cancel = !!(a0 && a0.landed && a0.m.light && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 3 && nextKey !== a0.key && pl.def.moves[nextKey]);
+          // RELANCE : une spéciale marquée relance qui a touché peut être coupée par un COUP
+          const cancel = !!(a0 && a0.landed && (a0.m.light || (a0.m.relance && kind === 'L')) && now >= a0.landed + 2 * STEP_MS && (a0.cancels || 0) < 3 && nextKey !== a0.key && pl.def.moves[nextKey]);
           if (chainNext) {
             pl.bufAtk = 0;
             this.startChain(pl, now);
@@ -2112,7 +2117,7 @@ class GameScene extends Phaser.Scene {
 
   // key : clé du coup (voir moveKey) ; gc : coup du sol fait en l'air (Gravity Cancel)
   startAttack(pl, key, grounded, now, inp, gc) {
-    const mv = pl.def.moves;
+    const mv = this.famMoves ? this.famMoves(pl) : pl.def.moves;
     let m = mv[key];
     if (!m) return;
     if (this.nxPick) { m = this.nxPick(pl, m, now); if (!m) return; } // NATANAX : casquette partie, RÉACTION EN CHAÎNE
@@ -2122,7 +2127,8 @@ class GameScene extends Phaser.Scene {
       pl.sprite.setFlipX(pl.facing < 0);
     }
     const cdKey = m.cdKey || key;
-    if ((m.cd || m.cooldown) && now < (pl.moveCd[cdKey] || 0)) {
+    // un coup pour remonter (recovery) n'a jamais de recharge en l'air : on peut toujours revenir
+    if ((m.cd || m.cooldown) && now < (pl.moveCd[cdKey] || 0) && !(m.recovery && !grounded)) {
       const b0 = pl.sprite.body.center;
       this.popup(b0.x, b0.y - 70, 'PAS ENCORE', '#ffd1e6');
       pl.cdUntil = now + 250;
@@ -2647,7 +2653,7 @@ class GameScene extends Phaser.Scene {
     if (spec.mark) {
       vic.markUntil = now + spec.mark;
       this.popup(vc0.x, vc0.y - 110, 'COUPABLE !', '#ffd166');
-    } else if (spec.heavy && att.def.judge && now < (vic.markUntil || 0)) {
+    } else if ((spec.special || spec.heavy) && att.def.judge && now < (vic.markUntil || 0)) {
       spec = Object.assign({}, spec, { dmg: spec.dmg * 1.25, kb: spec.kb * 1.25 });
       vic.markUntil = 0;
       this.popup(vc0.x, vc0.y - 110, 'CONDAMNÉ !', '#ff5a5a');
@@ -2655,8 +2661,8 @@ class GameScene extends Phaser.Scene {
     // BIGZINZIN : en OR il frappe plus fort et encaisse mieux ; l'argent monte quand il touche, baisse quand il est touché
     if (this.bzHit) spec = this.bzHit(att, vic, spec, now);
     // CHAUFFE (Toro) : la jauge monte quand il touche et quand il est touché
-    if (att.def.heat && att !== vic) att.heat = Math.min(100, (att.heat || 0) + spec.dmg * 2);
-    if (vic.def.heat) vic.heat = Math.min(100, (vic.heat || 0) + spec.dmg * 1.2);
+    if (att.def.heat && att !== vic) att.heat = Math.min(100, (att.heat || 0) + spec.dmg * 1.5);
+    if (vic.def.heat) vic.heat = Math.min(100, (vic.heat || 0) + spec.dmg * 0.8);
     this.gainRage(vic, spec.dmg, now);
     vic.damage += spec.dmg;
     const power = ((spec.kb * KB_BASE + vic.damage * spec.ks * KB_GROW) / vic.def.weight) * (vic.def.money && now < (vic.goldUntil || 0) ? 0.85 : 1);
@@ -3409,7 +3415,7 @@ class GameScene extends Phaser.Scene {
 
   startChain(pl, now) {
     const a0 = pl.atk;
-    const base = pl.def.moves[a0.chainKey];
+    const base = (this.famMoves ? this.famMoves(pl) : pl.def.moves)[a0.chainKey];
     let m = base.chain[a0.chainIdx];
     if (now < pl.rageUntil) m = { ...m, startup: m.startup * 0.75, total: m.total * 0.75, active: m.active * 0.75 };
     pl.atk = { id: ++this.atkSeq, m, key: a0.chainKey, pose: m.pose, start: now, hitAt: now + m.startup, end: now + m.total, moveLock: now + m.startup + (m.active || 0), done: false, chainKey: a0.chainKey, chainIdx: a0.chainIdx + 1 };

@@ -45,7 +45,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `ln4.js` : le perso LN4 (pilote de F1 et joueur de badminton, combinaison noire et orange SANS logo de marque).
     VOLANT (`shuttle` : part vite puis freine, `LN.drag`), CHAMPAGNE (spéciale haut, `rise`), ARRÊT AU STAND
     (`type: 'pit'`, au sol : immobile 0,5 s puis PNEUS NEUFS `tyreUntil` 6 s = `spdMul` 1,25 et FEUX ÉTEINTS +30 %),
-    FEUX ÉTEINTS (lourd avant, `dashV`, 5 feux rouges). Branché sur `bzStep`/`bzProj`/`extraFx` (enveloppés).
+    FEUX ÉTEINTS (spéciale avant, `dashV`, 5 feux rouges). Branché sur `bzStep`/`bzProj`/`extraFx` (enveloppés).
   - `natanax.js` : le perso NATANAX (cape verte, veste beige, casquette « Peaky Blinders » à lames À LA MAIN, sans écusson).
     CASQUETTE (spéciale avant, projectile `cap`) : boomerang (`decel`, `fallAt`), touche à l'aller et au retour (`p.back`,
     `p.hits`), RATTRAPÉE au retour = recharge immédiate, ratée = posée au sol (`p.spent`) à ramasser, revient seule après
@@ -55,16 +55,18 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     type `fission`, 2 `neutron`) ; formule complète = RÉACTION EN CHAÎNE (`dSX`, `nuke`, préparation 0,42 s, consomme la
     formule au moment où elle part). ALLEY-OOP (spéciale haut, `dunk` : ballon `bball` lancé vers le bas).
     Branché sur `nxPick`/`nxStart`/`nxTimer` (`game.js`) et `bzStep`/`bzProj`/`bzHit`/`die`/`botInput` (enveloppés).
-  - `kits.js` : MOVESETS des 9 persos (grammaire commune, voir le doc « Brawl Proto — refonte du combat »).
-    Boutons LÉGER / LOURD / SPÉCIAL + direction (neutre, avant, haut, bas ; haut/bas seulement si on pousse franchement).
-    Clés : `nL` (neutre : enchaînement de 3 coups, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air ;
-    lourds `sH` `uH` `dH` (se chargent : `chargeMax`, LOURD tenu) ; en l'air `uAH` (retour) et `dAH` (plongeon) ;
-    spéciales `nS` `uS` `dS` (recharges `cd`, `onceAir` = une fois par saut). Chaque coup a un identifiant `mid` (usure).
-    Mécaniques signature : CHAUFFE + ÉRUPTION (Toro, `heat`, type `burst`), ÉTOILE PIÈGE + TÉLÉPORT (Astra, type
-    `blink`), PEAU DE PIERRE + MUR DE PRISON (MÉNÈS, id `grom`, `armor` sur ses lourds sauf la prise, projectile `wall`
-    texture `prisonwall` qui arrête les tirs `blockable` ; MICRO au bout d'un long fil = l'ancien grappin, texture `mic` ;
-    VENTRE AU CIEL = spéciale haut, posture `bellyUp` ; la prise affiche toujours « SUPLEX ! »), COUPABLE ! (Deadlulu, `mark` sur le livre, lourd renforcé), l'aigle (Denodoom), colère de Scarlett
-    (Nini), CTRL+Z (AdieuLescure). Vitesse, saut, poids et textes d'aide de chaque perso sont aussi ici.
+  - `kits.js` : MOVESETS, 2 boutons d'attaque façon Brawlhalla (doc « Brawl Proto — armes, spéciales et combos »).
+    COUP + direction = les coups de la FAMILLE D'ARME (`FAMILY` : poings, objet, allonge ; `tirLights` pour TIR), mêmes
+    chiffres pour toute la famille, le perso ne choisit que ses postures et effets (`lights(fam, P)`). Clés : `nL`
+    (enchaînement de 3, `chain`), `sL` `uL` `dL` au sol ; `sA` `uA` `dA` en l'air. SPÉCIAL + direction = coups du perso :
+    `nS` (sans direction), `sS` (avant), `dS` (bas), `uS` (haut = remonter, `recovery` = jamais de recharge en l'air ;
+    `uSA` = version en l'air si elle existe), `dAS` (en l'air bas = plongeon). `charge: true` = se charge en gardant
+    SPÉCIAL ; `relance: true` = si elle touche, on peut enchaîner sur un COUP. Chaque coup a un `mid` (usure).
+    TIR (Denodoom, fusil à pompe) : 2 cartouches (`ammo`, rechargement auto), `shot`, plombs `pellet` plus faibles de
+    loin, `recoil` en l'air. ALLONGE : `bounce` sur le coup bas en l'air. NATANAX sans casquette : COUPS des POINGS
+    (`bareAll`, `famMoves`). Astra et Nini (en réserve) gardent l'ancienne grammaire. Mécaniques : CHAUFFE + ÉRUPTION
+    (Toro), PEAU DE PIERRE (Ménès, `armor` sur ses spéciales sauf le SUPLEX), COUPABLE ! (Deadlulu : la marque renforce
+    sa prochaine SPÉCIALE), CTRL+Z (AdieuLescure). Vitesse, saut, poids, famille et textes d'aide aussi ici.
   - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
     aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
@@ -88,10 +90,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 
 ## Nouveaux persos et familles d'armes (demande de Noah, à appliquer à chaque nouveau perso)
 
-- Passage prévu à 2 boutons d'attaque façon Brawlhalla : COUP (les coups de la FAMILLE D'ARME, partagés) + SPÉCIAL
-  (sol : neutre, avant, bas ; haut = remonter au sol et en l'air ; air bas = plongeon). Plan détaillé dans le document
-  « Brawl Proto — armes, spéciales et combos » (à valider par Noah avant de coder). L'ancienne mécanique
-  LÉGER / LOURD / SPÉCIAL est gardée sur la branche `trois-boutons` (ne pas la supprimer).
+- 2 boutons d'attaque façon Brawlhalla : COUP (les coups de la FAMILLE D'ARME, partagés) + SPÉCIAL (sol : neutre,
+  avant, bas ; haut = remonter au sol et en l'air ; air bas = plongeon). Plan dans le document « Brawl Proto — armes,
+  spéciales et combos ». L'ancienne mécanique LÉGER / LOURD / SPÉCIAL est gardée sur la branche `trois-boutons`
+  (ne pas la supprimer).
 - Familles : POINGS (Toro, Ménès, AdieuLescure aux pieds), OBJET EN MAIN (BIGZINZIN, NATANAX), ALLONGE (Deadlulu, LN4),
   TIR (Denodoom au fusil à pompe ; pensée aussi pour pistolets, arc, magie). Nouvelle famille si aucune ne colle.
 - Pour chaque nouveau perso : 1) déterminer sa famille d'arme, ou PROPOSER plusieurs familles à Noah quand l'objet s'y
@@ -107,25 +109,25 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Défense façon Brawlhalla : pas de garde. Esquive au sol sur place (recharge 1 s), ESQUIVE + côté au sol = SPRINT (1,9 × la vitesse,
   sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
   après un coup qui touche (2 au sol, 1 en l'air).
-- 3 sauts (sol + 2 en l'air). Coup de retour = LOURD (+ haut) en l'air, une fois par saut, SANS chute impuissante ;
-  LOURD + bas en l'air = coup de pied plongeant. Rebord automatique. Être touché rend un saut (et les capacités de
+- 3 sauts (sol + 2 en l'air). Remonter = SPÉCIAL + haut, une fois par saut, SANS chute impuissante ;
+  SPÉCIAL + bas en l'air = plongeon. Rebord automatique. Être touché rend un saut (et les capacités de
   retour). On regarde du côté où l'on pousse le joystick.
-- Combos (`step` dans `game.js`) : un LÉGER qui touche peut être annulé par un autre coup (léger différent, lourd,
-  spéciale) ou par l'esquive de poursuite, 3 annulations au plus. USURE : un coup déjà dans les 5 derniers qui ont
+- Combos (`step` dans `game.js`) : un COUP qui touche peut être annulé par un autre coup (COUP différent ou spéciale)
+  ou par l'esquive de poursuite, 3 annulations au plus ; une spéciale `relance` qui touche peut être annulée par un COUP. USURE : un coup déjà dans les 5 derniers qui ont
   touché (`st0..4`) perd 10 % par répétition (40 % au plus) et ne garantit plus l'enchaînement à partir de 2 répétitions.
 - GRAVITY CANCEL : esquive aérienne sur place puis attaque dans les 0,3 s (`gcUntil`) = coup du sol en l'air.
-- 5 boutons : LÉGER, LOURD, SPÉCIAL (3 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21,
-  SPÉCIAL tenu = bit 22 (`shold`, le TABLEAU de NATANAX). Variantes de postures : suffixes `VARIANTS` (`_g` doré, `_n` sans casquette).
+- 4 boutons : COUP, SPÉCIAL (4 points autour = spéciales prêtes), SAUT, ESQUIVE. En ligne, SPÉCIAL = bit 21,
+  SPÉCIAL tenu = bit 18 (`hold`, charge) et bit 22 (`shold`, le TABLEAU de NATANAX). Variantes de postures : suffixes `VARIANTS` (`_g` doré, `_n` sans casquette).
 - CLAVIER (ordinateur, `KEYMAP`/`KB` dans `game.js`, touches physiques donc AZERTY = QWERTY) : ZQSD ou flèches, Espace
-  saut, J/X léger, K/C lourd (tenu = charge), I/V spéciale, L/Maj esquive, Échap quitter. `localInput()` mélange
+  saut, J/X COUP, K/C/I/V SPÉCIAL (tenu = charge), L/Maj esquive, Échap quitter. `localInput()` mélange
   écran tactile et clavier (hors ligne et en ligne) ; au clavier les boutons tactiles se cachent.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
   et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
   (sinon le corps physique garde un décalage d'une image).
 - Nini ne frappe jamais elle-même : Scarlett (le chat), le corgi, l'amour, la pivoine, le voyage (valise) et le vent
   (Autant en emporte le vent). Le corgi est sur SPÉCIAL + BAS avec une recharge, pas sur un coup de base.
-- Les coups « signature » (tirs, invocations, contres, CTRL+Z…) vont en LOURD ou en SPÉCIAL, jamais en LÉGER
-  (demande de Noah) : les légers sont des coups simples faits pour enchaîner.
+- Les coups « signature » (tirs, invocations, contres, CTRL+Z…) vont en SPÉCIAL, jamais en COUP (demande de Noah) :
+  les COUPS sont ceux de la famille d'arme, faits pour enchaîner. Seule exception : la famille TIR, dont l'arme tire.
 - ZONES DE KO (`BLAST_X` 740, `BLAST_TOP` 640, `BLAST_BOTTOM` 420 dans `game.js`, comme à l'origine) : côtés et haut,
   on n'y meurt QUE projeté par l'adversaire (encore étourdi + `KO_GRACE`, ou tenu par une prise) ; seul (saut, retour,
   élan d'un coup), on bute sur un mur invisible `WALL_IN` px avant. En bas on meurt toujours (retour raté).

@@ -11,7 +11,7 @@
 //  - FEUILLE A4 (SPÉCIAL) : une feuille qui plane en ondulant ; elle coupe et ralentit.
 // Tout l'état de jeu est en champs simples (money, goldUntil, invisUntil, decoyId, freezeUntil) : sauvegardé en ligne.
 // ===========================================================================
-const BZ = { max: 100, gain: 1.7, loss: 1, goldMs: 8000, dmgUp: 1.2, dmgDown: 0.85, invisMs: 6000, dist: 240 };
+const BZ = { max: 100, gain: 1.7, loss: 1, goldMs: 8000, dmgUp: 1.2, dmgDown: 0.85, invisMs: 6000, dist: 290 };
 
 CHARS.bigzinzin = {
   id: 'bigzinzin', name: 'BIGZINZIN', role: 'MONTEUR EN OR', roleCol: '#8fd0ff', cardCol: '#5c98d0',

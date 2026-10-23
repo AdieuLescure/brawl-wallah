@@ -1,6 +1,7 @@
 # Denodoom : cheveux très courts dégradés, barbe noire fournie, gros sourcils, anneau à l'oreille, lunettes
 # de soleil noires sur les yeux ; long manteau de cuir noir doublé de rouge, tenue noire, ceinture, rangers.
-# Accessoires : deux pistolets, sabre, poêle, ballon de handball.
+# Arme (famille TIR) : un fusil à pompe toujours en main (sg = angle du canon, sgFar = dans la main lointaine).
+# Autres accessoires : poêle, ballon de handball.
 import math
 from flat import *
 from toro_set import slab, fold, sub, add, mul, rot, FIST, P0, N0
@@ -27,6 +28,8 @@ HAND_FAR = {'k': K, 'W': hexc('#a8744c'), 'w': hexc('#8a5a38'), 'g': hexc('#5230
 GUN = {'k': K, 'G': hexc('#3a3846'), 'g': hexc('#5c5a6a'), 'h': hexc('#8a8898')}
 GUN_R = ['kkkkkkkkkk', 'khhhhhhhgk', 'kgGGGGGGGk', 'kGGkkkkkkk', 'kGGk......', 'kkkk......']
 GUN_L = [r[::-1] for r in GUN_R]
+SG_METAL = mat('#2a2c36', '#5a5e6c', '#8e94a4', '#c8ccd8')
+SG_WOOD = mat('#5a2e10', '#94541e', '#c47a3a')
 
 
 CLOTH = [(COAT, 0), (COAT_FAR, 1), (LINING, 0)]  # vêtements recolorés en équipe
@@ -175,6 +178,20 @@ def handball(c):
                                                                     ([add(c, (1, 1.4)), add(c, (4.2, 1)), add(c, (3.6, 3)), add(c, (1, 3.4))], 0)], base=1)]
 
 
+
+def shotgun(hand, ang):
+    """Fusil à pompe tenu à la main : canon dans la direction ang (degrés), crosse en bois derrière la main."""
+    u = (math.cos(math.radians(ang)), math.sin(math.radians(ang))); n = (-u[1], u[0])
+    it = []
+    # crosse (bois), un peu cassée vers le bas
+    c0 = add(hand, mul(u, -1)); c1 = add(add(hand, mul(u, -8)), mul(n, 1.6))
+    it.append(slab(c0, c1, 3.0, 4.6, SG_WOOD, base=1, dark=0.4))
+    # canon (métal) et pompe (bois) dessous
+    it.append(slab(add(hand, mul(u, -1.5)), add(hand, mul(u, 20)), 3.0, 2.6, SG_METAL, base=1, dark=0.4))
+    it.append(slab(add(add(hand, mul(u, 8)), mul(n, 1.6)), add(add(hand, mul(u, 14)), mul(n, 1.6)), 3.0, 3.0, SG_WOOD, base=1, dark=0.4))
+    return it
+
+
 def frame(p):
     P = (p['P'][0] + OX, p['P'][1]); lean = p.get('lean', 0)
     tor, T = torso(P, lean)
@@ -183,49 +200,72 @@ def frame(p):
     hN = T([(23.5, 43)])[0]; hF = T([(33.5, 43)])[0]
     sw = p.get('swing', 0)
     it = [back_tail(T, sw)]
-    it += arm(sF, add(sF, p['fA'][0]), add(sF, p['fA'][1]), True, p.get('fFist', 'R'), p.get('fGun', False))
+    wF = add(sF, p['fA'][1])
+    if p.get('sgFar') is not None: it += shotgun(wF, p['sgFar'])
+    it += arm(sF, add(sF, p['fA'][0]), wF, True, p.get('fFist', 'R'), p.get('fGun', False))
     it += leg(hF, add(hF, p['fL'][0]), add(hF, p['fL'][1]), True, p.get('fFoot', 1), p.get('fRot', 0))
     it += coat_tails(T, P, lean, sw, near=False)
     it += leg(hN, add(hN, p['nL'][0]), add(hN, p['nL'][1]), False, p.get('nFoot', -1), p.get('nRot', 0))
     it += coat_tails(T, P, lean, sw, near=True)
     it += tor
-    it += head(N, p.get('tilt', 0), p.get('expr', 'normal'))
+    hd_ = head(N, p.get('tilt', 0), p.get('expr', 'normal'))
     wr = add(sN, p['nA'][1])
-    if p.get('saber') is not None: it += saber(wr, p['saber'])
-    it += arm(sN, add(sN, p['nA'][0]), wr, False, p.get('nFist', 'R'), p.get('nGun', False))
-    if p.get('ball'): it += handball(add(sN, p['ball']))
-    if p.get('pan') is not None: it += pan(wr, p['pan'])
+    near = []
+    # le fusil dans la main proche (sauf si elle tient autre chose : il passe alors dans la main lointaine)
+    sg = p.get('sg', 40)
+    hold = sg is not None and p.get('sgFar') is None and p.get('pan') is None and not p.get('ball')
+    if hold and not p.get('sgFront'): near += shotgun(wr, sg)
+    near += arm(sN, add(sN, p['nA'][0]), wr, False, p.get('nFist', 'R'), p.get('nGun', False))
+    if hold and p.get('sgFront'): near += shotgun(wr, sg)
+    if p.get('ball'): near += handball(add(sN, p['ball']))
+    if p.get('pan') is not None: near += pan(wr, p['pan'])
+    # bras levé : derrière la tête (sinon il cache le visage)
+    it += (near + hd_) if p.get('armBehind') else (hd_ + near)
     return compose(it, W, H)
 
 
 POSES = {
-    'idle0': dict(P=(29, 40), nA=((1, 9.5), (6.5, 0)), fA=((4, 7.5), (8, 5)), nL=((-3, 8), (-5.5, 14)), fL=((5, 7), (7, 14))),
-    'idle1': dict(P=(29, 41), hd=(0, 1), swing=3, nA=((1, 9.5), (6.5, 1)), fA=((4, 7.5), (8, 6)), nL=((-3.5, 7.5), (-5.5, 13)), fL=((5.5, 6.5), (7, 13))),
-    'run0': dict(P=(30, 41), lean=10, swing=35, nA=((-5, 7), (-10, 11)), fA=((5, 6), (11, 2)), nFist='L',
+    'idle0': dict(P=(29, 40), nA=((1, 9.5), (6.5, 0)), fA=((4, 7.5), (8, 5)), sg=12, nL=((-3, 8), (-5.5, 14)), fL=((5, 7), (7, 14))),
+    'idle1': dict(P=(29, 41), hd=(0, 1), swing=3, nA=((1, 9.5), (6.5, 1)), fA=((4, 7.5), (8, 6)), sg=14, nL=((-3.5, 7.5), (-5.5, 13)), fL=((5.5, 6.5), (7, 13))),
+    'run0': dict(P=(30, 41), lean=10, swing=35, nA=((-5, 7), (-10, 11)), fA=((5, 6), (11, 2)), nFist='L', sg=160,
                  nL=((-7, 6), (-14, 10)), fL=((7, 4), (8, 13)), nRot=-30),
-    'run1': dict(P=(30, 40), lean=10, swing=45, nA=((5, 6), (11, 1)), fA=((-3, 8), (0, 14)), fFist='D',
+    'run1': dict(P=(30, 40), lean=10, swing=45, nA=((5, 6), (11, 1)), fA=((-3, 8), (0, 14)), fFist='D', sg=10,
                  nL=((10, 2), (13, 10)), fL=((-7, 6), (-15, 9)), fRot=-25, nFoot=1),
-    'jump': dict(P=(30, 41), lean=4, swing=-25, nA=((-3, 8), (2, 3)), fA=((5, 6), (9, 0)), nFist='U', fFist='U',
+    'jump': dict(P=(30, 41), lean=4, swing=-25, nA=((-3, 8), (2, 3)), fA=((5, 6), (9, 0)), nFist='U', fFist='U', sg=165,
                  nL=((3, 7), (-2, 13)), fL=((8, 4), (7, 12)), nRot=-35, fRot=10, nFoot=1),
     'hurt': dict(P=(27, 41), lean=-14, tilt=-14, hd=(-1, 1), expr='hurt', swing=-30, nA=((-6, 6), (-10, 0)), fA=((6, -3), (11, -7)),
-                 nFist='L', fFist='U', nL=((-2, 8), (-5, 15)), fL=((5, 8), (9, 15))),
-    # PISTOLETS : les deux bras tendus
-    'shoot': dict(P=(27, 41), lean=6, expr='shout', swing=10, nA=((10, 2), (19, 0)), fA=((9, 3), (17, -2)), nGun='R', fGun='R',
-                  nL=((-4, 7), (-8, 14)), fL=((6, 6), (8, 14))),
-    # SABRE : estocade vers l'avant
-    'saber': dict(P=(27, 42), lean=14, hd=(1, 1), expr='shout', swing=25, nA=((10, 3), (18, 2)), fA=((-2, 8), (-5, 13)), fFist='D', saber=-8,
-                  nL=((-7, 6), (-13, 12)), fL=((9, 4), (12, 12))),
+                 nFist='L', fFist='U', sg=200, nL=((-2, 8), (-5, 15)), fL=((5, 8), (9, 15))),
+    # FUSIL À POMPE : épaulé, tir devant
+    'gun': dict(P=(27, 41), lean=6, expr='shout', swing=10, nA=((9, 1), (17, -1)), fA=((8, 3), (15, -1)), sg=-3, fFist='R',
+                nL=((-4, 7), (-8, 14)), fL=((6, 6), (8, 14))),
+    # tir vers le haut
+    'gunUp': dict(P=(28, 41), lean=-6, tilt=-6, expr='shout', swing=0, armBehind=True, nA=((10, -4), (20, -12)), fA=((8, -3), (15, -9)), sg=-50, fFist='R',
+                  nL=((-4, 8), (-7, 14)), fL=((6, 6), (9, 14))),
+    # tir vers le sol devant lui (ricochet)
+    'gunDown': dict(P=(28, 45), lean=14, hd=(1, 1), expr='shout', swing=20, nA=((9, 4), (17, 9)), fA=((8, 5), (14, 10)), sg=30, fFist='R',
+                    nL=((-5, 5), (-10, 10)), fL=((8, 3), (10, 10))),
+    # en l'air : tir droit vers le bas (le recul le fait remonter)
+    'gunAirDown': dict(P=(30, 38), lean=0, swing=-35, nA=((4, 8), (6, 16)), fA=((5, 7), (8, 14)), sg=88, fFist='R',
+                       nL=((-4, 6), (-8, 11)), fL=((5, 6), (9, 11)), nRot=-30, fRot=20),
+    # COUP DE CROSSE : le fusil retourné, crosse en avant
+    'butt': dict(P=(25, 42), lean=16, hd=(2, 0), expr='shout', swing=30, nA=((10, 5), (19, 5)), fA=((-2, 8), (-5, 13)), sg=188, sgFront=True, fFist='D',
+                 nL=((-8, 5), (-14, 11)), fL=((10, 3), (13, 11))),
+    # COUP DE POÊLE : poêle en avant, le fusil dans l'autre main
+    'panHit': dict(P=(26, 42), lean=16, hd=(1, 0), expr='shout', swing=30, nA=((11, 1), (19, 0)), fA=((-2, 8), (-4, 13)), pan=-10, sgFar=100, fFist='D',
+                   nL=((-8, 5), (-14, 11)), fL=((10, 3), (13, 11))),
     # AIGLE : bras levé, l'aigle part de la manche
-    'summon': dict(P=(29, 40), lean=-4, tilt=-4, expr='shout', fA=((3, -8), (5, -15)), nA=((1, 9.5), (6.5, 0)), fFist='U',
+    'summon': dict(P=(29, 40), lean=-4, tilt=-4, expr='shout', fA=((3, -8), (5, -15)), nA=((1, 9.5), (6.5, 0)), fFist='U', sg=40,
                    nL=((-3, 8), (-5.5, 14)), fL=((5, 7), (7, 14))),
     # HERMINE : la main frappe le sol
-    'pointDown': dict(P=(29, 44), lean=18, hd=(1, 0), expr='shout', swing=-10, nA=((6, 6), (9, 14)), fA=((3, 7), (5, 13)), nFist='D', fFist='D',
+    'pointDown': dict(P=(29, 44), lean=18, hd=(1, 0), expr='shout', swing=-10, nA=((6, 6), (9, 14)), fA=((3, 7), (5, 13)), nFist='D', fFist='D', sg=100,
                       nL=((-6, 4), (-7, 11)), fL=((8, 3), (9, 10))),
-    # HANDBALL : ballon armé derrière l'épaule
-    'charge': dict(P=(30, 41), lean=-8, tilt=-4, swing=-15, nA=((-7, 3), (-9, -6)), fA=((7, 4), (13, 1)), nFist='U', ball=(-9.5, -15),
+    # HANDBALL : ballon armé derrière l'épaule, le fusil dans l'autre main
+    'charge': dict(P=(30, 41), lean=-8, tilt=-4, swing=-15, nA=((-7, 3), (-9, -6)), fA=((7, 4), (13, 1)), nFist='U', ball=(-9.5, -15), sgFar=20,
                    nL=((-5, 7), (-9, 14)), fL=((7, 6), (9, 14))),
+    'throwBall': dict(P=(26, 42), lean=14, hd=(1, 0), expr='shout', swing=30, nA=((10, 2), (20, 0)), fA=((-2, 8), (-5, 13)), nFist='O' if False else 'R', sgFar=100, sg=None,
+                      nL=((-6, 7), (-11, 13)), fL=((8, 5), (11, 13))),
     # POÊLE : plongeon en l'air, poêle vers le bas
-    'plungePan': dict(P=(30, 38), lean=6, swing=-35, nA=((5, 6), (6, 13)), fA=((-4, 5), (-8, 0)), fFist='UL', nFist='D', pan=90,
+    'plungePan': dict(P=(30, 38), lean=6, swing=-35, nA=((5, 6), (6, 13)), fA=((-4, 5), (-8, 0)), fFist='UL', nFist='D', pan=90, sgFar=200,
                       nL=((-2, 7), (-4, 13)), fL=((5, 6), (6, 14)), fRot=40, nRot=-20),
 }
 

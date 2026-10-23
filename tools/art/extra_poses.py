@@ -36,10 +36,10 @@ PRE = {
                          nL=((-3, 8), (-5, 15)), fL=((9, 1), (5, 8)), fRot=-20),
     },
     'denodoom': {
-        'saberPre': dict(P=(30, 41), lean=-8, tilt=-4, expr='shout', swing=-10, nA=((-6, 2), (-8, -7)), fA=((6, 5), (11, 3)), saber=-150,
-                         nL=((-5, 7), (-9, 14)), fL=((7, 6), (9, 14))),
-        'summonPre': dict(P=(29, 43), lean=8, expr='shout', fA=((3, 6), (6, 0)), nA=((1, 9.5), (6.5, 0)), fFist='U',
+        'summonPre': dict(P=(29, 43), lean=8, expr='shout', fA=((3, 6), (6, 0)), nA=((1, 9.5), (6.5, 0)), fFist='U', sg=40,
                           nL=((-3, 7), (-6, 12)), fL=((6, 5), (8, 12))),
+        'chargePre': dict(P=(30, 42), lean=-4, swing=-5, nA=((-4, 6), (-8, 2)), fA=((6, 5), (11, 3)), nFist='U', ball=(-8, -8), sgFar=30,
+                          nL=((-4, 8), (-7, 14)), fL=((6, 6), (9, 14))),
     },
     'adieulescure': {
         'kickPre': dict(P=(29, 40), lean=-6, expr='shout', nA=((-3, 8), (-6, 3)), fA=((5, 6), (10, 3)), nFist='L',
@@ -73,17 +73,6 @@ MOVES = {
         # POWER CHORD : guitare plantée dans le sol devant lui
         'chord': dict(P=(27, 45), lean=20, hd=(2, 1), expr='shout', flow=2, nA=((6, 6), (11, 11)), fA=((5, 7), (10, 12)), nFist='D', fFist='D',
                       gtr=((12, 9), (18, 30)), nL=((-6, 5), (-12, 11)), fL=((8, 3), (11, 11))),
-    },
-    'denodoom': {
-        # FENTE : escrime, bras armé tendu, jambe arrière allongée
-        'lunge': dict(P=(24, 45), lean=18, hd=(2, 1), expr='shout', swing=30, nA=((12, 1), (25, 0)), fA=((-6, 4), (-11, -3)), fFist='U', saber=0,
-                      nL=((-10, 4), (-19, 9)), fL=((11, 2), (15, 11))),
-        # BALAYAGE AU SABRE : accroupi, lame au ras du sol
-        'sweepSaber': dict(P=(27, 48), lean=16, hd=(1, 0), expr='shout', swing=30, nA=((9, 6), (17, 11)), fA=((3, 7), (7, 12)), saber=15, fFist='D',
-                           nL=((-5, 4), (-12, 6)), fL=((9, 2), (13, 9))),
-        # SABRE MONTANT : la lame part vers le ciel
-        'saberUp': dict(P=(28, 40), lean=-8, tilt=-6, expr='shout', swing=20, nA=((8, -3), (13, -12)), fA=((3, 8), (7, 4)), saber=-80,
-                        nL=((-3, 8), (-5, 15)), fL=((6, 5), (9, 12))),
     },
     'adieulescure': {
         # JONGLE : le ballon remonte sur le cou-de-pied
