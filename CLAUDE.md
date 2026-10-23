@@ -86,6 +86,19 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - `tools/build.py` : assemble `index.html` et `relay.js` — **toujours relancer après une modification**, puis committer
   les fichiers générés (Cloudflare ne lance pas de build).
 
+## Nouveaux persos et familles d'armes (demande de Noah, à appliquer à chaque nouveau perso)
+
+- Passage prévu à 2 boutons d'attaque façon Brawlhalla : COUP (les coups de la FAMILLE D'ARME, partagés) + SPÉCIAL
+  (sol : neutre, avant, bas ; haut = remonter au sol et en l'air ; air bas = plongeon). Plan détaillé dans le document
+  « Brawl Proto — armes, spéciales et combos » (à valider par Noah avant de coder). L'ancienne mécanique
+  LÉGER / LOURD / SPÉCIAL est gardée sur la branche `trois-boutons` (ne pas la supprimer).
+- Familles : POINGS (Toro, Ménès, AdieuLescure aux pieds), OBJET EN MAIN (BIGZINZIN, NATANAX), ALLONGE (Deadlulu, LN4),
+  TIR (Denodoom au fusil à pompe ; pensée aussi pour pistolets, arc, magie). Nouvelle famille si aucune ne colle.
+- Pour chaque nouveau perso : 1) déterminer sa famille d'arme, ou PROPOSER plusieurs familles à Noah quand l'objet s'y
+  prête ; 2) ses spéciales (3 au sol + remonter + plongeon, au moins une « relance » qui permet de repartir sur des
+  COUPS) ; 3) ses combos à lui (simples, moyens, durs) qui mêlent les COUPS de sa famille et ses spéciales, en plus des
+  combos partagés par la famille.
+
 ## Règles à respecter
 
 - La simulation doit rester **déterministe** (en ligne, les deux téléphones rejouent la même partie) :
