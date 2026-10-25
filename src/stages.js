@@ -17,8 +17,8 @@ function stageFromCode(code) {
 // et zoome, chaque plan ne bouge et ne grossit qu'une fraction f de la caméra (0 = infiniment loin, 1 = comme le
 // terrain) : voir updateCamera (anim.js). Le dessin complet (tous les plans) reste dans 'key' pour les aperçus.
 const PLANES = {
-  night: { key: 'bg', scale: PX, list: [{ id: 'sky', f: 0.06 }, { id: 'hills', f: 0.25 }, { id: 'city', f: 0.5 }] },
-  dune: { key: 'bg_dune', scale: PX, list: [{ id: 'sky', f: 0.05 }, { id: 'far', f: 0.22 }, { id: 'mid', f: 0.42 }, { id: 'near', f: 0.7 }] },
+  night: { key: 'bg', scale: PX2, list: [{ id: 'sky', f: 0.06 }, { id: 'hills', f: 0.25 }, { id: 'city', f: 0.5 }] },
+  dune: { key: 'bg_dune', scale: PX2, list: [{ id: 'sky', f: 0.05 }, { id: 'far', f: 0.22 }, { id: 'mid', f: 0.42 }, { id: 'near', f: 0.7 }] },
 };
 const PLANES_BUILT = {};
 
@@ -181,10 +181,10 @@ Object.assign(GameScene.prototype, {
     if (gala) this.galaAmbience();
   },
 
-  // ----- dessin du désert (en pixels d'art, agrandis x4) -----
+  // ----- dessin du désert (pixel art fin : 1 pixel d'art = PX2 = 2 pixels du jeu) -----
   buildDune() {
-    const w = Math.ceil(this.W / PX), h = Math.ceil(this.H / PX);
-    const horizon = Math.round(L.baseY / PX) + 6;
+    const w = Math.ceil(this.W / PX2), h = Math.ceil(this.H / PX2);
+    const horizon = Math.round(L.baseY / PX2) + 12;
     // en plans pour la parallaxe : ciel (lunes, soleil), dunes lointaines, dunes du milieu, avant-plan
     this.makePlanes('bg_dune', w, h, ['sky', 'far', 'mid', 'near'], (c, sec) => {
       let seed = 11; // (remis à zéro à chaque passage : tous les plans tirent les mêmes hasards)
@@ -193,8 +193,8 @@ Object.assign(GameScene.prototype, {
       // ciel de fin de journée : indigo en haut, braise, ambre à l'horizon (par bandes)
       const stops = [[22, 14, 44], [86, 30, 52], [196, 84, 42], [244, 168, 86]];
       for (let y = 0; y < h; y++) {
-        const t = Math.min(y / (horizon - 4), 1);
-        const q = Math.floor(t * 12) / 12;
+        const t = Math.min(y / (horizon - 8), 1);
+        const q = Math.floor(t * 24) / 24;
         const seg = Math.min(2, Math.floor(q * 3));
         const u = q * 3 - seg;
         const a = stops[seg], b = stops[seg + 1];
@@ -202,43 +202,45 @@ Object.assign(GameScene.prototype, {
         c.fillRect(0, y, w, 1);
       }
       // quelques étoiles tout en haut
-      for (let i = 0; i < w * 0.12; i++) {
-        c.fillStyle = '#ffd9b0';
+      for (let i = 0; i < w * 0.16; i++) {
+        c.fillStyle = rnd() > 0.5 ? '#ffd9b0' : '#c8a0a0';
         c.fillRect(Math.floor(rnd() * w), Math.floor(rnd() * horizon * 0.22), 1, 1);
       }
       // deux lunes
-      const disc = (cx, cy, r, col, edge) => {
+      const disc = (cx, cy, r, col, edge, ew) => {
         for (let y = -r; y <= r; y++)
           for (let x = -r; x <= r; x++)
             if (x * x + y * y <= r * r) {
-              c.fillStyle = x * x + y * y > (r - 1.2) * (r - 1.2) ? edge : col;
+              c.fillStyle = x * x + y * y > (r - (ew || 2.2)) * (r - (ew || 2.2)) ? edge : col;
               c.fillRect(cx + x, cy + y, 1, 1);
             }
       };
       const m1x = Math.round(w * 0.18), m1y = Math.round(horizon * 0.32);
-      disc(m1x, m1y, 7, '#f4e6d2', '#d8c2a8');
-      c.fillStyle = '#d2b89c';
-      [[-2, -1, 3, 2], [2, 2, 2, 2], [-1, 3, 2, 1]].forEach(([x, y, ww, hh]) => c.fillRect(m1x + x, m1y + y, ww, hh));
-      disc(Math.round(w * 0.29), Math.round(horizon * 0.24), 3, '#ead6c0', '#c8ae94');
+      disc(m1x, m1y, 14, '#f4e6d2', '#d8c2a8');
+      [[-4, -2, 3, '#d2b89c'], [5, 5, 3, '#d8bea2'], [-2, 7, 2, '#d2b89c'], [6, -6, 2, '#dcc4a8'], [-8, 4, 1, '#d2b89c']].forEach(([x, y, r, col]) => disc(m1x + x, m1y + y, r, col, '#c4a88c', 0.8));
+      disc(Math.round(w * 0.29), Math.round(horizon * 0.24), 6, '#ead6c0', '#c8ae94', 1.5);
       // grand soleil bas, voilé par la poussière
+      c.globalAlpha = 0.14;
+      disc(Math.round(w * 0.62), horizon - 32, 54, '#ffd8a0', '#ffd8a0');
       c.globalAlpha = 0.22;
-      disc(Math.round(w * 0.62), horizon - 16, 22, '#ffd8a0', '#ffd8a0');
+      disc(Math.round(w * 0.62), horizon - 32, 42, '#ffd8a0', '#ffd8a0');
       c.globalAlpha = 1;
-      disc(Math.round(w * 0.62), horizon - 16, 14, '#ffe2a8', '#f8c070');
+      disc(Math.round(w * 0.62), horizon - 32, 28, '#ffe2a8', '#f8c070', 3);
+      for (let k = 0; k < 4; k++) { c.fillStyle = 'rgba(232,150,90,0.35)'; c.fillRect(Math.round(w * 0.62) - 26 + k * 3, horizon - 32 + 8 + k * 5, 52 - k * 6, 1); } // voiles de poussière
       // dunes irrégulières : face raide à gauche (à l'ombre), longue pente douce vers la droite,
-      // tailles et écarts au hasard, petites bosses sur les crêtes
+      // tailles et écarts au hasard, petites bosses et crête éclairée sur 2 pixels
       const layer = (base, minH, maxH, minW, maxW, col, crest, shade) => {
         const top = new Array(w + 1).fill(base), lee = new Array(w + 1).fill(false);
         let x0 = -Math.floor(rnd() * maxW * 0.5);
         while (x0 < w) {
           const dw = minW + Math.floor(rnd() * (maxW - minW)), dh = minH + rnd() * (maxH - minH);
-          const cr = Math.max(3, Math.round(dw * (0.22 + rnd() * 0.16))); // la crête est près du bord gauche
+          const cr = Math.max(6, Math.round(dw * (0.22 + rnd() * 0.16))); // la crête est près du bord gauche
           const wob = rnd() * 6;
           for (let i = 0; i <= dw; i++) {
             const xx = x0 + i;
             if (xx < 0 || xx > w) continue;
             const f = i < cr ? Math.sin((Math.PI / 2) * (i / cr)) : 0.5 * (1 + Math.cos((Math.PI * (i - cr)) / (dw - cr)));
-            const bump = Math.sin(i * 0.45 + wob) * 0.6 * f;
+            const bump = Math.sin(i * 0.225 + wob) * 1.2 * f;
             const y = Math.round(base - dh * f - bump);
             if (y < top[xx]) { top[xx] = y; lee[xx] = i < cr; }
           }
@@ -251,139 +253,154 @@ Object.assign(GameScene.prototype, {
           if (lee[xx]) {
             c.fillStyle = shade;
             c.fillRect(xx, t, 1, Math.max(1, Math.round((base - t) * 0.65)));
+            if (xx % 2 === 0) c.fillRect(xx, t + Math.max(1, Math.round((base - t) * 0.65)), 1, 1); // bord tramé de l'ombre
           } else {
             c.fillStyle = crest;
             c.fillRect(xx, t, 1, 1);
+            if (xx % 2 === 0) c.fillRect(xx, t + 1, 1, 1);
           }
         }
       };
       // très loin, dans la brume
       sec('far');
-      layer(horizon - 6, 3, 9, 30, 70, '#d48a4c', '#e8a868', '#c07a44');
-      layer(horizon - 2, 3, 8, 22, 55, '#c8783e', '#f2b06a', '#a65c30');
+      layer(horizon - 12, 6, 18, 60, 140, '#d48a4c', '#e8a868', '#c07a44');
+      layer(horizon - 4, 6, 16, 44, 110, '#c8783e', '#f2b06a', '#a65c30');
       sec('mid');
-      layer(horizon + 5, 4, 9, 26, 60, '#b4642f', '#e2a05c', '#8e4a24');
-      layer(horizon + 13, 3, 8, 30, 70, '#94502a', '#c88448', '#743a1e');
+      layer(horizon + 10, 8, 18, 52, 120, '#b4642f', '#e2a05c', '#8e4a24');
+      layer(horizon + 26, 6, 16, 60, 140, '#94502a', '#c88448', '#743a1e');
       // avant-plan : dunes dans l'ombre, de plus en plus sombres vers le bas, rides de vent
-      const deep = [['#6e3620', '#8a4a2a', '#5a2a18'], ['#5a2a18', '#743c22', '#48200f'], ['#46200f', '#5e301a', '#381809'], ['#36180b', '#4a2414', '#2a1207'], ['#2a1208', '#3a1c0e', '#200d05']];
       sec('near');
-      let base = horizon + 22, k = 0;
-      while (base < h + 20) {
+      const deep = [['#6e3620', '#8a4a2a', '#5a2a18'], ['#5a2a18', '#743c22', '#48200f'], ['#46200f', '#5e301a', '#381809'], ['#36180b', '#4a2414', '#2a1207'], ['#2a1208', '#3a1c0e', '#200d05']];
+      let base = horizon + 44, k = 0;
+      while (base < h + 40) {
         const d = deep[Math.min(k, deep.length - 1)];
-        layer(base, 2 + k, 5 + k * 2, 40 + k * 14, 90 + k * 26, d[0], d[1], d[2]);
-        // rides
-        for (let r = 0; r < w * 0.5; r++) {
-          const rx = Math.floor(rnd() * w), ry = base + 4 + Math.floor(rnd() * (14 + k * 8));
-          if (ry < h) { c.fillStyle = d[1]; c.fillRect(rx, ry, 2 + Math.floor(rnd() * 3), 1); }
+        layer(base, 4 + 2 * k, 10 + k * 4, 80 + k * 28, 180 + k * 52, d[0], d[1], d[2]);
+        // rides de vent : traits fins, un peu courbés
+        for (let r = 0; r < w * 0.7; r++) {
+          const rx = Math.floor(rnd() * w), ry = base + 8 + Math.floor(rnd() * (28 + k * 16));
+          if (ry < h) {
+            const len = 4 + Math.floor(rnd() * 8);
+            c.fillStyle = d[1];
+            c.fillRect(rx, ry, len, 1);
+            c.fillStyle = d[2];
+            c.fillRect(rx + 1, ry + 1, len - 2, 1);
+          }
         }
-        base += 16 + k * 8;
+        base += 32 + k * 16;
         k++;
       }
-    }, undefined, 'dune:' + w + 'x' + h);
+    }, 'raw', 'dune2:' + w + 'x' + h);
     // plateau principal : roche sombre (contraste avec le sable du fond), coiffée d'une couche de sable
-    const tw = Math.round(L.mainW / PX);
-    mkCanvas(this, 'main_dune', tw, 14, (c) => {
-      for (let y = 0; y < 14; y++)
+    const tw = Math.round(L.mainW / PX2);
+    mkCanvas(this, 'main_dune', tw, 28, (c) => {
+      for (let y = 0; y < 28; y++)
         for (let x = 0; x < tw; x++) {
           let col;
-          const drift = 2 + (Math.sin(x * 0.21) > 0.6 ? 1 : 0); // le sable déborde un peu par endroits
+          const drift = 4 + (Math.sin(x * 0.105) > 0.6 ? 2 : 0) + (Math.sin(x * 0.37) > 0.8 ? 1 : 0); // le sable déborde un peu
           if (y === 0) col = (x * 5) % 9 === 0 ? '#fff0c0' : '#f8d490';
-          else if (y < drift) col = (x + Math.floor(x / 6)) % 5 === 0 ? '#d09a58' : '#e4b46c';
+          else if (y === 1) col = '#f0c47e';
+          else if (y < drift) col = (x * 7 + y * 3) % 11 === 0 ? '#d09a58' : (x + y) % 7 === 0 ? '#f2c27a' : '#e4b46c';
           else if (y === drift) col = '#1c1824';
-          else if (y === 13) col = '#141018';
+          else if (y === 27) col = '#141018';
+          else if (y === 26) col = '#1e1a26';
           else {
-            const band = Math.floor((y - 2 + Math.round(Math.sin(x * 0.15) * 1.2)) / 3) % 2;
+            const band = Math.floor((y - 4 + Math.round(Math.sin(x * 0.075) * 2.4)) / 6) % 2;
             col = band ? '#3a3346' : '#463e56';
-            if ((x * 13 + y * 7) % 19 === 0) col = '#262030';
-            if (y > 4 && (x + y * 3) % 23 === 0) col = '#6a5e7e';
+            if ((x - y * 2 + 1000) % 37 === 0 || (x + y * 3) % 53 === 0) col = '#262030'; // fissures
+            if (y > 8 && (x * 13 + y * 7) % 31 === 0) col = '#6a5e7e';
+            if (y === drift + 1) col = '#2a2434';
           }
           c.fillStyle = col;
           c.fillRect(x, y, 1, 1);
         }
-    });
+    }, 'raw');
     // plateformes : dalles de pierre sombre gravées
-    mkCanvas(this, 'soft_dune', 50, 5, (c) => {
-      for (let y = 0; y < 5; y++)
-        for (let x = 0; x < 50; x++) {
-          let col = y === 0 ? '#b4a6c6' : y === 4 ? '#18141e' : '#4a4058';
-          if (y === 1) col = '#6e6084';
-          if (y === 2 && x % 8 === 3) col = '#2a2434';
-          if (y === 2 && x % 8 === 4) col = '#8a7ca0';
-          if (x === 0 || x === 49) col = '#2a2434';
+    mkCanvas(this, 'soft_dune', 100, 10, (c) => {
+      for (let y = 0; y < 10; y++)
+        for (let x = 0; x < 100; x++) {
+          let col = y === 0 ? '#d0c4e0' : y === 1 ? '#b4a6c6' : y === 2 ? '#6e6084' : y === 8 ? '#2a2434' : y === 9 ? '#18141e' : '#4a4058';
+          if (y >= 4 && y <= 6 && x % 16 === 6) col = '#2a2434';
+          if (y >= 4 && y <= 6 && x % 16 === 7) col = '#8a7ca0';
+          if (y === 5 && x % 16 > 8 && x % 16 < 13) col = '#3a3248';
+          if ((x * 7 + y * 11) % 29 === 0 && y > 2 && y < 8) col = '#5a4e6c';
+          if (x === 0 || x === 99) col = '#2a2434';
           c.fillStyle = col;
           c.fillRect(x, y, 1, 1);
         }
-    });
-    // ver des sables : énorme corps annelé qui sort du sable, gueule ronde ouverte en trois lèvres
-    mkCanvas(this, 'worm', 48, 72, (c) => {
+    }, 'raw');
+    // ver des sables : énorme corps annelé qui sort du sable, gueule ronde ouverte en trois lèvres (2 x plus fin)
+    const S = 2;
+    mkCanvas(this, 'worm', 48 * S, 72 * S, (c) => {
       const px = (x, y, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), 1, 1); };
       const OUT = '#2e140a';
       const body = [];
-      for (let y = 71; y >= 16; y--) {
-        const t = (71 - y) / 55;
-        const cx = 22 + 5 * Math.sin(t * 2.2 + 0.3), r = 11 - t * 1.5;
-        body.push([y, cx, r]);
+      for (let y = 72 * S - 1; y >= 16 * S; y--) {
+        const t = (72 * S - 1 - y) / (55 * S);
+        body.push([y, (22 + 5 * Math.sin(t * 2.2 + 0.3)) * S, (11 - t * 1.5) * S]);
       }
-      // contour
       body.forEach(([y, cx, r]) => { for (let x = -r - 1; x <= r + 1; x++) px(cx + x, y, OUT); });
       body.forEach(([y, cx, r]) => {
         for (let x = -r; x <= r; x++) {
           const u = x / r;
-          let col = u > 0.45 ? '#c8935e' : u > -0.1 ? '#9a6840' : u > -0.6 ? '#7a4e30' : '#5a3420';
-          // anneaux : lignes courbes (cylindre)
-          const ring = (y + Math.round(Math.sqrt(Math.max(0, 1 - u * u)) * 2.2)) % 5;
+          let col = u > 0.6 ? '#d8a670' : u > 0.3 ? '#c8935e' : u > -0.1 ? '#9a6840' : u > -0.6 ? '#7a4e30' : '#5a3420';
+          // anneaux : lignes courbes (cylindre), un trait sombre et un reflet
+          const ring = Math.round(y + Math.sqrt(Math.max(0, 1 - u * u)) * 2.2 * S) % (5 * S);
           if (ring === 0) col = u > 0.45 ? '#8e5c38' : '#4a2a18';
-          else if (ring === 1 && u > 0.2) col = '#dcae78';
+          else if (ring === 1) col = u > 0.45 ? '#a87048' : '#5a3420';
+          else if (ring === 2 && u > 0.2) col = '#ecc08a';
+          if ((x * 7 + y * 3) % 23 === 0 && ring > 3) col = u > 0 ? '#b0804e' : '#6a4028'; // grain de la peau
           px(cx + x, y, col);
         }
       });
       // gueule (vue un peu de dessus) : lèvre, trois volets ouverts, couronnes de dents
-      const mx = 22 + 5 * Math.sin(2.5), my = 15;
+      const mx = (22 + 5 * Math.sin(2.5)) * S, my = 15 * S;
       const flap = (ax, ay, bx, by, tx, ty) => {
         for (let y = Math.min(ay, by, ty) - 1; y <= Math.max(ay, by, ty) + 1; y++)
           for (let x = Math.min(ax, bx, tx) - 1; x <= Math.max(ax, bx, tx) + 1; x++) {
             const s1 = (bx - ax) * (y - ay) - (by - ay) * (x - ax), s2 = (tx - bx) * (y - by) - (ty - by) * (x - bx), s3 = (ax - tx) * (y - ty) - (ay - ty) * (x - tx);
-            if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) px(x, y, y < (ay + ty) / 2 ? '#b07a4c' : '#8a5a36');
+            if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) px(x, y, y < (ay + ty) / 2 ? ((x + y) % 5 === 0 ? '#c08a58' : '#b07a4c') : '#8a5a36');
           }
       };
-      flap(mx - 12, my + 1, mx - 4, my - 4, mx - 19, my - 12);
-      flap(mx + 12, my + 1, mx + 4, my - 4, mx + 19, my - 12);
-      flap(mx - 4, my - 4, mx + 4, my - 4, mx, my - 15);
-      for (let y = -6; y <= 6; y++)
-        for (let x = -13; x <= 13; x++) {
-          const d = Math.hypot(x / 13, y / 6);
+      flap(mx - 12 * S, my + S, mx - 4 * S, my - 4 * S, mx - 19 * S, my - 12 * S);
+      flap(mx + 12 * S, my + S, mx + 4 * S, my - 4 * S, mx + 19 * S, my - 12 * S);
+      flap(mx - 4 * S, my - 4 * S, mx + 4 * S, my - 4 * S, mx, my - 15 * S);
+      for (let y = -6 * S; y <= 6 * S; y++)
+        for (let x = -13 * S; x <= 13 * S; x++) {
+          const d = Math.hypot(x / (13 * S), y / (6 * S));
           if (d > 1) continue;
-          const tooth = Math.floor(((Math.atan2(y / 6, x / 13) + Math.PI) / (Math.PI * 2)) * 18) % 2 === 0;
+          const tooth = Math.floor(((Math.atan2(y / 6, x / 13) + Math.PI) / (Math.PI * 2)) * 36) % 2 === 0;
           let col;
-          if (d > 0.86) col = OUT;
-          else if (d > 0.72) col = '#a8764c';
-          else if (d > 0.56) col = tooth ? '#e6d2b0' : '#3a140c';
-          else if (d > 0.4) col = '#3a120c';
+          if (d > 0.92) col = OUT;
+          else if (d > 0.76) col = d > 0.84 ? '#c08a5a' : '#a8764c';
+          else if (d > 0.58) col = tooth ? (d > 0.66 ? '#f2e2c4' : '#e6d2b0') : '#3a140c';
+          else if (d > 0.42) col = '#3a120c';
           else if (d > 0.3) col = tooth ? '#b89a7c' : '#24080a';
           else col = '#120404';
           px(mx + x, my + y, col);
         }
-    });
-    // ornithoptère : fuselage, cockpit, deux paires d'ailes battantes (2 images)
+    }, 'raw');
+    // ornithoptère : fuselage, cockpit, deux paires d'ailes battantes (2 images, 2 x plus fin)
     [0, 1].forEach((f) =>
-      mkCanvas(this, 'thopter' + f, 30, 14, (c) => {
-        const r = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(x, y, ww, hh); };
-        // ailes arrière (derrière le fuselage), plus pâles
-        if (f) { r(6, 1, 11, 1, '#b8a894'); r(8, 2, 8, 1, '#b8a894'); r(12, 3, 2, 3, '#4a4450'); }
-        else { r(6, 11, 11, 1, '#b8a894'); r(8, 10, 8, 1, '#b8a894'); r(12, 8, 2, 3, '#4a4450'); }
+      mkCanvas(this, 'thopter' + f, 60, 28, (c) => {
+        const r = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(x * 2, y * 2, ww * 2, hh * 2); };
+        const p = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(x, y, ww, hh); };
+        // ailes arrière (derrière le fuselage), plus pâles, nervurées
+        if (f) { r(6, 1, 11, 1, '#b8a894'); r(8, 2, 8, 1, '#b8a894'); r(12, 3, 2, 3, '#4a4450'); for (let x = 14; x < 34; x += 4) p(x, 2, 1, 4, '#968876'); }
+        else { r(6, 11, 11, 1, '#b8a894'); r(8, 10, 8, 1, '#b8a894'); r(12, 8, 2, 3, '#4a4450'); for (let x = 14; x < 34; x += 4) p(x, 20, 1, 4, '#968876'); }
         // fuselage
         r(1, 6, 4, 1, '#2a2430'); r(4, 5, 16, 4, '#2a2430'); r(5, 6, 14, 1, '#6a6070'); r(20, 5, 5, 4, '#2a2430');
-        r(21, 5, 3, 2, '#ffcf7a'); r(22, 5, 1, 1, '#fff2c8'); r(25, 6, 2, 2, '#2a2430');
+        p(10, 11, 28, 1, '#8a8090'); p(10, 16, 28, 1, '#1a1620'); for (let x = 12; x < 38; x += 6) p(x, 12, 1, 4, '#3a3440');
+        r(21, 5, 3, 2, '#ffcf7a'); p(43, 10, 3, 1, '#fff2c8'); p(42, 12, 1, 1, '#fff2c8'); r(25, 6, 2, 2, '#2a2430');
         r(8, 9, 1, 2, '#2a2430'); r(17, 9, 1, 2, '#2a2430');
         // ailes avant
-        if (f) { r(9, 0, 13, 1, '#f0e6d8'); r(11, 1, 9, 1, '#f0e6d8'); r(14, 2, 2, 3, '#4a4450'); }
-        else { r(9, 13, 13, 1, '#f0e6d8'); r(11, 12, 9, 1, '#f0e6d8'); r(14, 9, 2, 3, '#4a4450'); }
-      })
+        if (f) { r(9, 0, 13, 1, '#f0e6d8'); r(11, 1, 9, 1, '#f0e6d8'); r(14, 2, 2, 3, '#4a4450'); for (let x = 20; x < 44; x += 4) p(x, 0, 1, 4, '#c8bca8'); }
+        else { r(9, 13, 13, 1, '#f0e6d8'); r(11, 12, 9, 1, '#f0e6d8'); r(14, 9, 2, 3, '#4a4450'); for (let x = 20; x < 44; x += 4) p(x, 24, 1, 4, '#c8bca8'); }
+      }, 'raw')
     );
   },
   // ----- vie du décor (purement visuel, jamais dans la simulation) -----
   duneAmbience() {
-    const horizonY = L.baseY + 6 * PX;
+    const horizonY = L.baseY + 12 * PX2;
     // épice : poussière dorée qui monte doucement
     const spice = this.time.addEvent({
       delay: 140,
@@ -399,9 +416,9 @@ Object.assign(GameScene.prototype, {
     const worm = () => {
       if (this.stageId !== 'dune') return;
       const x = this.W / 2 + (Math.random() - 0.5) * L.mainW * 0.9;
-      const k = PX * (1.15 + Math.random() * 0.3);
+      const k = PX * (1.15 + Math.random() * 0.3); // (taille à l'écran ; l'image du ver est 2 x plus fine)
       const hgt = 72 * k;
-      const wImg = this.add.image(x, horizonY + 8 + hgt, 'worm').setOrigin(0.5, 1).setScale(k).setDepth(-9).setAlpha(0.92).setFlipX(Math.random() < 0.5);
+      const wImg = this.add.image(x, horizonY + 8 + hgt, 'worm').setOrigin(0.5, 1).setScale(k / 2).setDepth(-9).setAlpha(0.92).setFlipX(Math.random() < 0.5);
       // le ver sort du sable : posé DERRIÈRE les dunes du milieu, qui cachent ce qui est sous leur crête
       // (sans plans : un masque, comme avant)
       let mg = null;
@@ -427,7 +444,7 @@ Object.assign(GameScene.prototype, {
     const fly = () => {
       const dir = Math.random() < 0.5 ? 1 : -1;
       const y = this.H * (0.12 + Math.random() * 0.15);
-      const t = this.toPlane('far', this.add.image(dir > 0 ? -60 : this.W + 60, y, 'thopter0').setScale(PX).setDepth(-8).setFlipX(dir < 0));
+      const t = this.toPlane('far', this.add.image(dir > 0 ? -60 : this.W + 60, y, 'thopter0').setScale(PX2).setDepth(-8).setFlipX(dir < 0));
       const flap = this.time.addEvent({ delay: 70, loop: true, callback: () => t.active && t.setTexture(t.texture.key === 'thopter0' ? 'thopter1' : 'thopter0') });
       this.tweens.add({ targets: t, x: dir > 0 ? this.W + 60 : -60, y: y + (Math.random() - 0.5) * 60, duration: 9000, onComplete: () => { flap.remove(false); t.destroy(); } });
     };

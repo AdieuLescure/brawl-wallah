@@ -6,17 +6,17 @@
 // l'horizontale (plan devant le terrain, f > 1). Brume (nappes 'gala_fog') et halos ('gala_glow') posés par
 // galaAmbience. Logo et sigle redessinés en pixels (gala_art.js, tools/art/gala_export.py) et peints DANS le décor :
 // l'écran géant, la plaque du parvis, la bannière en perspective de l'aile gauche, deux écussons (plateforme de
-// gauche en haut, pupitre) et la tour.
+// gauche en haut) et la tour.
 //
 // Plateformes propres à l'arène (GALA.plats) : toutes se traversent par dessous et se quittent par BAS tenu ;
 // leur face tournée vers le vide (wall) est un mur ; on s'accroche à leurs coins (ledgeBlocks) en tombant le long
-// du bloc, joystick poussé vers lui. Le PUPITRE est posé sur la SCÈNE DES PRÉSENTATEURS (son côté droit fait mur).
+// du bloc, joystick poussé vers lui. (Le pupitre posé sur la scène de droite a été retiré, demande de Noah.)
 // Pas de plafond ni de mur côté centre : un perso éjecté ne doit pas être « sauvé » par le décor. Plateformes dans
-// les bords du parvis, pupitre bas (60 px) : sinon on s'y réfugie et les KO chutent (simulations de bots).
+// les bords du parvis, pas de bloc haut sur la scène : sinon on s'y réfugie et les KO chutent (simulations de bots).
 // Le parvis (terrain principal) est plus épais qu'ailleurs (GALA.mainH) ; bords et rebords au même endroit.
 // Tout ce qui bouge (flashs, projecteurs, ampoules, écran) est purement visuel : jamais dans la simulation.
 // ===========================================================================
-const GPX = 2; // taille d'un pixel d'art de cette arène, en pixels du jeu
+const GPX = PX2; // taille d'un pixel d'art des décors (2 pixels du jeu), comme la nuit et le désert
 // les plans du décor, du plus loin au plus près (f = part du mouvement de la caméra ; > 1 : devant le terrain)
 const GALA_PLANES = { key: 'bg_gala', scale: GPX, list: [{ id: 'sky', f: 0.04 }, { id: 'hill', f: 0.14 }, { id: 'town', f: 0.3 }, { id: 'palace', f: 0.5 }, { id: 'crowd', f: 1.15 }] };
 const GALA = {
@@ -28,7 +28,6 @@ const GALA = {
     { id: 'ecran', a: -0.6, b: -0.12, top: 320, h: 32, wall: 0, shield: true }, // (à gauche de la tour : ne cache pas le sigle)
     { id: 'balcon', a: 0.46, b: 0.94, top: 330, h: 40, wall: 1, shield: false },
     { id: 'scene', a: 0.44, b: 0.94, top: 128, h: 36, wall: 0, shield: false }, // (pas 110 : les bots y restaient bloqués à égalité ; pas de mur : il gênait le saut depuis le rebord droit)
-    { id: 'pupitre', a: 0.44, b: 0.62, top: 188, h: 60, wall: 1, pupitre: true },
   ],
 };
 

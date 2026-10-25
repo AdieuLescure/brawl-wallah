@@ -29,7 +29,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `online.js` : comptes Supabase, salons publics/privés, duel classé, reconnexion
   - `bots.js` : bots par niveau (temps de réaction, précision), mannequin d'entraînement
   - `stages.js` : terrains : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes, ver géant qui surgit au loin,
-    ornithoptère, épice ; plateformes en roche sombre pour le contraste) = décor seulement, mêmes 3 plateformes ; et
+    ornithoptère, épice ; plateformes en roche sombre pour le contraste) = décor seulement, mêmes 3 plateformes. TOUS les
+    décors (fonds, terrains, plateformes, ver, ornithoptère) sont en pixels de `PX2` = 2 pixels du jeu (textures
+    `mkCanvas(..., 'raw')`, `setScale(PX2)`), comme la cérémonie et la finesse des persos ; `PX` (4) ne sert plus
+    qu'aux anciens dessins et effets. Et
     « CÉRÉMONIE » (`gala`, dans `gala.js`). `STAGES` = ['night','dune','gala'] (aussi dans `server/core.js`). L'arène se
     choisit sur un écran avant le choix du perso (`showStagePick`, 4 cartes, grille 2 x 2 en hauteur ; `SETTINGS.stage` :
     0 nuit, 1 désert, 2 hasard = défaut historique, 3 cérémonie ; aperçu dessiné par `stageShapes`). Campagne :
@@ -41,19 +44,20 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     parvis (rangs de têtes, téléphones, flashs), aile gauche à balcon, immeuble bleu, château sur la colline, limousine,
     palmiers ; musique `SONGS.gala`, marche originale. Logos limités (Noah : « il y en a trop ») : écran, plaque du
     parvis, bannière en biais de l'aile gauche, écussons de la plateforme haute de gauche et du pupitre, la tour. TOUT en pixel art à la résolution des
-    persos : 1 pixel d'art = `GPX` = 2 pixels du jeu (textures `mkCanvas(..., 'raw')`, `setScale(GPX)`). Logo et sigle des
+    persos : 1 pixel d'art = `GPX` (= `PX2`) = 2 pixels du jeu (textures `mkCanvas(..., 'raw')`, `setScale(GPX)`). Logo et sigle des
     LUCAS D'OR (originaux dans `tools/art/gala/`) REDESSINÉS en pixels par `tools/art/gala_export.py` → `gala_art.js`
     (`GALA_PIX` : sigle réduit puis ramené à 3 tons d'or ; textes refaits lettre à lettre, petites capitales et
     capitales à empattements, même mise en page que l'original) et peints DANS le décor par `galaSpr` (bannières,
     plaque du parvis, écussons, écran) ou `galaWarp` (en perspective : bannière sur potence de l'aile gauche, médaillons
     tissés dans le tapis). Relancer `python3 tools/art/gala_export.py src/gala_art.js [aperçu.png]` si on change les
     lettres. PLATEFORMES (`GALA.plats`, `galaGeom`, créées par `setGalaGeom` ; les 3 plateformes d'origine coupées avec
-    `stageOff`) : LOGE (gauche, 190 px du sol), ÉCRAN (devant l'écran, 320), BALCON (droite, 330), SCÈNE DES
-    PRÉSENTATEURS (droite, 128) et le PUPITRE posé dessus (188, mur à droite). Rideaux drapés + écusson au sigle. Toutes se
+    `stageOff`) : LOGE (gauche, 190 px du sol), ÉCRAN (haut gauche, 320, à côté de la tour), BALCON (droite, 330),
+    SCÈNE DES PRÉSENTATEURS (droite, 128). Le PUPITRE posé sur la scène a été RETIRÉ (Noah) ; `galaPupitre` et le cas
+    `pupitre` de `galaSpawn` restent au cas où. Rideaux drapés + écusson au sigle. Toutes se
     traversent par dessous et se quittent par BAS tenu ; mur seulement sur la face `wall` ; REBORDS à tous leurs coins
     (`ledgeBlocks`). PARVIS plus épais (`GALA.mainH` = 104 px, `this.mainH`, utilisé par `tryLedge`). Départs : `spawnAt`
     (`galaSpawn` : jamais dans le pupitre, posé sur une plateforme basse). Leçons des simulations de bots : pas de plafond
-    plein ni de mur côté centre, plateformes à l'intérieur des bords du parvis, pupitre bas, scène pas à 110 px
+    plein ni de mur côté centre, plateformes à l'intérieur des bords du parvis, pas de bloc haut sur la scène, scène pas à 110 px
     (sinon refuges et KO divisés par 2). Les bots sautent par-dessus un mur et relancent un saut pour monter
     (`stageId === 'gala'` dans `bots.js`).
   - `adieu.js` : le perso AdieuLescure (données, textures de ses objets, mécaniques uniques) + le PASTIS de Deadlulu.

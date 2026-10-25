@@ -5,6 +5,7 @@
 // ===========================================================================
 const FONT = '"BrawlPixel", "Press Start 2P", monospace';
 const PX = 4; // 1 pixel d'art = 4 pixels logiques
+const PX2 = 2; // décors des arènes : pixels deux fois plus fins (même finesse que les persos)
 
 // --- Simulation déterministe : pas de temps fixe + maths identiques sur tous les appareils
 const STEP_MS = 1000 / 60;
@@ -756,96 +757,130 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // ----- la NUIT : ciel, lune, collines, ville (pixel art fin : 1 pixel d'art = PX2 = 2 pixels du jeu) -----
   buildBackground() {
-    const w = Math.ceil(this.W / PX);
-    const h = Math.ceil(this.H / PX);
-    const horizon = Math.round(L.baseY / PX) + 6;
+    const w = Math.ceil(this.W / PX2);
+    const h = Math.ceil(this.H / PX2);
+    const horizon = Math.round(L.baseY / PX2) + 12;
     // en plans pour la parallaxe (makePlanes, stages.js) : ciel, collines, ville
     this.makePlanes('bg', w, h, ['sky', 'hills', 'city'], (c, sec) => {
       let seed = 7; // (remis à zéro à chaque passage : tous les plans tirent les mêmes hasards)
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      const R = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(ww), Math.round(hh)); };
       sec('sky');
       const stops = [[11, 13, 31], [42, 27, 77], [91, 42, 99]];
       for (let y = 0; y < h; y++) {
         const t = Math.min(y / horizon, 1);
-        const q = Math.floor(t * 9) / 9;
+        const q = Math.floor(t * 18) / 18;
         const seg = q < 0.5 ? 0 : 1;
         const u = q < 0.5 ? q * 2 : (q - 0.5) * 2;
         const a = stops[seg], b = stops[seg + 1];
-        c.fillStyle = `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * u)).join(',')})`;
-        c.fillRect(0, y, w, 1);
+        R(0, y, w, 1, `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * u)).join(',')})`);
       }
-      for (let i = 0; i < w * 0.35; i++) {
-        c.fillStyle = rnd() > 0.8 ? '#ffe9a8' : '#cfd3ff';
-        c.fillRect(Math.floor(rnd() * w), Math.floor(rnd() * horizon * 0.7), 1, 1);
+      // étoiles : de toutes petites, et quelques-unes qui scintillent en croix
+      for (let i = 0; i < w * 0.45; i++) {
+        const x = Math.floor(rnd() * w), y = Math.floor(rnd() * horizon * 0.72);
+        const col = rnd() > 0.8 ? '#ffe9a8' : rnd() > 0.4 ? '#cfd3ff' : '#8a86c8';
+        R(x, y, 1, 1, col);
+        if (rnd() > 0.93) { R(x - 1, y, 1, 1, '#6a66a8'); R(x + 1, y, 1, 1, '#6a66a8'); R(x, y - 1, 1, 1, '#6a66a8'); R(x, y + 1, 1, 1, '#6a66a8'); }
       }
-      const mx = Math.round(w * 0.8), my = Math.round(horizon * 0.28);
-      for (let y = -9; y <= 9; y++)
-        for (let x = -9; x <= 9; x++)
-          if (x * x + y * y <= 81) {
-            c.fillStyle = x * x + y * y > 64 ? '#d9d4ff' : '#f5f0ff';
-            c.fillRect(mx + x, my + y, 1, 1);
+      // la lune : bord plus clair, ombre en bas à gauche, cratères
+      const mx = Math.round(w * 0.8), my = Math.round(horizon * 0.28), mr = 18;
+      for (let y = -mr - 6; y <= mr + 6; y++)
+        for (let x = -mr - 6; x <= mr + 6; x++) {
+          const d = Math.hypot(x, y);
+          if (d > mr && d <= mr + 6 && (x + y) % 2 === 0 && d < mr + 3) R(mx + x, my + y, 1, 1, '#3a2c6a'); // halo tramé
+          if (d > mr) continue;
+          let col = d > mr - 1.5 ? '#fbf8ff' : '#f2edff';
+          if (x - y < -mr * 0.9 && d > mr * 0.55) col = '#d9d4f4';
+          R(mx + x, my + y, 1, 1, col);
+        }
+      [[-6, -4, 3], [5, 6, 4], [8, -7, 2], [-8, 8, 2], [1, -1, 2], [-2, 11, 2]].forEach(([cx0, cy0, r]) => {
+        for (let y = -r; y <= r; y++)
+          for (let x = -r; x <= r; x++) {
+            const d = Math.hypot(x, y);
+            if (d > r) continue;
+            R(mx + cx0 + x, my + cy0 + y, 1, 1, d > r - 1 && x + y < 0 ? '#fdfbff' : '#d6d0f0');
           }
-      c.fillStyle = '#cfc8f0';
-      [[-3, -2], [2, 3], [3, -4], [-4, 4]].forEach(([x, y]) => c.fillRect(mx + x, my + y, 2, 2));
+      });
       sec('hills');
       for (let x = 0; x < w; x++) {
-        const top = horizon - (8 + 6 * Math.sin(x * 0.06) + 4 * Math.sin(x * 0.17 + 1));
-        c.fillStyle = '#231a45';
-        c.fillRect(x, Math.round(top), 1, h);
+        const top = Math.round(horizon - (16 + 12 * Math.sin(x * 0.03) + 8 * Math.sin(x * 0.085 + 1)));
+        R(x, top, 1, h, '#231a45');
+        R(x, top, 1, 1, '#33266a');
+        if ((x * 7) % 5 === 0) R(x, top + 1, 1, 1, '#2b2056');
       }
       sec('city');
       let x = 0;
       while (x < w) {
-        const bw = 4 + Math.floor(rnd() * 5);
-        const bh = 8 + Math.floor(rnd() * 16);
-        const top = horizon + 2 - bh;
-        c.fillStyle = '#120e26';
-        c.fillRect(x, top, bw, h);
-        for (let wy = top + 2; wy < horizon; wy += 3)
-          for (let wx = x + 1; wx < x + bw - 1; wx += 2)
-            if (rnd() > 0.72) {
-              c.fillStyle = rnd() > 0.5 ? '#ffd166' : '#8be9fd';
-              c.fillRect(wx, wy, 1, 1);
-            }
-        x += bw + (rnd() > 0.6 ? 1 : 0);
+        const bw = 8 + Math.floor(rnd() * 10);
+        const bh = 16 + Math.floor(rnd() * 32);
+        const top = horizon + 4 - bh;
+        R(x, top, bw, h, '#120e26');
+        R(x, top, 1, bh, '#1c1638'); // arête éclairée par la lune
+        R(x, top, bw, 1, '#1e1840');
+        if (rnd() > 0.6) { R(x + Math.floor(bw / 2), top - 7, 1, 7, '#120e26'); if (rnd() > 0.5) R(x + Math.floor(bw / 2), top - 8, 1, 1, '#ff5a6e'); } // antenne
+        else if (rnd() > 0.6) { R(x + 2, top - 4, 5, 4, '#0e0a1e'); R(x + 3, top - 5, 3, 1, '#0e0a1e'); } // réservoir
+        for (let wy = top + 3; wy < horizon + 2; wy += 4)
+          for (let wx = x + 2; wx < x + bw - 2; wx += 3)
+            if (rnd() > 0.72) R(wx, wy, 1, 2, rnd() > 0.5 ? '#ffd166' : '#8be9fd');
+        x += bw + (rnd() > 0.6 ? 2 : 0);
       }
-      c.fillStyle = '#0a0818';
-      c.fillRect(0, horizon + 2, w, h);
-    }, undefined, 'night:' + w + 'x' + h);
-    this.bgImg = this.add.image(0, 0, 'bg').setOrigin(0).setScale(PX).setDepth(-10);
+      R(0, horizon + 4, w, h, '#0a0818');
+    }, 'raw', 'night2:' + w + 'x' + h);
+    this.bgImg = this.add.image(0, 0, 'bg').setOrigin(0).setScale(PX2).setDepth(-10);
   }
 
   buildStage() {
     const mw = L.mainW;
-    const tw = Math.round(mw / PX);
-    mkCanvas(this, 'main', tw, 14, (c) => {
-      for (let y = 0; y < 14; y++)
-        for (let x = 0; x < tw; x++) {
-          let col;
-          if (y === 0) col = '#86e06f';
-          else if (y === 1) col = '#3f9e4a';
-          else if (y === 13) col = '#241810';
-          else {
-            const row = y - 2;
-            const off = Math.floor(row / 3) % 2 ? 3 : 0;
-            const brickEdge = row % 3 === 2 || (x + off) % 7 === 0;
-            col = brickEdge ? '#4e3428' : (x * 7 + y * 13) % 11 === 0 ? '#7a5a46' : '#6b4a3a';
-          }
-          c.fillStyle = col;
-          c.fillRect(x, y, 1, 1);
+    const tw = Math.round(mw / PX2);
+    // terrain : herbe et briques (28 lignes de 2 pixels = 56 de haut, comme avant)
+    mkCanvas(this, 'main', tw, 28, (c) => {
+      const R = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(x, y, ww, hh); };
+      const BR = ['#6b4a3a', '#734f3c', '#634434', '#6f4c3a'];
+      for (let x = 0; x < tw; x++) {
+        R(x, 0, 1, 1, (x * 7) % 9 === 0 ? '#c8ffb0' : '#a8f08a');
+        R(x, 1, 1, 1, '#86e06f');
+        R(x, 2, 1, 1, (x * 7) % 5 === 0 ? '#86e06f' : '#5cc457');
+        R(x, 3, 1, 1, '#3f9e4a');
+        R(x, 4, 1, 1, x % 9 === 0 || x % 13 === 4 ? '#3f9e4a' : '#2c6a34'); // herbe qui retombe
+        for (let y = 5; y < 26; y++) {
+          const r = y - 5;
+          const row = Math.floor(r / 6), off = row % 2 ? 7 : 0;
+          const bi = Math.floor((x + off) / 14);
+          let col = BR[(bi * 3 + row * 5) % BR.length];
+          if (r % 6 === 0) col = '#7e5a46';
+          if ((x * 7 + y * 13) % 23 === 0) col = '#7a5a46';
+          if ((x * 11 + y * 5) % 29 === 0) col = '#5a3c2e';
+          if (r % 6 === 5 || (x + off) % 14 === 0) col = '#4e3428';
+          R(x, y, 1, 1, col);
         }
-    });
-    mkCanvas(this, 'soft', 50, 5, (c) => {
-      for (let y = 0; y < 5; y++)
-        for (let x = 0; x < 50; x++) {
-          c.fillStyle = y === 0 ? '#e0b46c' : y === 4 ? '#4d2f1c' : x % 10 === 0 ? '#5e3a22' : '#8a5a36';
-          c.fillRect(x, y, 1, 1);
-        }
-    });
+        R(x, 26, 1, 1, '#2e1e16');
+        R(x, 27, 1, 1, '#1a110c');
+      }
+      R(0, 4, 1, 24, '#3a281e');
+      R(tw - 1, 4, 1, 24, '#3a281e');
+    }, 'raw');
+    // plateformes : planches de bois clouées
+    mkCanvas(this, 'soft', 100, 10, (c) => {
+      const R = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(x, y, ww, hh); };
+      R(0, 0, 100, 1, '#f0c47c');
+      R(0, 1, 100, 1, '#e0b46c');
+      R(0, 2, 100, 6, '#8a5a36');
+      for (let x = 0; x < 100; x++) {
+        if (x % 13 < 8) R(x, 4, 1, 1, '#7a4e2e');
+        if ((x + 6) % 17 < 6) R(x, 6, 1, 1, '#9a6a42');
+        if (x % 20 === 0) R(x, 2, 1, 6, '#5e3a22');
+        if (x % 20 === 3 || x % 20 === 16) { R(x, 3, 1, 1, '#c8b090'); R(x, 6, 1, 1, '#c8b090'); }
+      }
+      R(0, 8, 100, 1, '#5e3a22');
+      R(0, 9, 100, 1, '#3a2414');
+      R(0, 0, 1, 10, '#4d2f1c');
+      R(99, 0, 1, 10, '#4d2f1c');
+    }, 'raw');
 
     this.platforms = this.physics.add.staticGroup();
-    const main = this.platforms.create(this.W / 2, L.baseY + 28, 'main').setScale(PX).refreshBody();
+    const main = this.platforms.create(this.W / 2, L.baseY + 28, 'main').setScale(PX2).refreshBody();
     main.setDepth(5);
     this.mainPlat = main;
     this.softPlats = [];
@@ -856,7 +891,7 @@ class GameScene extends Phaser.Scene {
       [this.W / 2 + sx, L.baseY - 170],
       [this.W / 2, L.baseY - 310],
     ].forEach(([x, y]) => {
-      const p = this.platforms.create(x, y, 'soft').setScale(PX).refreshBody();
+      const p = this.platforms.create(x, y, 'soft').setScale(PX2).refreshBody();
       p.setDepth(5);
       p.soft = true;
       this.softPlats.push(p);
