@@ -28,11 +28,24 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `netcode.js` : rollback type GGPO (instantanés génériques des joueurs, rejeu silencieux, recalage du rythme)
   - `online.js` : comptes Supabase, salons publics/privés, duel classé, reconnexion
   - `bots.js` : bots par niveau (temps de réaction, précision), mannequin d'entraînement
-  - `stages.js` : terrains (décor seulement, mêmes plateformes) : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes,
-    ver géant qui surgit au loin, ornithoptère, épice ; plateformes en roche sombre pour le contraste). L'arène se choisit
-    sur un écran avant le choix du perso (`showStagePick`, mémorisé dans `SETTINGS.stage`). Campagne : alterne selon le
-    chapitre. En ligne : le créateur du salon la choisit (envoyée au serveur avec `join`, renvoyée dans `hello` et `start`) ;
-    duel classé : tirée du code de la salle (`stageFromCode`).
+  - `stages.js` : terrains : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes, ver géant qui surgit au loin,
+    ornithoptère, épice ; plateformes en roche sombre pour le contraste) = décor seulement, mêmes 3 plateformes ; et
+    « CÉRÉMONIE » (`gala`, dans `gala.js`). `STAGES` = ['night','dune','gala'] (aussi dans `server/core.js`). L'arène se
+    choisit sur un écran avant le choix du perso (`showStagePick`, 4 cartes, grille 2 x 2 en hauteur ; `SETTINGS.stage` :
+    0 nuit, 1 désert, 2 hasard = défaut historique, 3 cérémonie ; aperçu dessiné par `stageShapes`). Campagne :
+    `STAGES[chapitre % 3]` (la finale, chapitre 6, à la cérémonie). En ligne : le créateur du salon la choisit (envoyée
+    au serveur avec `join`, renvoyée dans `hello` et `start`) ; duel classé : tirée du code de la salle (`stageFromCode`).
+  - `gala.js` + `gala_art.js` : l'arène CÉRÉMONIE (palais du cinéma, montée des marches, tapis rouge, écran géant,
+    flashs, projecteurs ; musique `SONGS.gala`, marche originale). Logo et sigle des LUCAS D'OR (images de Noah dans
+    `tools/art/gala/`, converties par `tools/art/gala_export.py` en `gala_art.js` = `GALA_ART`, chargées par
+    `loadGalaArt()` avant le démarrage) : posés en vraies images, réduits proprement (`galaDecal`, même rapport, jamais
+    déformés, filtre lissé) sur l'écran géant, le fronton, les bannières, la contremarche du parvis, la loge, une affiche
+    en bas à gauche. PLATEFORMES À ELLE (`GALA`, `galaGeom`, créées par `setGalaGeom` ; les 3 plateformes d'origine sont
+    coupées avec `stageOff`) : LOGE (gauche, 56 px d'épaisseur, dessus à 210 px du sol), CORNICHE (droite, 48 px, 250 px),
+    PASSERELLE (en haut à gauche, 335 px, ajourée). Toutes se traversent par dessous et se quittent par BAS tenu ; les
+    deux balcons ont un MUR sur leur face extérieure (côté vide) et des REBORDS à leurs coins (`ledgeBlocks`).
+    Ne pas mettre de plafond plein ni de mur côté centre : un perso éjecté y était « sauvé » (KO divisés par 2 en
+    simulation). Les bots relancent un saut en l'air pour monter sur les balcons (`stageId === 'gala'` dans `bots.js`).
   - `adieu.js` : le perso AdieuLescure (données, textures de ses objets, mécaniques uniques) + le PASTIS de Deadlulu.
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :
@@ -122,7 +135,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   saut, J/X COUP, K/C/I/V SPÉCIAL (tenu = charge), L/Maj esquive, Échap quitter. `localInput()` mélange
   écran tactile et clavier (hors ligne et en ligne) ; au clavier les boutons tactiles se cachent.
 - Le bloc du terrain (herbe + terre) est entièrement solide. Le rebord s'attrape aussi en montant sous le niveau du bord
-  et en se cognant sous le terrain près du coin. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
+  et en se cognant sous le terrain près du coin. `pl.ledgeSide` : ±1 = bords du terrain, ±2, ±3 = coins des balcons de
+  la CÉRÉMONIE (`ledgePos(id)` donne le coin ; le signe = le côté, toujours `Math.sign` pour la direction). Coin d'un
+  balcon : seulement en tombant le long du bloc, joystick poussé vers lui. Pour déplacer un perso d'un coup, toujours passer par `putAt()`
   (sinon le corps physique garde un décalage d'une image).
 - Nini ne frappe jamais elle-même : Scarlett (le chat), le corgi, l'amour, la pivoine, le voyage (valise) et le vent
   (Autant en emporte le vent). Le corgi est sur SPÉCIAL + BAS avec une recharge, pas sur un coup de base.

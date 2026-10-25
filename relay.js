@@ -5,7 +5,7 @@ import { DurableObject } from 'cloudflare:workers';
 // Utilisée par Cloudflare (relay.js) ET par le serveur de test local (dev-server.js).
 // ===========================================================================
 export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini', 'adieulescure', 'bigzinzin', 'ln4', 'natanax'];
-export const STAGES = ['night', 'dune'];
+export const STAGES = ['night', 'dune', 'gala'];
 const MAX_MSG = 4000;
 
 const send = (sock, o) => {

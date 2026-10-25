@@ -122,7 +122,7 @@ Object.assign(GameScene.prototype, {
       }
       if (now - bot.ledgeAt > bot.botLedgeWait) {
         const h = bot.botLedgeHow;
-        if (h < 0.45) i.sx = -bot.ledgeSide;
+        if (h < 0.45) i.sx = -Math.sign(bot.ledgeSide);
         else if (h < 0.7) i.jump = true;
         else if (h < 0.85) i.attack = true;
         else press();
@@ -226,6 +226,11 @@ Object.assign(GameScene.prototype, {
     if (Math.abs(s.x + i.sx * 60 - cx) > half - 30 && !tOff) i.sx = 0; // pas de chute volontaire
     // monter sur une plateforme / en descendre
     if (dy < -110 && grounded && adx < 260 && Math.random() < 0.025 * aggr) i.jump = true;
+    // CÉRÉMONIE : balcons plus hauts qu'un saut -> en l'air, on relance un saut pour rejoindre la cible
+    if (this.stageId === 'gala' && !grounded && !bot.atk && dy < -90 && adx < 240 && bot.jumps > 0 && s.body.velocity.y > -150 && now - bot.lastJump > 200 && Math.random() < 0.25) {
+      i.jump = true;
+      i.sx = dir * 0.6;
+    }
     if (dy > 110 && grounded && s.y < L.baseY - 60 && adx < 200 && Math.random() < 0.5) {
       i.sy = 1;
       i.sx = 0;

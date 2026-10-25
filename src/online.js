@@ -781,7 +781,7 @@ Object.assign(GameScene.prototype, {
     // même terrain sur les deux téléphones : tiré du code de la salle
     const stage = STAGES.includes(m.stage) ? m.stage : STAGES.includes(Online.stage) ? Online.stage : stageFromCode(Online.code);
     if (this.applyStage) this.applyStage(stage);
-    if (typeof MUSIC !== 'undefined') MUSIC.play(stage === 'dune' ? 'desert' : 'night');
+    if (typeof MUSIC !== 'undefined') MUSIC.play(stage === 'dune' ? 'desert' : stage === 'gala' ? 'gala' : 'night');
     Online.mode = m.mode || 'ffa';
     if (m.tcols) Online.tcols = m.tcols;
     const meIdx = m.order ? m.order.indexOf(Online.idx) : Online.idx;

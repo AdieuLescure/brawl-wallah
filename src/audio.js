@@ -287,6 +287,25 @@ const SONGS = {
     drums: { k: 'x...x...x...x...', s: '....x.......x...', h: '..x...x...x...x.' },
     form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 4, lead: false, drums: 'none' }, { bars: 8 }],
   },
+  // CÉRÉMONIE : marche de gala en fa majeur (cuivres carrés, caisse claire de défilé)
+  gala: {
+    bpm: 112, bassOct: 2, arpOct: 4, padOct: 3, lead: 'square', leadVol: 0.1,
+    chords: ['F', 'Dm', 'Bb', 'C', 'F', 'Am', 'Bb', 'C'],
+    bass: '1 . . . 5 . . . 1 . 5 . 8 . 5 .',
+    arp: '1 3 5 3 8 5 3 5 1 3 5 3 8 5 3 5',
+    melody: [
+      'F5 - - . C5 . F5 . A5 - - - G5 . F5 .',
+      'D5 - - - - - . . F5 . E5 . D5 . C5 .',
+      'Bb4 - - . D5 . F5 . Bb5 - - - A5 . G5 .',
+      'G5 - - - - - . . E5 . F5 . G5 . C6 .',
+      'A5 - - . G5 . F5 . C6 - - - A5 . F5 .',
+      'E5 - - . C5 . E5 . A5 - G5 - E5 - . .',
+      'D5 - - . F5 . Bb5 . D6 - - - C6 . Bb5 .',
+      'C6 - - - - - - - G5 . A5 . Bb5 . C6 .',
+    ],
+    drums: { k: 'x.......x.......', s: '....x.......x.xx', h: 'x.x.x.x.x.x.x.x.' },
+    form: [{ bars: 4, lead: false, drums: 'half' }, { bars: 8 }, { bars: 8 }],
+  },
   // ancien morceau du désert (remplacé par le MIDI de Noah, gardé en secours)
   desertOld: {
     bpm: 108, bassOct: 2, arpOct: 4, padOct: 3, lead: 'triangle', leadVol: 0.2, drone: true,

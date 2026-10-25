@@ -1,10 +1,11 @@
 // ===========================================================================
-// TERRAINS : « NUIT » (la ville, d'origine) et « DÉSERT » (une planète de sable : dunes, deux lunes,
-// dunes irrégulières, épice qui flotte, vers géants qui surgissent au loin, ornithoptère qui passe).
-// Le décor ne change rien au combat : mêmes plateformes, mêmes dimensions.
+// TERRAINS : « NUIT » (la ville, d'origine), « DÉSERT » (une planète de sable : dunes, deux lunes,
+// dunes irrégulières, épice qui flotte, vers géants qui surgissent au loin, ornithoptère qui passe)
+// et « CÉRÉMONIE » (gala.js : palais du cinéma, plateformes à elle).
+// Nuit et désert : même terrain, mêmes plateformes ; seul le décor change.
 // ===========================================================================
-const STAGES = ['night', 'dune'];
-const STAGE_NAMES = { night: 'NUIT', dune: 'DÉSERT' };
+const STAGES = ['night', 'dune', 'gala'];
+const STAGE_NAMES = { night: 'NUIT', dune: 'DÉSERT', gala: 'CÉRÉMONIE' };
 // salle sans arène choisie (duel classé) : tirée du code de la salle, identique sur les deux téléphones
 function stageFromCode(code) {
   let h = 0;
@@ -14,11 +15,14 @@ function stageFromCode(code) {
 
 Object.assign(GameScene.prototype, {
   pickStage() {
-    if (camp) return camp.ch % 2 ? 'dune' : 'night';
+    // campagne : nuit, désert, cérémonie, nuit, désert, cérémonie (la finale a lieu à la cérémonie)
+    if (camp) return STAGES[camp.ch % STAGES.length];
+    // réglage : 0 nuit, 1 désert, 2 hasard (valeur par défaut, gardée pour les anciens réglages), 3 cérémonie
     const s = SETTINGS.stage === undefined ? 2 : SETTINGS.stage;
     if (s === 0) return 'night';
     if (s === 1) return 'dune';
-    return Math.random() < 0.5 ? 'night' : 'dune';
+    if (s === 3) return 'gala';
+    return STAGES[Math.floor(Math.random() * STAGES.length)];
   },
 
   // ----- écran de choix de l'arène (avant le choix du perso) -----
@@ -27,64 +31,62 @@ Object.assign(GameScene.prototype, {
     this.menuBase('CHOISIS L\'ARÈNE', { small: true, noBar: true });
     const D = 120;
     const port = L.portrait;
+    // v = valeur gardée dans SETTINGS.stage (2 = hasard, valeur historique par défaut)
     const opts = [
-      { id: 'night', name: 'NUIT', tex: 'bg', plat: 'main', soft: 'soft' },
-      { id: 'dune', name: 'DÉSERT', tex: 'bg_dune', plat: 'main_dune', soft: 'soft_dune' },
-      { id: 'rand', name: 'HASARD' },
-    ];
+      { id: 'night', v: 0, name: 'NUIT', tex: 'bg' },
+      { id: 'dune', v: 1, name: 'DÉSERT', tex: 'bg_dune' },
+      { id: 'gala', v: 3, name: 'CÉRÉMONIE', tex: 'bg_gala' },
+      { id: 'rand', v: 2, name: 'HASARD' },
+    ].filter((o) => !o.tex || this.textures.exists(o.tex));
+    const N = opts.length;
     const cur = SETTINGS.stage === undefined ? 2 : SETTINGS.stage;
-    let cw, ph;
-    const top = port ? 170 : 160, lab = port ? 44 : 40;
-    if (port) {
-      cw = this.W - 80;
-      ph = Math.min(Math.floor((this.H - top - 160) / 3) - lab - 18, Math.round(cw * 0.5));
-    } else {
-      cw = Math.min(420, Math.floor((this.W - 120) / 3));
-      ph = Math.round(cw * 0.62);
-    }
+    // cartes : une rangée en largeur ; en hauteur, une colonne (3 arènes) ou une grille 2 x 2 (4 cartes)
+    const cols = port ? (N > 3 ? 2 : 1) : N, rows = Math.ceil(N / cols);
+    const top = 160, lab = 40, gap = port ? 20 : 24;
+    const cw = Math.min(420, Math.floor((this.W - (port ? 80 : 60) - gap * (cols - 1)) / cols));
+    const ph = Math.min(Math.round(cw * (port && cols === 1 ? 0.5 : 0.62)), Math.floor((this.H - top - 150) / rows) - lab - 16);
     this.uiBtns = [];
     opts.forEach((o, i) => {
-      const cx = port ? this.W / 2 : this.W / 2 + (i - 1) * (cw + 30);
-      const y0 = port ? top + i * (ph + lab + 18) : top + 20;
+      const col = i % cols, row = Math.floor(i / cols);
+      const cx = this.W / 2 + (col - (cols - 1) / 2) * (cw + gap);
+      const y0 = top + (port ? 0 : 20) + row * (ph + lab + 16);
       const left = cx - cw / 2;
-      const sel = cur === i;
+      const sel = cur === o.v;
       this.ui.push(this.add.rectangle(cx, y0 + (ph + lab) / 2, cw + 8, ph + lab + 8, 0x1a1d33, 1).setStrokeStyle(4, sel ? 0xffd166 : 0xf72585).setDepth(D));
-      // aperçu : un morceau du décor autour de l'arène (half = 0/1 : seulement la moitié gauche/droite)
-      const preview = (tex, plat, soft, half) => {
+      // aperçu : un morceau du décor autour de l'arène (part = [i, n] : seulement la i-ème tranche sur n)
+      const preview = (id, tex, part) => {
         const a = cw / ph;
         let wh = Math.min(this.H * 0.8, this.W / a), ww = wh * a;
         if (ww < L.mainW + 120) { ww = Math.min(this.W, L.mainW + 120); wh = ww / a; }
-        const wx0 = this.W / 2 - ww / 2, wy0 = Math.max(0, Math.min(this.H - wh, L.baseY + 60 - wh * 0.78));
+        // la CÉRÉMONIE se joue plus en hauteur (passerelle, écran géant) : on cadre un peu plus haut
+        const wx0 = this.W / 2 - ww / 2, wy0 = Math.max(0, Math.min(this.H - wh, L.baseY + 60 - wh * (id === 'gala' ? 0.9 : 0.78)));
         const k = cw / ww;
         const img = this.add.image(0, 0, tex).setOrigin(0).setDepth(D + 1);
         const tk = img.width / this.bgImg.displayWidth; // pixels de texture par pixel d'écran
-        const hx = half === 1 ? ww / 2 : 0, hw = half === undefined ? ww : ww / 2;
+        const hx = part ? (ww / part[1]) * part[0] : 0, hw = part ? ww / part[1] : ww;
         img.setCrop((wx0 + hx) * tk, wy0 * tk, hw * tk, wh * tk);
         img.scale = k / tk; // échelle réelle (sans la correction automatique des textures HD)
         img.setPosition(left - wx0 * k, y0 - wy0 * k);
         this.ui.push(img);
-        if (half !== undefined) return;
-        const put = (key, x, y, w2, h2) => {
-          const py = y0 + (y - wy0) * k;
-          if (py - (h2 * k) / 2 < y0 || py + (h2 * k) / 2 > y0 + ph) return;
-          this.ui.push(this.add.image(left + (x - wx0) * k, py, key).setDisplaySize(w2 * k, h2 * k).setDepth(D + 2));
-        };
-        const mp = this.mainPlat;
-        put(plat, mp.x, mp.y, mp.displayWidth, mp.displayHeight);
-        (this.softPlats || []).forEach((p) => put(soft, p.x, p.y, p.displayWidth, p.displayHeight));
+        if (part) return;
+        this.stageShapes(id).forEach((q) => {
+          const py = y0 + (q.y - wy0) * k;
+          if (py - (q.h * k) / 2 < y0 || py + (q.h * k) / 2 > y0 + ph) return;
+          this.ui.push(this.add.image(left + (q.x - wx0) * k, py, q.key).setDisplaySize(q.w * k, q.h * k).setDepth(D + 2));
+        });
       };
-      if (o.tex) preview(o.tex, o.plat, o.soft);
+      if (o.tex) preview(o.id, o.tex);
       else {
-        preview('bg', null, null, 0);
-        preview('bg_dune', null, null, 1);
+        const texs = opts.filter((q) => q.tex);
+        texs.forEach((q, j) => preview(q.id, q.tex, [j, texs.length]));
         this.ui.push(this.add.rectangle(cx, y0 + ph / 2, cw, ph, 0x0b0d1f, 0.45).setDepth(D + 2));
         this.ui.push(this.add.text(cx, y0 + ph / 2, '?', { fontFamily: FONT, fontSize: Math.round(ph * 0.5) + 'px', color: '#ffd166', stroke: '#000', strokeThickness: 8 }).setOrigin(0.5).setDepth(D + 3));
       }
-      this.ui.push(this.add.text(cx, y0 + ph + lab / 2 + 2, o.name, { fontFamily: FONT, fontSize: port ? '22px' : '20px', color: sel ? '#ffd166' : '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1));
+      this.ui.push(this.add.text(cx, y0 + ph + lab / 2 + 2, o.name, { fontFamily: FONT, fontSize: cols > 1 && N > 3 ? '17px' : '20px', color: sel ? '#ffd166' : '#ffffff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1));
       this.uiBtns.push({
         x: cx, y: y0 + (ph + lab) / 2, w: cw + 8, h: ph + lab + 8,
         fn: () => {
-          SETTINGS.stage = i;
+          SETTINGS.stage = o.v;
           if (typeof saveSettings === 'function') saveSettings();
           const id = this.pickStage();
           this.applyStage(id);
@@ -92,22 +94,43 @@ Object.assign(GameScene.prototype, {
         },
       });
     });
-    const yb = port ? this.H - 90 : this.H - 70;
+    const yb = port ? this.H - 80 : this.H - 70;
     const r = this.add.rectangle(this.W / 2, yb, 300, 64, 0x1a1d33, 1).setStrokeStyle(4, 0x888888).setDepth(D);
     const t = this.add.text(this.W / 2, yb, 'RETOUR', { fontFamily: FONT, fontSize: '18px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5).setDepth(D + 1);
     this.ui.push(r, t);
     this.uiBtns.push({ x: this.W / 2, y: yb, w: 300, h: 64, fn: () => (back ? back() : this.showPlayMenu()) });
   },
 
+  // formes posées sur l'aperçu d'une arène (terrain, plateformes, logos) : { key, x, y, w, h } en pixels du monde
+  stageShapes(id) {
+    const out = [];
+    const mp = this.mainPlat;
+    if (!mp) return out;
+    const main = id === 'gala' ? 'main_gala' : id === 'dune' ? 'main_dune' : 'main';
+    out.push({ key: main, x: mp.x, y: mp.y, w: mp.displayWidth, h: mp.displayHeight });
+    if (id === 'gala' && this.galaGeom) {
+      this.galaGeom().forEach((g) => out.push({ key: g.key, x: (g.x0 + g.x1) / 2, y: g.top + g.h / 2, w: g.x1 - g.x0, h: g.h }));
+      this.galaDecals().concat(this.galaFrontDecals()).forEach((d) => {
+        const f = this.textures.get(d.key).getSourceImage();
+        out.push({ key: d.key, x: d.x, y: d.y, w: f.width / 2, h: f.height / 2 });
+      });
+    } else (this.softPlats || []).forEach((p) => out.push({ key: id === 'dune' ? 'soft_dune' : 'soft', x: p.x, y: p.y, w: p.displayWidth, h: p.displayHeight }));
+    return out;
+  },
+
   applyStage(id) {
+    if (id === 'gala' && !this.textures.exists('bg_gala')) id = 'night';
     this.stageId = id;
-    const dune = id === 'dune';
-    if (this.bgImg) this.bgImg.setTexture(dune ? 'bg_dune' : 'bg');
-    if (this.mainPlat) this.mainPlat.setTexture(dune ? 'main_dune' : 'main');
+    const dune = id === 'dune', gala = id === 'gala';
+    if (this.bgImg) this.bgImg.setTexture(gala ? 'bg_gala' : dune ? 'bg_dune' : 'bg');
+    if (this.mainPlat) this.mainPlat.setTexture(gala ? 'main_gala' : dune ? 'main_dune' : 'main');
     (this.softPlats || []).forEach((p) => p.setTexture(dune ? 'soft_dune' : 'soft'));
     if (this.stageFx) this.stageFx.forEach((o) => o.remove ? o.remove(false) : o.destroy());
     this.stageFx = [];
+    // plateformes propres à la CÉRÉMONIE (les autres arènes gardent les 3 plateformes d'origine)
+    if (this.setGalaGeom) this.setGalaGeom(gala);
     if (dune) this.duneAmbience();
+    if (gala) this.galaAmbience();
   },
 
   // ----- dessin du désert (en pixels d'art, agrandis x4) -----

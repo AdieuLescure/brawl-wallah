@@ -528,6 +528,7 @@ class GameScene extends Phaser.Scene {
     this.buildStage();
     if (this.buildDune) {
       this.buildDune();
+      if (this.buildGala) this.buildGala();
       this.applyStage(this.pickStage());
     }
     this.chainGfx = this.add.graphics().setDepth(14);
@@ -946,7 +947,7 @@ class GameScene extends Phaser.Scene {
       moveCd: {},
     };
     // plateformes fines : on peut les traverser vers le bas (BAS tenu)
-    this.physics.add.collider(sprite, this.platforms, null, (spr, plat) => !(plat.soft && pl.dropUntil > this.simNow));
+    this.physics.add.collider(sprite, this.platforms, null, (spr, plat) => !plat.stageOff && !(plat.soft && pl.dropUntil > this.simNow));
     return pl;
   }
 
@@ -964,7 +965,7 @@ class GameScene extends Phaser.Scene {
     this.timeLimit = this.training || camp ? 0 : SETTINGS.timer ? MATCH_MS : 0;
     this.buildHud();
     if (this.training) this.trainSetup();
-    if (typeof MUSIC !== 'undefined') MUSIC.play(this.stageId === 'dune' ? 'desert' : 'night');
+    if (typeof MUSIC !== 'undefined') MUSIC.play(this.stageId === 'dune' ? 'desert' : this.stageId === 'gala' ? 'gala' : 'night');
   }
 
   buildHud() {
@@ -2062,7 +2063,7 @@ class GameScene extends Phaser.Scene {
     if (!pl.ledgeSide && !grounded && !stunned && now >= pl.ledgeCdUntil && !rolling) {
       const underLip = b.top > L.baseY - 10;
       const recovering = pl.atk && pl.atk.m.helpless && now >= pl.atk.hitAt;
-      if ((b.velocity.y >= -60 && (!pl.atk || pl.helpless)) || (underLip && (!pl.atk || recovering || pl.helpless))) this.tryLedge(pl, other, now);
+      if ((b.velocity.y >= -60 && (!pl.atk || pl.helpless)) || (underLip && (!pl.atk || recovering || pl.helpless))) this.tryLedge(pl, other, now, inp);
     }
 
     // Animation
@@ -3261,7 +3262,15 @@ class GameScene extends Phaser.Scene {
     pl.gcUntil = 0;
   }
 
-  tryLedge(pl, other, now) {
+  // rebords : ±1 = bords du terrain ; ±2, ±3… = coins des balcons de l'arène (this.ledgeBlocks, CÉRÉMONIE)
+  ledgePos(id) {
+    const side = Math.sign(id), k = Math.abs(id);
+    const bl = k > 1 && this.ledgeBlocks && this.ledgeBlocks[k - 2];
+    if (!bl) return { x: this.W / 2 + side * (L.mainW / 2), y: L.baseY, side };
+    return { x: side < 0 ? bl.x0 : bl.x1, y: bl.top, side };
+  }
+
+  tryLedge(pl, other, now, inp) {
     const b = pl.sprite.body;
     const cx = this.W / 2, half = L.mainW / 2;
     for (const side of [-1, 1]) {
@@ -3277,14 +3286,31 @@ class GameScene extends Phaser.Scene {
       this.grabLedge(pl, side, now);
       return true;
     }
+    // coins des balcons : seulement en tombant le long du bloc, joystick poussé vers lui (sinon on passe)
+    if (this.ledgeBlocks && this.ledgeBlocks.length && b.velocity.y >= -60 && inp && (!pl.atk || pl.helpless)) {
+      for (let k = 0; k < this.ledgeBlocks.length; k++) {
+        const bl = this.ledgeBlocks[k];
+        for (const side of [-1, 1]) {
+          const edgeX = side < 0 ? bl.x0 : bl.x1;
+          const out = (b.center.x - edgeX) * side;
+          if (out < 2 || out > b.halfWidth + 30) continue;
+          if (b.top < bl.top - 30 || b.top > bl.top + 40) continue;
+          if ((inp.sx || 0) * -side < 0.3) continue;
+          const id = side * (k + 2);
+          if (this.pls.some((o) => o !== pl && o.ledgeSide === id)) continue;
+          this.grabLedge(pl, id, now);
+          return true;
+        }
+      }
+    }
     return false;
   }
 
-  grabLedge(pl, side, now) {
-    const s = pl.sprite;
+  grabLedge(pl, id, now) {
+    const s = pl.sprite, side = Math.sign(id);
     this.sfx('ledge');
     if (pl.grab) this.releaseGrab(pl);
-    pl.ledgeSide = side;
+    pl.ledgeSide = id;
     pl.ledgeAt = now;
     pl.atk = null;
     pl.helpless = false;
@@ -3299,15 +3325,14 @@ class GameScene extends Phaser.Scene {
     s.body.allowGravity = false;
     s.setVelocity(0, 0);
     this.placeOnLedge(pl);
-    this.dust(s.x, L.baseY, -side, 3, pl.def.fx);
+    this.dust(s.x, this.ledgePos(id).y, -side, 3, pl.def.fx);
   }
 
   placeOnLedge(pl) {
-    const s = pl.sprite, b = s.body, side = pl.ledgeSide;
-    const edgeX = this.W / 2 + side * (L.mainW / 2);
+    const s = pl.sprite, b = s.body, lp = this.ledgePos(pl.ledgeSide), side = lp.side;
     const dx = s.x - b.center.x, dy = s.y - b.center.y;
-    const x = edgeX + side * (b.halfWidth + 2) + dx;
-    const y = L.baseY - 6 + b.halfHeight + dy;
+    const x = lp.x + side * (b.halfWidth + 2) + dx;
+    const y = lp.y - 6 + b.halfHeight + dy;
     this.putAt(s, x, y);
   }
 
@@ -3322,7 +3347,7 @@ class GameScene extends Phaser.Scene {
   }
 
   ledgeStep(pl, other, now, inp) {
-    const s = pl.sprite, side = pl.ledgeSide;
+    const s = pl.sprite, side = Math.sign(pl.ledgeSide);
     s.body.allowGravity = false;
     s.setVelocity(0, 0);
     this.placeOnLedge(pl);
@@ -3343,7 +3368,7 @@ class GameScene extends Phaser.Scene {
   }
 
   leaveLedge(pl, now, how) {
-    const s = pl.sprite, b = s.body, side = pl.ledgeSide;
+    const s = pl.sprite, b = s.body, lp = this.ledgePos(pl.ledgeSide), side = lp.side;
     pl.ledgeSide = 0;
     b.allowGravity = true;
     pl.ledgeCdUntil = now + 400;
@@ -3359,10 +3384,9 @@ class GameScene extends Phaser.Scene {
       return;
     }
     // remonte sur le terrain
-    const edgeX = this.W / 2 + side * (L.mainW / 2);
     const dx = s.x - b.center.x, dy = s.y - b.center.y;
-    const x = edgeX - side * (b.halfWidth + 10) + dx;
-    const y = L.baseY - b.halfHeight - 1 + dy;
+    const x = lp.x - side * (b.halfWidth + 10) + dx;
+    const y = lp.y - b.halfHeight - 1 + dy;
     this.putAt(s, x, y);
     s.setVelocity(0, 0);
     pl.facing = -side;
@@ -3530,4 +3554,5 @@ Promise.race([
 ])
   .catch(() => {})
   .then(() => (typeof loadPngChars === 'function' ? loadPngChars() : null))
+  .then(() => (typeof loadGalaArt === 'function' ? loadGalaArt() : null))
   .then(boot);
