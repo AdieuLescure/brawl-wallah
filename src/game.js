@@ -760,9 +760,11 @@ class GameScene extends Phaser.Scene {
     const w = Math.ceil(this.W / PX);
     const h = Math.ceil(this.H / PX);
     const horizon = Math.round(L.baseY / PX) + 6;
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    mkCanvas(this, 'bg', w, h, (c) => {
+    // en plans pour la parallaxe (makePlanes, stages.js) : ciel, collines, ville
+    this.makePlanes('bg', w, h, ['sky', 'hills', 'city'], (c, sec) => {
+      let seed = 7; // (remis à zéro à chaque passage : tous les plans tirent les mêmes hasards)
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      sec('sky');
       const stops = [[11, 13, 31], [42, 27, 77], [91, 42, 99]];
       for (let y = 0; y < h; y++) {
         const t = Math.min(y / horizon, 1);
@@ -786,11 +788,13 @@ class GameScene extends Phaser.Scene {
           }
       c.fillStyle = '#cfc8f0';
       [[-3, -2], [2, 3], [3, -4], [-4, 4]].forEach(([x, y]) => c.fillRect(mx + x, my + y, 2, 2));
+      sec('hills');
       for (let x = 0; x < w; x++) {
         const top = horizon - (8 + 6 * Math.sin(x * 0.06) + 4 * Math.sin(x * 0.17 + 1));
         c.fillStyle = '#231a45';
         c.fillRect(x, Math.round(top), 1, h);
       }
+      sec('city');
       let x = 0;
       while (x < w) {
         const bw = 4 + Math.floor(rnd() * 5);
@@ -808,7 +812,7 @@ class GameScene extends Phaser.Scene {
       }
       c.fillStyle = '#0a0818';
       c.fillRect(0, horizon + 2, w, h);
-    });
+    }, undefined, 'night:' + w + 'x' + h);
     this.bgImg = this.add.image(0, 0, 'bg').setOrigin(0).setScale(PX).setDepth(-10);
   }
 

@@ -35,9 +35,12 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     0 nuit, 1 désert, 2 hasard = défaut historique, 3 cérémonie ; aperçu dessiné par `stageShapes`). Campagne :
     `STAGES[chapitre % 3]` (la finale, chapitre 6, à la cérémonie). En ligne : le créateur du salon la choisit (envoyée
     au serveur avec `join`, renvoyée dans `hello` et `start`) ; duel classé : tirée du code de la salle (`stageFromCode`).
-  - `gala.js` + `gala_art.js` : l'arène CÉRÉMONIE, d'après l'image de référence de Noah (palais du cinéma, écran géant,
-    bannières, montée des marches derrière le parvis, foule et flashs, aile gauche à balcon, immeuble bleu, château sur
-    la colline, limousine, palmiers ; musique `SONGS.gala`, marche originale). TOUT en pixel art à la résolution des
+  - `gala.js` + `gala_art.js` : l'arène CÉRÉMONIE, d'après l'image de référence de Noah puis ses retouches : NUIT
+    SOMBRE ET BRUMEUSE (nappes `gala_fog`, halos `gala_glow` en mode ADD autour des lumières), palais BAS au-dessus du
+    parvis avec une petite TOUR et le SIGLE illuminé tout en haut (halo qui pulse), PUBLIC vu à l'horizontale sous le
+    parvis (rangs de têtes, téléphones, flashs), aile gauche à balcon, immeuble bleu, château sur la colline, limousine,
+    palmiers ; musique `SONGS.gala`, marche originale. Logos limités (Noah : « il y en a trop ») : écran, plaque du
+    parvis, bannière en biais de l'aile gauche, écussons de la plateforme haute de gauche et du pupitre, la tour. TOUT en pixel art à la résolution des
     persos : 1 pixel d'art = `GPX` = 2 pixels du jeu (textures `mkCanvas(..., 'raw')`, `setScale(GPX)`). Logo et sigle des
     LUCAS D'OR (originaux dans `tools/art/gala/`) REDESSINÉS en pixels par `tools/art/gala_export.py` → `gala_art.js`
     (`GALA_PIX` : sigle réduit puis ramené à 3 tons d'or ; textes refaits lettre à lettre, petites capitales et
@@ -157,6 +160,14 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   l'air et l'élan horizontal des coups de retour jusqu'à se reposer (sol ou rebord) : revenir devient dur.
   La caméra peut dézoomer jusqu'à `CAM_MIN_Z` (`anim.js`) ; le fond (profondeur <= -5) est rendu par une 3e caméra
   `bgCam` qui ne dézoome pas.
+- PARALLAXE (les 3 arènes) : chaque décor est dessiné en PLANS par `makePlanes(key, w, h, ids, draw)` (`stages.js` :
+  `draw(c, sec)` dessine tout, `sec('plan')` annonce le plan ; une texture `key_plan` par plan + `key` = tout, pour les
+  aperçus ; le hasard du dessin est remis à zéro dans `draw`). `PLANES` (nuit : ciel/collines/ville ; désert :
+  ciel/loin/milieu/près) et `GALA_PLANES` donnent `f` par plan ; `setPlanes` les pose (un Container chacun, `bgImg`
+  caché) et `updateCamera` (`anim.js`) les déplace : chaque plan suit une fraction `f` de la caméra (zoom compris),
+  sans jamais montrer ses bords (bgCam fixe). `f` > 1 = devant le terrain (le public de la cérémonie). Les objets
+  animés du décor vont dans leur plan avec `toPlane(id, objet, derrière)` (le ver des sables : derrière les dunes du
+  milieu, plus de masque).
 - Effets d'un coup (traînée, croissant, flammes…) : lancés par `whenAtk` au moment où le coup PART (`atk.hitAt`), donc
   après le relâchement d'un lourd chargé — jamais avec un délai fixe.
 - Écran de choix : 3 colonnes jusqu'à 6 persos, 4 au-delà. Chaque perso jouable doit avoir ses répliques de campagne

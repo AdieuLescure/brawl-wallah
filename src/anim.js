@@ -88,8 +88,21 @@
       const vw = this.W / zo, vh = this.H / zo;
       cam.setBounds(this.W / 2 - vw / 2, L.baseY - L.baseY / zo, vw, vh);
       cam.centerOn(this.camX, this.camY);
-      // le fond suit la caméra du combat quand elle zoome (> 1), reste fixe quand elle dézoome
-      if (this.camZ >= 1) {
+      // PARALLAXE : chaque plan du décor suit la caméra d'une fraction f (le lointain bouge et grossit peu),
+      // sans jamais laisser voir ses bords ; la 3e caméra, elle, reste fixe
+      if (this.planes && this.planes.length) {
+        bgc.setZoom(1);
+        bgc.centerOn(this.W / 2, this.H / 2);
+        const mx = cam.midPoint.x, my = cam.midPoint.y;
+        for (const p of this.planes) {
+          const zl = Math.max(1, 1 + (this.camZ - 1) * p.f);
+          const hw = this.W / (2 * zl), hh = this.H / (2 * zl);
+          const px = Math.min(this.W - hw, Math.max(hw, this.W / 2 + (mx - this.W / 2) * p.f));
+          const py = Math.min(this.H - hh, Math.max(hh, this.H / 2 + (my - this.H / 2) * p.f));
+          p.c.setScale(zl);
+          p.c.setPosition(this.W / 2 - px * zl, this.H / 2 - py * zl);
+        }
+      } else if (this.camZ >= 1) {
         bgc.setZoom(this.camZ);
         bgc.setBounds(0, 0, this.W, this.H);
         bgc.centerOn(cam.midPoint.x, cam.midPoint.y);

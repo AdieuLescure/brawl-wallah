@@ -13,7 +13,55 @@ function stageFromCode(code) {
   return STAGES[h % STAGES.length];
 }
 
+// PARALLAXE : chaque décor est dessiné en PLANS (du plus loin au plus près). Pendant le combat, quand la caméra suit
+// et zoome, chaque plan ne bouge et ne grossit qu'une fraction f de la caméra (0 = infiniment loin, 1 = comme le
+// terrain) : voir updateCamera (anim.js). Le dessin complet (tous les plans) reste dans 'key' pour les aperçus.
+const PLANES = {
+  night: { key: 'bg', scale: PX, list: [{ id: 'sky', f: 0.06 }, { id: 'hills', f: 0.25 }, { id: 'city', f: 0.5 }] },
+  dune: { key: 'bg_dune', scale: PX, list: [{ id: 'sky', f: 0.05 }, { id: 'far', f: 0.22 }, { id: 'mid', f: 0.42 }, { id: 'near', f: 0.7 }] },
+};
+const PLANES_BUILT = {};
+
 Object.assign(GameScene.prototype, {
+  // dessine un décor en plans : draw(c, sec) dessine tout, sec('plan') annonce le plan des dessins qui suivent.
+  // Une texture par plan (transparente ailleurs) + 'key' = tout. Gardé d'un combat à l'autre (sig = même écran).
+  makePlanes(key, w, h, ids, draw, mode, sig) {
+    if (sig && PLANES_BUILT[key] === sig && this.textures.exists(key) && ids.every((id) => this.textures.exists(key + '_' + id))) return;
+    mkCanvas(this, key, w, h, (c) => draw(c, () => {}), mode);
+    ids.forEach((id) =>
+      mkCanvas(this, key + '_' + id, w, h, (c) => {
+        const orig = c.fillRect.bind(c);
+        let cur = null;
+        c.fillRect = (x, y, ww, hh) => { if (cur === id) orig(x, y, ww, hh); };
+        draw(c, (s) => { cur = s; });
+      }, mode)
+    );
+    PLANES_BUILT[key] = sig;
+  },
+
+  // pose les plans d'un décor (un groupe d'images par plan) ; sans plans : l'image unique d'avant
+  setPlanes(def) {
+    (this.planes || []).forEach((p) => p.c.destroy());
+    this.planes = [];
+    const ok = def && def.list.every((p) => this.textures.exists(def.key + '_' + p.id));
+    if (this.bgImg) this.bgImg.setVisible(!ok);
+    if (!ok) return;
+    def.list.forEach((p, i) => {
+      const c = this.add.container(0, 0).setDepth(-10 + i * 0.2);
+      c.add(this.add.image(0, 0, def.key + '_' + p.id).setOrigin(0).setScale(def.scale));
+      this.planes.push({ id: p.id, f: p.f, c });
+    });
+  },
+  // met un objet du décor dans un plan (back : derrière le dessin de ce plan) ; sans plans il reste où il est
+  toPlane(id, o, back) {
+    const p = (this.planes || []).find((q) => q.id === id);
+    if (p) {
+      if (back) p.c.addAt(o, 0);
+      else p.c.add(o);
+    }
+    return o;
+  },
+
   pickStage() {
     // campagne : nuit, désert, cérémonie, nuit, désert, cérémonie (la finale a lieu à la cérémonie)
     if (camp) return STAGES[camp.ch % STAGES.length];
@@ -126,6 +174,7 @@ Object.assign(GameScene.prototype, {
     (this.softPlats || []).forEach((p) => p.setTexture(dune ? 'soft_dune' : 'soft'));
     if (this.stageFx) this.stageFx.forEach((o) => o.remove ? o.remove(false) : o.destroy());
     this.stageFx = [];
+    this.setPlanes(gala ? (typeof GALA_PLANES !== 'undefined' ? GALA_PLANES : null) : PLANES[dune ? 'dune' : 'night']);
     // plateformes propres à la CÉRÉMONIE (les autres arènes gardent les 3 plateformes d'origine)
     if (this.setGalaGeom) this.setGalaGeom(gala);
     if (dune) this.duneAmbience();
@@ -136,9 +185,11 @@ Object.assign(GameScene.prototype, {
   buildDune() {
     const w = Math.ceil(this.W / PX), h = Math.ceil(this.H / PX);
     const horizon = Math.round(L.baseY / PX) + 6;
-    let seed = 11;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    mkCanvas(this, 'bg_dune', w, h, (c) => {
+    // en plans pour la parallaxe : ciel (lunes, soleil), dunes lointaines, dunes du milieu, avant-plan
+    this.makePlanes('bg_dune', w, h, ['sky', 'far', 'mid', 'near'], (c, sec) => {
+      let seed = 11; // (remis à zéro à chaque passage : tous les plans tirent les mêmes hasards)
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      sec('sky');
       // ciel de fin de journée : indigo en haut, braise, ambre à l'horizon (par bandes)
       const stops = [[22, 14, 44], [86, 30, 52], [196, 84, 42], [244, 168, 86]];
       for (let y = 0; y < h; y++) {
@@ -207,12 +258,15 @@ Object.assign(GameScene.prototype, {
         }
       };
       // très loin, dans la brume
+      sec('far');
       layer(horizon - 6, 3, 9, 30, 70, '#d48a4c', '#e8a868', '#c07a44');
       layer(horizon - 2, 3, 8, 22, 55, '#c8783e', '#f2b06a', '#a65c30');
+      sec('mid');
       layer(horizon + 5, 4, 9, 26, 60, '#b4642f', '#e2a05c', '#8e4a24');
       layer(horizon + 13, 3, 8, 30, 70, '#94502a', '#c88448', '#743a1e');
       // avant-plan : dunes dans l'ombre, de plus en plus sombres vers le bas, rides de vent
       const deep = [['#6e3620', '#8a4a2a', '#5a2a18'], ['#5a2a18', '#743c22', '#48200f'], ['#46200f', '#5e301a', '#381809'], ['#36180b', '#4a2414', '#2a1207'], ['#2a1208', '#3a1c0e', '#200d05']];
+      sec('near');
       let base = horizon + 22, k = 0;
       while (base < h + 20) {
         const d = deep[Math.min(k, deep.length - 1)];
@@ -225,7 +279,7 @@ Object.assign(GameScene.prototype, {
         base += 16 + k * 8;
         k++;
       }
-    });
+    }, undefined, 'dune:' + w + 'x' + h);
     // plateau principal : roche sombre (contraste avec le sable du fond), coiffée d'une couche de sable
     const tw = Math.round(L.mainW / PX);
     mkCanvas(this, 'main_dune', tw, 14, (c) => {
@@ -336,7 +390,7 @@ Object.assign(GameScene.prototype, {
       loop: true,
       callback: () => {
         const x = Math.random() * this.W, y = this.H * (0.45 + Math.random() * 0.5);
-        const q = this.add.rectangle(x, y, 4, 4, Math.random() < 0.5 ? 0xffb347 : 0xffd27a, 0.8).setDepth(-5);
+        const q = this.toPlane('near', this.add.rectangle(x, y, 4, 4, Math.random() < 0.5 ? 0xffb347 : 0xffd27a, 0.8).setDepth(-5));
         this.tweens.add({ targets: q, x: x + 40 + Math.random() * 60, y: y - 60 - Math.random() * 80, alpha: 0, duration: 3200 + Math.random() * 1600, onComplete: () => q.destroy() });
       },
     });
@@ -348,16 +402,21 @@ Object.assign(GameScene.prototype, {
       const k = PX * (1.15 + Math.random() * 0.3);
       const hgt = 72 * k;
       const wImg = this.add.image(x, horizonY + 8 + hgt, 'worm').setOrigin(0.5, 1).setScale(k).setDepth(-9).setAlpha(0.92).setFlipX(Math.random() < 0.5);
-      // le ver sort du sable : on cache tout ce qui est sous la ligne des dunes
-      const mg = this.make.graphics({ add: false });
-      mg.fillRect(0, 0, this.W, horizonY + 8);
-      wImg.setMask(mg.createGeometryMask());
+      // le ver sort du sable : posé DERRIÈRE les dunes du milieu, qui cachent ce qui est sous leur crête
+      // (sans plans : un masque, comme avant)
+      let mg = null;
+      if (this.planes && this.planes.length) this.toPlane('mid', wImg, true);
+      else {
+        mg = this.make.graphics({ add: false });
+        mg.fillRect(0, 0, this.W, horizonY + 8);
+        wImg.setMask(mg.createGeometryMask());
+      }
       // gerbe de sable
       for (let i = 0; i < 26; i++) {
-        const d = this.add.rectangle(x + (Math.random() - 0.5) * 120, horizonY + 6, 8, 8, i % 3 ? 0xd89a5a : 0xf0c27a).setDepth(-8);
+        const d = this.toPlane('mid', this.add.rectangle(x + (Math.random() - 0.5) * 120, horizonY + 6, 8, 8, i % 3 ? 0xd89a5a : 0xf0c27a).setDepth(-8));
         this.tweens.add({ targets: d, x: d.x + (Math.random() - 0.5) * 260, y: d.y - 60 - Math.random() * 180, alpha: 0, duration: 1100 + Math.random() * 600, delay: 150 + Math.random() * 500, ease: 'Quad.easeOut', onComplete: () => d.destroy() });
       }
-      this.tweens.add({ targets: wImg, y: horizonY + 8 + hgt * 0.22, duration: 1400, ease: 'Sine.easeOut', yoyo: true, hold: 1300, onComplete: () => { wImg.destroy(); mg.destroy(); } });
+      this.tweens.add({ targets: wImg, y: horizonY + 8 + hgt * 0.22, duration: 1400, ease: 'Sine.easeOut', yoyo: true, hold: 1300, onComplete: () => { wImg.destroy(); if (mg) mg.destroy(); } });
       this.cameras.main.shake(500, 0.003);
       if (this.sfx) this.sfx('rumble');
     };
@@ -368,7 +427,7 @@ Object.assign(GameScene.prototype, {
     const fly = () => {
       const dir = Math.random() < 0.5 ? 1 : -1;
       const y = this.H * (0.12 + Math.random() * 0.15);
-      const t = this.add.image(dir > 0 ? -60 : this.W + 60, y, 'thopter0').setScale(PX).setDepth(-8).setFlipX(dir < 0);
+      const t = this.toPlane('far', this.add.image(dir > 0 ? -60 : this.W + 60, y, 'thopter0').setScale(PX).setDepth(-8).setFlipX(dir < 0));
       const flap = this.time.addEvent({ delay: 70, loop: true, callback: () => t.active && t.setTexture(t.texture.key === 'thopter0' ? 'thopter1' : 'thopter0') });
       this.tweens.add({ targets: t, x: dir > 0 ? this.W + 60 : -60, y: y + (Math.random() - 0.5) * 60, duration: 9000, onComplete: () => { flap.remove(false); t.destroy(); } });
     };

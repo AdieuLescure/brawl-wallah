@@ -1,9 +1,12 @@
 // ===========================================================================
-// ARÈNE « CÉRÉMONIE » : la montée des marches d'un palais du cinéma, un soir de remise de prix (les LUCAS D'OR).
+// ARÈNE « CÉRÉMONIE » : un palais du cinéma, la nuit, dans la brume, un soir de remise de prix (les LUCAS D'OR).
 // Tout le décor est en pixel art à la résolution des persos (1 pixel d'art = GPX = 2 pixels du jeu), dessiné ici par
-// code ; le logo et le sigle sont redessinés en pixels (gala_art.js, généré par tools/art/gala_export.py) et peints
-// DANS le décor (bannières, plaque du parvis, écussons des plateformes, écran) — parfois en perspective (bannière de
-// l'aile gauche, médaillons tissés dans le tapis rouge).
+// code, en 5 PLANS pour la parallaxe (GALA_PLANES : ciel, colline et château, ville, palais, public). Au-dessus du
+// parvis : le palais, bas, avec sa petite tour et le SIGLE qui s'illumine tout en haut ; en dessous : le public, vu à
+// l'horizontale (plan devant le terrain, f > 1). Brume (nappes 'gala_fog') et halos ('gala_glow') posés par
+// galaAmbience. Logo et sigle redessinés en pixels (gala_art.js, tools/art/gala_export.py) et peints DANS le décor :
+// l'écran géant, la plaque du parvis, la bannière en perspective de l'aile gauche, deux écussons (plateforme de
+// gauche en haut, pupitre) et la tour.
 //
 // Plateformes propres à l'arène (GALA.plats) : toutes se traversent par dessous et se quittent par BAS tenu ;
 // leur face tournée vers le vide (wall) est un mur ; on s'accroche à leurs coins (ledgeBlocks) en tombant le long
@@ -14,14 +17,16 @@
 // Tout ce qui bouge (flashs, projecteurs, ampoules, écran) est purement visuel : jamais dans la simulation.
 // ===========================================================================
 const GPX = 2; // taille d'un pixel d'art de cette arène, en pixels du jeu
+// les plans du décor, du plus loin au plus près (f = part du mouvement de la caméra ; > 1 : devant le terrain)
+const GALA_PLANES = { key: 'bg_gala', scale: GPX, list: [{ id: 'sky', f: 0.04 }, { id: 'hill', f: 0.14 }, { id: 'town', f: 0.3 }, { id: 'palace', f: 0.5 }, { id: 'crowd', f: 1.15 }] };
 const GALA = {
   mainH: 104,
   // x en fraction de la demi-largeur du terrain, top = hauteur du dessus au-dessus du sol (px), h = épaisseur (px),
   // wall = face qui fait mur (-1 gauche, 1 droite, 0 aucune)
   plats: [
-    { id: 'loge', a: -0.94, b: -0.46, top: 190, h: 40, wall: -1, shield: true },
-    { id: 'ecran', a: -0.42, b: 0.06, top: 320, h: 32, wall: 0, shield: true },
-    { id: 'balcon', a: 0.46, b: 0.94, top: 330, h: 40, wall: 1, shield: true },
+    { id: 'loge', a: -0.94, b: -0.46, top: 190, h: 40, wall: -1, shield: false },
+    { id: 'ecran', a: -0.6, b: -0.12, top: 320, h: 32, wall: 0, shield: true }, // (à gauche de la tour : ne cache pas le sigle)
+    { id: 'balcon', a: 0.46, b: 0.94, top: 330, h: 40, wall: 1, shield: false },
     { id: 'scene', a: 0.44, b: 0.94, top: 128, h: 36, wall: 0, shield: false }, // (pas 110 : les bots y restaient bloqués à égalité ; pas de mur : il gênait le saut depuis le rebord droit)
     { id: 'pupitre', a: 0.44, b: 0.62, top: 188, h: 60, wall: 1, pupitre: true },
   ],
@@ -115,341 +120,228 @@ Object.assign(GameScene.prototype, {
   galaArt() {
     const w = Math.ceil(this.W / GPX), h = Math.ceil(this.H / GPX);
     const cx = Math.round(this.W / 2 / GPX), by = Math.round(L.baseY / GPX);
-    const FW = Math.min(165, cx - 12); // demi-largeur de la façade centrale
-    const H2a = Math.round(L.mainW / 2 / GPX);
-    const scr = { x0: cx - 82, x1: cx + 82, y0: by - 222, y1: by - 136 };
-    const ban = [cx - 152, cx + 92]; // bord gauche des deux bannières (60 de large)
+    const FW = Math.min(150, cx - 12); // demi-largeur du palais
+    const roof = by - 118; // le palais est bas : au-dessus du parvis, rien que lui ; sa petite tour porte le sigle
+    const scr = { x0: cx - 58, x1: cx + 58, y0: by - 108, y1: by - 56 }; // écran géant
+    const sig = { x: cx, y: by - 160, r: 13 }; // le sigle illuminé en haut de la tour
     const mainB = by + GALA.mainH / GPX; // bas du parvis
-    return { w, h, cx, by, FW, H2a, scr, ban, mainB, F0: cx - FW, F1: cx + FW, roof: by - 262 };
+    return { w, h, cx, by, FW, F0: cx - FW, F1: cx + FW, roof, scr, sig, mainB };
   },
 
-  // ----- dessin (une fois) -----
+  // ----- dessin (une fois par taille d'écran) : 5 plans pour la parallaxe -----
   buildGala() {
     if (typeof GALA_PIX === 'undefined') return;
     const A = this.galaArt();
-    const { w, h, cx, by, F0, F1, FW, scr } = A;
-    let seed = 11;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const { w, h, cx, by, F0, F1, FW, scr, roof } = A;
     const geo = this.galaGeom();
-    mkCanvas(this, 'bg_gala', w, h, (c) => {
+    const sig = this.W + 'x' + h + ':' + w + JSON.stringify(GALA.plats);
+    // palette sombre (nuit + brume) : pierre presque noire, lumières chaudes
+    const S0 = '#0e0b11', S1 = '#18131a', S2 = '#231c24', S3 = '#33292f', S4 = '#4a3c3e';
+    const D0 = '#4a3416', D1 = '#7a5a24', D2 = '#b88a3a', D3 = '#e8c070'; // or terni
+    const W0 = '#7a4a22', W1 = '#b8743a', W2 = '#e8a65a', W3 = '#ffd890'; // fenêtres éclairées
+    this.makePlanes('bg_gala', w, h, ['sky', 'hill', 'town', 'palace', 'crowd'], (c, sec) => {
+      let seed = 11;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
       const R = (x, y, ww, hh, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(ww), Math.round(hh)); };
       const P = (x, y, col) => R(x, y, 1, 1, col);
-      // lueur chaude autour d'une lampe : anneaux de pixels de plus en plus transparents
-      const glow = (x, y, r, col, a) => {
-        for (let yy = -r; yy <= r; yy++)
-          for (let xx = -r; xx <= r; xx++) {
-            const d = Math.hypot(xx, yy) / r;
-            if (d > 1) continue;
-            const band = Math.ceil((1 - d) * 4) / 4;
-            c.fillStyle = col.replace('A', (a * band).toFixed(3));
-            c.fillRect(x + xx, y + yy, 1, 1);
-          }
-      };
-      // ---- ciel de nuit (bandes), étoiles ----
-      const sky = [[10, 11, 38], [22, 22, 70], [40, 36, 104], [58, 46, 120]];
+      const disc = (x, y, r, col) => { for (let yy = -r; yy <= r; yy++) { const hw = Math.round(Math.sqrt(r * r - yy * yy)); R(x - hw, y + yy, hw * 2 + 1, 1, col); } };
+      // ================= CIEL =================
+      sec('sky');
+      const sky = [[4, 5, 12], [10, 10, 26], [22, 20, 44], [34, 28, 58]];
       for (let y = 0; y < h; y++) {
-        const t = Math.min(1, Math.max(0, y / Math.max(1, by - 40)));
+        const t = Math.min(1, Math.max(0, y / Math.max(1, by - 20)));
         const q = Math.floor(t * 12) / 12;
         const seg = Math.min(2, Math.floor(q * 3)), u = q * 3 - seg;
         const a = sky[seg], b = sky[seg + 1];
         R(0, y, w, 1, `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * u)).join(',')})`);
       }
-      for (let i = 0; i < w * 0.35; i++) {
-        const x = Math.floor(rnd() * w), y = Math.floor(rnd() * (by - 60));
-        P(x, y, rnd() > 0.85 ? '#fff4c8' : rnd() > 0.5 ? '#a8a0e0' : '#6c66b0');
-        if (rnd() > 0.93) { P(x - 1, y, '#5a5498'); P(x + 1, y, '#5a5498'); P(x, y - 1, '#5a5498'); P(x, y + 1, '#5a5498'); }
+      for (let i = 0; i < w * 0.25; i++) {
+        const x = Math.floor(rnd() * w), y = Math.floor(rnd() * (by - 120));
+        P(x, y, rnd() > 0.85 ? '#c8c0e0' : '#4a4680');
       }
-      // ---- la colline et son château, au loin à droite ----
+      // ================= COLLINE ET CHÂTEAU (loin, dans la brume) =================
+      sec('hill');
       const right = w - F1 > 90;
-      const hx = right ? F1 + (w - F1) * 0.55 : w * 0.78, hy = Math.max(by - 300, 34);
+      const hx = right ? F1 + (w - F1) * 0.55 : w * 0.8, hy = by - 196;
       for (let x = 0; x < w; x++) {
-        const dxh = (x - hx) / 90;
-        const top = hy + 22 + Math.round(dxh * dxh * 50 + Math.sin(x * 0.17) * 2);
-        if (top < by) R(x, top, 1, by - top, '#1a1840');
-        if (top < by && (x * 7) % 11 === 0) P(x, top, '#2a2858');
+        const dxh = (x - hx) / 95;
+        const top = hy + 22 + Math.round(dxh * dxh * 46 + Math.sin(x * 0.17) * 2);
+        if (top < h) R(x, top, 1, h - top, '#100f24');
       }
-      // château : tours, remparts, fenêtres éclairées
       [[-26, 12, 8], [-16, 22, 7], [-6, 34, 9], [6, 26, 8], [16, 18, 7], [26, 10, 6]].forEach(([dx, hh, ww]) => {
-        R(hx + dx - ww / 2, hy + 22 - hh, ww, hh, '#221f4c');
-        R(hx + dx - ww / 2, hy + 22 - hh, 1, hh, '#2e2b62');
-        for (let k = 0; k < ww; k += 2) P(hx + dx - ww / 2 + k, hy + 21 - hh, '#221f4c');
-        if (hh > 20) { R(hx + dx - 1, hy + 22 - hh - 8, 2, 8, '#221f4c'); P(hx + dx, hy + 22 - hh - 10, '#221f4c'); }
-        for (let k = 0; k < hh - 4; k += 4) if (rnd() > 0.4) P(hx + dx - ww / 2 + 2 + Math.floor(rnd() * (ww - 3)), hy + 22 - hh + 3 + k, rnd() > 0.5 ? GC.warm2 : GC.warm1);
+        R(hx + dx - ww / 2, hy + 22 - hh, ww, hh, '#151332');
+        if (hh > 20) { R(hx + dx - 1, hy + 22 - hh - 8, 2, 8, '#151332'); P(hx + dx, hy + 22 - hh - 10, '#151332'); }
+        for (let k = 0; k < hh - 4; k += 4) if (rnd() > 0.5) P(hx + dx - ww / 2 + 2 + Math.floor(rnd() * (ww - 3)), hy + 25 - hh + k, rnd() > 0.5 ? W2 : W1);
       });
-      // lumières de la ville au pied de la colline
-      for (let i = 0; i < w * 0.6; i++) {
-        const x = Math.floor(rnd() * w), y = by - 70 + Math.floor(rnd() * 40);
-        P(x, y, rnd() > 0.5 ? GC.warm2 : rnd() > 0.5 ? '#9fb8ff' : GC.warm1);
+      for (let i = 0; i < w * 0.5; i++) {
+        const x = Math.floor(rnd() * w), y = by - 64 + Math.floor(rnd() * 34);
+        P(x, y, rnd() > 0.6 ? W1 : rnd() > 0.5 ? '#5a6aa8' : W0);
       }
-      // ---- à droite : immeuble moderne aux fenêtres bleutées ----
-      if (right) {
-        const bx0 = F1 + 4, bx1 = w;
-        R(bx0, by - 128, bx1 - bx0, 128, '#1c2244');
-        R(bx0, by - 128, bx1 - bx0, 2, '#2c3466');
-        for (let y = by - 120; y < by - 20; y += 9)
-          for (let x = bx0 + 4; x < bx1 - 6; x += 9) {
-            const lit = rnd();
-            R(x, y, 6, 6, lit > 0.45 ? '#7fa0e8' : lit > 0.2 ? '#3a4a88' : '#141a36');
-            if (lit > 0.45) { R(x, y, 6, 1, '#b8ccff'); R(x, y + 5, 6, 1, '#5a74c0'); }
-          }
-        R(bx0, by - 22, bx1 - bx0, 22, '#151a34');
-      }
-      // ---- à gauche : vieille aile du palais avec son balcon et ses invités ----
+      // ================= LA VILLE : aile gauche (balcon, bannière en biais), immeuble bleu =================
+      sec('town');
       if (F0 > 20) {
-        const lx1 = F0 + 4;
-        R(0, by - 168, lx1, 168, GC.st1);
-        R(0, by - 168, lx1, 3, GC.st3);
-        R(0, by - 165, lx1, 1, GC.gold1);
-        // fenêtres en arcade éclairées
+        const lx1 = F0 + 2, top = by - 96;
+        R(0, top, lx1, h - top, '#151018');
+        R(0, top, lx1, 2, '#2c2228');
+        R(0, top + 2, lx1, 1, D0);
         for (let x = 8; x < lx1 - 14; x += 26)
-          for (const y0 of [by - 156, by - 96]) {
-            R(x - 1, y0 - 1, 14, 30, GC.st0);
-            for (let y = y0; y < y0 + 28; y++) R(x, y, 12, 1, y < y0 + 10 ? GC.warm2 : y < y0 + 20 ? GC.warm1 : GC.warm0);
-            R(x + 5, y0, 2, 28, GC.st0);
-            R(x, y0 + 12, 12, 1, GC.st0);
-            R(x + 1, y0 - 2, 10, 1, GC.st2);
-            R(x + 3, y0 - 3, 6, 1, GC.st2);
+          for (const y0 of [by - 86, by - 46]) {
+            const lit = rnd() > 0.35;
+            R(x - 1, y0 - 1, 14, 26, '#0a080c');
+            for (let y = y0; y < y0 + 24; y++) R(x, y, 12, 1, lit ? (y < y0 + 8 ? W2 : y < y0 + 16 ? W1 : W0) : '#2a2026');
+            R(x + 5, y0, 2, 24, '#0a080c');
+            R(x + 1, y0 - 2, 10, 1, '#2c2228');
           }
-        // balcon et silhouettes
-        R(0, by - 122, lx1, 4, GC.st3);
-        R(0, by - 118, lx1, 2, GC.st0);
-        for (let x = 2; x < lx1; x += 4) R(x, by - 128, 1, 6, GC.st3);
-        R(0, by - 129, lx1, 1, GC.st4);
-        for (let x = 14; x < lx1 - 8; x += 19 + Math.floor(rnd() * 8)) {
-          R(x, by - 136, 4, 8, GC.crowd1);
-          R(x + 1, by - 140, 3, 4, GC.crowd1);
-          P(x + 1, by - 140, GC.warm0);
-        }
-        // la grande bannière de l'aile, vue de biais (en perspective)
-        // bannière sur potence, perpendiculaire au mur : vue de biais, son bord libre (à gauche, plus près de nous)
-        // est plus haut que le bord accroché au mur
-        const qx0 = Math.max(6, F0 - 100), qx1 = qx0 + 46;
-        R(qx0 - 2, by - 176, qx1 - qx0 + 8, 2, GC.gold1);
-        R(qx1 + 4, by - 178, 2, 6, GC.gold0);
-        galaWarp(c, galaBanner('short'), [[qx0, by - 174], [qx1, by - 168], [qx1, by - 84], [qx0, by - 72]], PAL_DIM);
-      }
-      // ---- la façade centrale ----
-      R(F0, A.roof, FW * 2, by - A.roof, GC.st2);
-      // étage du haut : fenêtres
-      R(F0, A.roof, FW * 2, 3, GC.st4);
-      R(F0, A.roof + 3, FW * 2, 1, GC.gold1);
-      for (let x = F0 + 8; x < F1 - 10; x += 16) {
-        R(x, A.roof + 10, 9, 18, GC.st0);
-        for (let y = A.roof + 11; y < A.roof + 27; y++) R(x + 1, y, 7, 1, rnd() > 0.15 ? (y < A.roof + 18 ? GC.warm2 : GC.warm1) : GC.st1);
-        R(x + 4, A.roof + 11, 1, 16, GC.st0);
-        R(x - 1, A.roof + 28, 11, 2, GC.st3);
-      }
-      // grande corniche dorée
-      R(F0 - 4, by - 240, FW * 2 + 8, 2, GC.gold3);
-      R(F0 - 4, by - 238, FW * 2 + 8, 3, GC.gold1);
-      R(F0 - 4, by - 235, FW * 2 + 8, 3, GC.st1);
-      for (let x = F0 - 2; x < F1 + 2; x += 4) R(x, by - 235, 2, 2, GC.st3);
-      // hautes fenêtres de part et d'autre de l'écran
-      for (const [x0, x1] of [[F0 + 14, scr.x0 - 18], [scr.x1 + 18, F1 - 14]]) {
-        for (let x = x0; x + 14 <= x1; x += 22) {
-          R(x, by - 222, 14, 84, GC.st0);
-          for (let y = by - 220; y < by - 140; y++) R(x + 2, y, 10, 1, y < by - 190 ? GC.warm2 : y < by - 160 ? GC.warm1 : GC.warm0);
-          for (let y = by - 212; y < by - 140; y += 10) R(x + 2, y, 10, 1, GC.st1);
-          R(x + 6, by - 220, 2, 80, GC.st1);
+        R(0, by - 56, lx1, 3, '#2c2228');
+        for (let x = 2; x < lx1; x += 4) R(x, by - 62, 1, 6, '#2c2228');
+        R(0, by - 63, lx1, 1, '#3a3036');
+        for (let x = 14; x < lx1 - 8; x += 19 + Math.floor(rnd() * 8)) { R(x, by - 70, 4, 8, '#08060a'); R(x + 1, by - 74, 3, 4, '#08060a'); }
+        // la bannière sur potence, perpendiculaire au mur : vue de biais (le bord libre, plus près, est plus grand)
+        if (F0 > 70) {
+        const qx0 = Math.max(6, F0 - 104), qx1 = qx0 + 46;
+        R(qx0 - 2, by - 96, qx1 - qx0 + 8, 2, D1);
+        R(qx1 + 4, by - 98, 2, 6, D0);
+        galaWarp(c, galaBanner('short'), [[qx0, by - 94], [qx1, by - 88], [qx1, by - 12], [qx0, by]], { k: '#0a0810', a: '#6a4a1e', b: '#9c7430', c: '#d0aa60', g: '#5e5c6c', h: '#8e8c9c', i: '#bdbbc8', r: '#3a0a14', y: '#8a6428' });
         }
       }
-      // pilastres
-      const pil = (x, y0, y1) => {
-        R(x, y0, 10, y1 - y0, GC.st3);
-        R(x, y0, 2, y1 - y0, GC.st4);
-        R(x + 8, y0, 2, y1 - y0, GC.st1);
-        R(x - 1, y0, 12, 3, GC.gold2);
-        R(x - 1, y0 + 3, 12, 1, GC.gold0);
-        R(x - 1, y1 - 3, 12, 3, GC.st1);
-      };
-      [F0 + 2, scr.x0 - 16, scr.x1 + 6, F1 - 12].forEach((x) => pil(x, by - 232, by - 40));
-      // l'écran géant : cadre doré (l'image est posée par dessus, voir galaAmbience)
-      R(scr.x0 - 5, scr.y0 - 5, scr.x1 - scr.x0 + 10, scr.y1 - scr.y0 + 10, GC.st0);
-      R(scr.x0 - 4, scr.y0 - 4, scr.x1 - scr.x0 + 8, scr.y1 - scr.y0 + 8, GC.gold2);
-      R(scr.x0 - 4, scr.y0 - 4, scr.x1 - scr.x0 + 8, 1, GC.gold3);
-      R(scr.x0 - 2, scr.y0 - 2, scr.x1 - scr.x0 + 4, scr.y1 - scr.y0 + 4, GC.gold0);
-      R(scr.x0, scr.y0, scr.x1 - scr.x0, scr.y1 - scr.y0, '#06040f');
-      // bannières (le logo complet, en pixels)
-      A.ban.forEach((bx) => {
-        R(bx - 3, by - 236, 66, 2, GC.gold2);
-        R(bx - 4, by - 237, 2, 4, GC.gold3);
-        R(bx + 62, by - 237, 2, 4, GC.gold3);
-        galaSpr(c, galaBanner(), bx, by - 234, Object.assign({}, PAL_GOLD, { k: '#0d0a16', r: GC.red0, y: GC.gold2 }));
-      });
-      // lampes de part et d'autre de l'écran
-      [scr.x0 - 11, scr.x1 + 11].forEach((x) => {
-        glow(x, by - 150, 14, 'rgba(255,200,120,A)', 0.22);
-        R(x - 2, by - 154, 5, 6, GC.warm2);
-        R(x - 1, by - 155, 3, 1, GC.gold3);
-        R(x - 3, by - 148, 7, 2, GC.gold1);
-        R(x, by - 146, 1, 8, GC.gold1);
-      });
-      // rez-de-chaussée : colonnes, portes éclairées, lanternes
-      R(F0, by - 134, FW * 2, 2, GC.gold1);
-      R(F0, by - 132, FW * 2, 3, GC.st3);
-      [cx - 60, cx - 42, cx + 32, cx + 50].forEach((x) => {
-        R(x, by - 128, 10, 98, GC.st4);
-        R(x + 2, by - 128, 6, 98, GC.st3);
-        R(x + 8, by - 128, 2, 98, GC.st1);
-        R(x - 2, by - 128, 14, 4, GC.gold2);
-        R(x - 2, by - 34, 14, 4, GC.st1);
-      });
-      R(cx - 30, by - 96, 60, 66, GC.st0);
-      // (lumière tamisée : les combattants passent juste devant)
-      for (let y = by - 94; y < by - 30; y++) R(cx - 28, y, 56, 1, y < by - 74 ? GC.warm1 : y < by - 52 ? '#c88438' : GC.warm0);
-      for (let k = 0; k < 14; k++) R(cx - 28 + k, by - 108 + k, 56 - 2 * k, 1, GC.st1); // fronton de la porte
-      R(cx - 30, by - 109, 60, 1, GC.gold2);
-      R(cx - 1, by - 94, 2, 64, GC.gold1);
-      R(cx - 15, by - 94, 1, 64, GC.gold0);
-      R(cx + 14, by - 94, 1, 64, GC.gold0);
-      R(cx - 28, by - 70, 56, 1, GC.gold1);
-      [cx - 36, cx + 35].forEach((x) => { glow(x, by - 80, 12, 'rgba(255,200,120,A)', 0.25); R(x - 2, by - 84, 5, 7, GC.warm2); R(x - 2, by - 85, 5, 1, GC.gold3); R(x, by - 77, 1, 4, GC.gold1); });
-      // ---- la montée des marches (derrière le parvis) : tapis rouge, cordons, foule ----
-      const stTop = by - 30;
-      for (let y = stTop, i = 0; y < by; y += 4, i++) {
-        const hw = 34 + i * 6, cw = 12 + i * 2;
-        R(cx - hw, y, hw * 2, 1, GC.st4);
-        R(cx - hw, y + 1, hw * 2, 3, GC.st2);
-        R(cx - hw, y + 3, hw * 2, 1, GC.st1);
-        R(cx - cw, y, cw * 2, 1, GC.red3);
-        R(cx - cw, y + 1, cw * 2, 2, GC.red2);
-        R(cx - cw, y + 3, cw * 2, 1, GC.red1);
-        // poteaux dorés et cordons de velours
-        [-1, 1].forEach((s) => {
-          const px = cx + s * (cw + 5);
-          R(px, y - 6, 1, 7, GC.gold2);
-          R(px - 1, y - 7, 3, 2, GC.gold3);
-          if (y + 4 < by) for (let k = 0; k <= 6; k++) P(px + s * (k * 0.6 + 1), y - 5 + k * 0.7 + Math.round(Math.sin((k / 6) * Math.PI) * 1.5), GC.red2);
-        });
-      }
-      // médaillon tissé dans le tapis, sur le palier devant les portes (vu en perspective, très aplati)
-      R(cx - 20, stTop - 4, 40, 4, GC.red2);
-      R(cx - 20, stTop - 4, 40, 1, GC.red3);
-      galaWarp(c, 'sig13', [[cx - 7, stTop - 4], [cx + 7, stTop - 4], [cx + 9, stTop], [cx - 9, stTop]], { k: GC.red1, a: GC.gold1, b: GC.gold2, c: GC.gold3 });
-      // foule massée derrière les cordons, des deux côtés des marches
-      for (let row = 0; row < 7; row++) {
-        const yy = stTop - 10 + row * 6;
-        for (const s of [-1, 1]) {
-          const edge = 34 + Math.max(0, (yy - stTop) / 4) * 6 + 4;
-          for (let x = cx + s * edge; s < 0 ? x > F0 - 30 : x < F1 + 30; x += s * (4 + Math.floor(rnd() * 3))) {
-            const hy = yy - Math.floor(rnd() * 3);
-            const col = rnd() > 0.5 ? GC.crowd1 : GC.crowd2;
-            R(x - 2, hy + 3, 5, 7, col);
-            R(x - 1, hy, 3, 3, col);
-            P(x, hy, row < 3 ? GC.crowd3 : '#6a4a3a'); // reflet de la lumière de la façade
-            if (rnd() > 0.82) { R(x - 2 - s, hy + 1, 3, 2, '#2c2c38'); P(x - 1 - s, hy + 1, '#9aa4c8'); } // appareil photo
-            if (rnd() > 0.9) R(x - 2 + s * 2, hy - 3, 1, 4, col); // bras levé
-          }
-        }
-      }
-      // ---- la limousine, garée à droite ----
       if (right) {
-        const lx = F1 + 6, ly = by - 4;
-        R(lx + 6, ly - 14, 60, 6, '#111018');
-        R(lx, ly - 9, 76, 9, '#0c0b12');
-        R(lx + 8, ly - 13, 56, 1, '#4a4a60');
-        for (let x = lx + 10; x < lx + 62; x += 13) R(x, ly - 13, 10, 4, '#2a3050');
-        R(lx, ly - 9, 76, 1, '#5a5a74');
-        [lx + 12, lx + 60].forEach((x) => { R(x - 4, ly - 3, 8, 5, '#05040a'); R(x - 1, ly - 1, 2, 2, '#4a4a60'); });
-        R(lx + 74, ly - 7, 2, 2, GC.warm3);
-      }
-      // ---- bannière sur un mât, tout à droite ----
-      if (w - F1 > 150) {
-        const mx = w - 70;
-        R(mx - 2, by - 156, 2, 156, '#3a3448');
-        R(mx - 3, by - 158, 4, 2, GC.gold3);
-        R(mx, by - 154, 62, 1, '#3a3448');
-        galaSpr(c, galaBanner(), mx, by - 152, PAL_DIM);
-      }
-      // ---- sol de la place, au pied du parvis ----
-      R(0, by - 2, w, 2, GC.st1);
-      R(0, by, w, A.mainB - by, '#16111f');
-      for (let y = by + 2, k = 0; y < A.mainB; k++, y += 3 + k) R(0, y, w, 1, '#1d1729');
-      // ---- premier plan (sous le parvis) : la place, le tapis qui arrive vers nous, les photographes ----
-      const fy = A.mainB;
-      R(0, fy, w, h - fy, '#16111f');
-      for (let y = fy, k = 0; y < h; k++, y += 2 + Math.floor(k * 0.6)) R(0, y, w, 1, '#1d1729');
-      const cwAt = (i) => 24 + Math.round(Math.min(i, 60) * 0.35); // le tapis s'élargit vers nous, puis file droit
-      for (let y = fy, i = 0; y < h; y++, i++) {
-        const cw = cwAt(i);
-        R(cx - cw, y, cw * 2, 1, i % 6 === 0 ? GC.red2 : GC.red1);
-        P(cx - cw - 1, y, GC.gold1);
-        P(cx + cw, y, GC.gold1);
-      }
-      // médaillon tissé dans le tapis, vu en perspective
-      if (h - fy > 24) galaWarp(c, 'sig23', [[cx - 12, fy + 6], [cx + 12, fy + 6], [cx + 16, fy + 18], [cx - 16, fy + 18]], { k: GC.red0, a: GC.gold0, b: GC.gold1, c: GC.gold2 });
-      // photographes au pied du parvis, derrière une barrière dorée (éclairés par les lampes du parvis)
-      for (let row = 0, yy = fy + 10; (row < 3 || yy < h - 40) && yy < h + 6; row++, yy += row < 3 ? 14 : 22) {
-        for (const s of [-1, 1]) {
-          const edge = cwAt(yy - fy) + 10;
-          if (row === 0) {
-            R(s < 0 ? 0 : cx + edge - 4, yy - 3, s < 0 ? cx - edge + 4 : w - cx - edge + 4, 1, GC.gold2);
-            for (let x = cx + s * (edge - 3); s < 0 ? x > 0 : x < w; x += s * 12) R(x, yy - 3, 1, 6, GC.gold1);
+        const bx0 = F1 - 2, top = by - 84;
+        R(bx0, top, w - bx0, h - top, '#0d1128');
+        R(bx0, top, w - bx0, 2, '#1a2248');
+        for (let y = top + 8; y < by - 6; y += 9)
+          for (let x = bx0 + 6; x < w - 6; x += 9) {
+            const lit = rnd();
+            R(x, y, 6, 6, lit > 0.6 ? '#5a74c0' : lit > 0.3 ? '#1e2a58' : '#0a0e22');
+            if (lit > 0.6) R(x, y, 6, 1, '#8aa4e8');
           }
-          for (let x = cx + s * (edge + 2); s < 0 ? x > -6 : x < w + 6; x += s * (8 + Math.floor(rnd() * 4))) {
-            const hy = yy - Math.floor(rnd() * 3);
-            const col = row >= 2 ? GC.crowd0 : GC.crowd1;
-            R(x - 3, hy + 4, 7, 12, col);
-            R(x - 2, hy, 5, 5, col);
-            R(x - 2, hy, 5, 1, row === 0 ? '#8a5a3a' : '#4a3438'); // la lumière des lampes sur les têtes
-            if (rnd() > 0.5) { R(x - (s > 0 ? 6 : -2), hy + 1, 5, 3, '#24242e'); P(x - (s > 0 ? 5 : -3), hy + 2, '#9aa4c8'); }
-            if (rnd() > 0.85) R(x + s, hy - 4, 1, 5, col);
-          }
-        }
       }
-      // plus bas (écran en hauteur) : la place s'assombrit, lampadaires
-      const deep = fy + 52;
-      if (h > deep + 10) {
-        for (let y = deep; y < h; y++) {
-          const t = Math.min(1, (y - deep) / 120);
-          if (y % 3 === 0) R(0, y, cx - cwAt(y - fy) - 2, 1, t > 0.6 ? '#0e0a14' : '#120d1a');
-          if (y % 3 === 0) R(cx + cwAt(y - fy) + 2, y, w, 1, t > 0.6 ? '#0e0a14' : '#120d1a');
+      // ================= LE PALAIS (bas), sa tour et son sigle =================
+      sec('palace');
+      R(F0, roof, FW * 2, h - roof, S2);
+      // balustrade du toit
+      R(F0 - 2, roof - 7, FW * 2 + 4, 1, S4);
+      R(F0 - 2, roof - 6, FW * 2 + 4, 1, S3);
+      for (let x = F0; x < F1; x += 4) R(x, roof - 5, 2, 5, S3);
+      // corniche
+      R(F0 - 4, roof, FW * 2 + 8, 1, D2);
+      R(F0 - 4, roof + 1, FW * 2 + 8, 2, D0);
+      R(F0 - 4, roof + 3, FW * 2 + 8, 3, S1);
+      for (let x = F0 - 2; x < F1 + 2; x += 4) R(x, roof + 3, 2, 2, S3);
+      // la tour : socle, tambour, le sigle tout en haut (son éclat est ajouté par dessus, voir galaAmbience)
+      const tx = cx;
+      R(tx - 22, roof - 20, 44, 20, S2);
+      R(tx - 22, roof - 20, 44, 1, S4);
+      R(tx - 22, roof - 19, 2, 19, S3);
+      R(tx + 20, roof - 19, 2, 19, S1);
+      for (let x = tx - 16; x < tx + 16; x += 8) { R(x, roof - 15, 4, 10, '#0a080c'); R(x, roof - 15, 4, 4, W1); R(x, roof - 11, 4, 6, W0); }
+      R(tx - 24, roof - 22, 48, 2, D1);
+      R(tx - 14, roof - 30, 28, 8, S3);
+      R(tx - 14, roof - 30, 28, 1, D2);
+      R(tx - 16, roof - 22, 32, 1, S1);
+      R(tx - 3, roof - 33, 6, 3, D1);
+      const s = A.sig;
+      disc(s.x, s.y, s.r + 1, '#08060a');
+      disc(s.x, s.y, s.r, D1);
+      disc(s.x, s.y, s.r - 1, '#0a0810');
+      galaSpr(c, 'sig23', s.x - 11, s.y - 11, { k: '#0a0810', a: '#c08a30', b: '#ffcf60', c: '#fff4c8' });
+      R(s.x - 1, s.y - s.r - 5, 2, 4, D2);
+      P(s.x, s.y - s.r - 7, D3);
+      // pilastres
+      const pil = (x) => {
+        R(x, roof + 6, 10, by - roof - 6, S3);
+        R(x, roof + 6, 2, by - roof - 6, S4);
+        R(x + 8, roof + 6, 2, by - roof - 6, S1);
+        R(x - 1, roof + 6, 12, 3, D1);
+      };
+      // hautes fenêtres de part et d'autre de l'écran (certaines éteintes)
+      for (const [x0, x1] of [[F0 + 16, scr.x0 - 20], [scr.x1 + 20, F1 - 14]])
+        for (let x = x0; x + 12 <= x1; x += 20) {
+          const lit = rnd() > 0.3;
+          R(x, by - 104, 12, 46, '#0a080c');
+          for (let y = by - 102; y < by - 60; y++) R(x + 2, y, 8, 1, lit ? (y < by - 88 ? W2 : y < by - 74 ? W1 : W0) : '#251c22');
+          for (let y = by - 94; y < by - 60; y += 9) R(x + 2, y, 8, 1, S1);
+          R(x + 5, by - 102, 2, 42, S1);
+          // et en dessous, au rez-de-chaussée
+          R(x, by - 38, 12, 30, '#0a080c');
+          for (let y = by - 36; y < by - 10; y++) R(x + 2, y, 8, 1, lit && rnd() > 0.4 ? W0 : '#1e171c');
         }
-        for (const s of [-1, 1]) {
-          const lx = cx + s * Math.min(cx - 20, 120), ly = Math.min(h - 10, deep + 90);
-          glow(lx, ly - 64, 16, 'rgba(255,200,120,A)', 0.2);
-          R(lx - 1, ly - 60, 3, 60, '#2a2236');
-          R(lx - 4, ly - 68, 9, 7, GC.warm2);
-          R(lx - 5, ly - 69, 11, 1, GC.gold2);
-          R(lx - 3, ly - 2, 7, 3, '#2a2236');
-        }
+      [F0 + 2, scr.x0 - 16, scr.x1 + 6, F1 - 12].forEach(pil);
+      // l'écran géant (l'image est posée par dessus) et son cadre
+      R(scr.x0 - 5, scr.y0 - 5, scr.x1 - scr.x0 + 10, scr.y1 - scr.y0 + 10, S0);
+      R(scr.x0 - 4, scr.y0 - 4, scr.x1 - scr.x0 + 8, scr.y1 - scr.y0 + 8, D1);
+      R(scr.x0 - 4, scr.y0 - 4, scr.x1 - scr.x0 + 8, 1, D2);
+      R(scr.x0 - 2, scr.y0 - 2, scr.x1 - scr.x0 + 4, scr.y1 - scr.y0 + 4, D0);
+      R(scr.x0, scr.y0, scr.x1 - scr.x0, scr.y1 - scr.y0, '#06040f');
+      // linteau, portes éclairées (tamisées : les combattants passent devant), colonnes, lanternes
+      R(F0, by - 50, FW * 2, 3, D0);
+      R(F0, by - 47, FW * 2, 2, S3);
+      [cx - 46, cx - 36, cx + 26, cx + 36].forEach((x) => { R(x, by - 45, 10, 45, S3); R(x + 2, by - 45, 4, 45, S4); R(x + 8, by - 45, 2, 45, S1); R(x - 1, by - 45, 12, 2, D1); });
+      R(cx - 26, by - 42, 52, 42, '#0a080c');
+      for (let y = by - 40; y < by; y++) R(cx - 24, y, 48, 1, y < by - 30 ? W2 : y < by - 16 ? W1 : W0);
+      R(cx - 1, by - 40, 2, 40, '#3a2414');
+      R(cx - 13, by - 40, 1, 40, '#5a3a1c');
+      R(cx + 12, by - 40, 1, 40, '#5a3a1c');
+      R(cx - 24, by - 26, 48, 1, '#5a3a1c');
+      [cx - 54, cx + 53].forEach((x) => { R(x - 2, by - 34, 5, 6, W3); R(x - 2, by - 35, 5, 1, D2); R(x, by - 28, 1, 5, D1); });
+      // petites marches et tapis rouge jusqu'aux portes
+      for (let i = 0; i < 3; i++) { R(cx - 30 - i * 4, by - 6 + i * 2, 60 + i * 8, 2, i % 2 ? S3 : S4); }
+      R(cx - 12, by - 6, 24, 6, GC.red1);
+      R(cx - 12, by - 6, 24, 1, GC.red2);
+      // limousine garée à droite, palmiers
+      if (right) {
+        const lx = F1 + 6, ly = by - 2;
+        R(lx + 6, ly - 14, 60, 6, '#0a0910');
+        R(lx, ly - 9, 76, 9, '#07060b');
+        R(lx + 8, ly - 13, 56, 1, '#34344a');
+        for (let x = lx + 10; x < lx + 62; x += 13) R(x, ly - 13, 10, 4, '#1a2040');
+        R(lx, ly - 9, 76, 1, '#3a3a50');
+        [lx + 12, lx + 60].forEach((x) => R(x - 4, ly - 3, 8, 5, '#030206'));
+        R(lx + 74, ly - 7, 2, 2, W3);
       }
-      // palmiers, buissons aux coins
       const palm = (px, py, k) => {
-        // tronc annelé, légèrement courbé
-        const n = Math.round(66 * k);
+        const n = Math.round(60 * k);
         for (let i = 0; i < n; i++) {
           const x = px + Math.round(Math.sin((i / n) * 1.6) * 6 * k), tw = Math.max(3, Math.round((4 - i / n) * k));
-          R(x, py - i, tw, 1, i % 3 === 0 ? '#1c140e' : '#3a2a1c');
-          P(x, py - i, '#4a3826');
+          R(x, py - i, tw, 1, i % 3 === 0 ? '#0a0806' : '#1c140e');
         }
-        const tx = px + Math.round(Math.sin(1.6) * 6 * k) + 1, ty = py - n;
-        // palmes : une nervure courbe et des folioles qui retombent
+        const ttx = px + Math.round(Math.sin(1.6) * 6 * k) + 1, tty = py - n;
         [[-1, 0.9], [1, 0.9], [-1, 0.45], [1, 0.45], [-0.6, 1.25], [0.6, 1.25], [-1, 0.1], [1, 0.1]].forEach(([dir, lift]) => {
           const len = Math.round(26 * k * (lift > 1 ? 0.7 : 1));
           for (let i = 0; i < len; i++) {
             const t = i / len;
-            const x = Math.round(tx + dir * i), y = Math.round(ty - lift * 10 * k * Math.sin(t * Math.PI * 0.75) + t * t * 14 * k);
-            R(x, y, 2, 1, t < 0.3 ? '#3f7a48' : '#2c5e3a');
-            if (i % 2 === 0 && t > 0.1) for (let l = 1; l <= 4 - Math.round(t * 2); l++) P(x + dir * Math.round(l * 0.5), y + l, l === 1 ? '#2c5e3a' : '#1c4028');
+            const x = Math.round(ttx + dir * i), y = Math.round(tty - lift * 10 * k * Math.sin(t * Math.PI * 0.75) + t * t * 14 * k);
+            R(x, y, 2, 1, t < 0.3 ? '#1e3a26' : '#14281c');
+            if (i % 2 === 0 && t > 0.1) for (let l = 1; l <= 4 - Math.round(t * 2); l++) P(x + dir * Math.round(l * 0.5), y + l, '#0e1c14');
           }
         });
-        R(tx - 2, ty - 1, 5, 3, '#4a3826');
       };
-      if (F0 > 40) { palm(F0 - 30, by + 2, 1.2); palm(F0 - 70, by + 2, 1.0); }
-      if (right) palm(F1 + 100, by + 2, 1.1);
-      // écran en hauteur : grands palmiers au premier plan, en bas
-      if (h - A.mainB > 200) { palm(18, h + 4, 2.2); palm(w - 26, h + 4, 2.0); }
-      for (const s of [-1, 1])
-        for (let i = 0; i < 14; i++) {
-          const x = s < 0 ? Math.floor(rnd() * 70) : w - Math.floor(rnd() * 70), y = h - Math.floor(rnd() * 30);
-          const r = 6 + Math.floor(rnd() * 8);
-          for (let yy = -r; yy <= r; yy++) {
-            const hw = Math.round(Math.sqrt(r * r - yy * yy));
-            R(x - hw, y + yy, hw * 2, 1, yy < -r / 2 ? '#14261c' : '#0c1812');
-          }
+      if (F0 > 40) palm(F0 - 28, by + 4, 1.15);
+      if (right) palm(F1 + 92, by + 4, 1.05);
+      // ================= LE PUBLIC, à l'horizontale sous le parvis =================
+      sec('crowd');
+      const y0 = by + 4;
+      R(0, y0, w, h - y0, '#0a0810');
+      for (let y = y0 + 3, row = 0; y < h + 12; row++) {
+        const d = y - y0;
+        const r = 3 + Math.floor(d / 45); // les têtes grossissent vers nous
+        const far = Math.max(0, 1 - d / 150); // les rangs du fond sont pris dans la brume
+        const body = far > 0.6 ? '#2e2440' : far > 0.3 ? '#211a2e' : '#130f1a';
+        const shade = far > 0.6 ? '#251d34' : far > 0.3 ? '#191424' : '#0c0a12';
+        const rim = d < 70 ? (row % 2 ? '#d08a5a' : '#b0704a') : far > 0 ? '#6a5070' : '#3a2e44';
+        for (let x = (row % 2) * (r + 2) - r; x < w + r; x += 2 * r + 3 + Math.floor(rnd() * 3)) {
+          const hy = y - Math.floor(rnd() * 3);
+          R(x - r - 2, hy + r, 2 * r + 5, r * 3, body); // épaules
+          R(x - r - 2, hy + r + 2, 2 * r + 5, r * 3, shade);
+          if (rnd() > 0.7) R(x - 1, hy + r + 1, 3, r * 2, rnd() > 0.5 ? '#3a2a3a' : '#2a2a44'); // chemise, cravate…
+          disc(x, hy, r, body); // tête
+          R(x - r + 1, hy - r, 2 * r - 1, 1, rim); // la lumière du parvis sur les têtes
+          P(x - r, hy - r + 1, rim);
+          P(x + r, hy - r + 1, rim);
+          if (rnd() > 0.93) R(x + r + 1, hy - 2 * r - 2, 2, 2 * r + 3, body); // un bras levé
         }
-    }, 'raw');
+        y += 2 * r + 2 + Math.floor(r * 0.6);
+      }
+    }, 'raw', sig);
 
     // ---- le parvis : tapis rouge sur le dessus, rideaux drapés, plaque du logo, lampes ----
     const tw = Math.round(L.mainW / GPX), th = GALA.mainH / GPX;
@@ -465,8 +357,8 @@ Object.assign(GameScene.prototype, {
     mkCanvas(this, 'gala_scr_logo', sw, sh, (c) => {
       c.fillStyle = '#06040f';
       c.fillRect(0, 0, sw, sh);
-      const L0 = GALA_PIX.logoEd;
-      galaSpr(c, L0, (sw - L0[0].length) / 2, 2, PAL_GOLD);
+      const L0 = GALA_PIX.logo;
+      galaSpr(c, L0, (sw - L0[0].length) / 2, (sh - L0.length) / 2, PAL_GOLD);
     }, 'raw');
     mkCanvas(this, 'gala_scr_film', sw, sh, (c) => {
       for (let y = 0; y < sh; y++) {
@@ -489,6 +381,34 @@ Object.assign(GameScene.prototype, {
         }
       });
     }, 'raw');
+    // halo doux (lumières dans la brume) et nappe de brume
+    if (!this.textures.exists('gala_glow')) {
+      const t = this.textures.createCanvas('gala_glow', 128, 128);
+      const c = t.getContext();
+      const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+      g.addColorStop(0.6, 'rgba(255,255,255,0.15)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, 128, 128);
+      t.refresh();
+      t.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+    if (!this.textures.exists('gala_fog')) {
+      const t = this.textures.createCanvas('gala_fog', 256, 64);
+      const c = t.getContext();
+      for (let x = 0; x < 256; x++) {
+        const k = 0.65 + 0.2 * Math.sin(x * 0.05) + 0.15 * Math.sin(x * 0.13 + 1);
+        for (let y = 0; y < 64; y++) {
+          const v = Math.sin((y / 63) * Math.PI);
+          c.fillStyle = `rgba(255,255,255,${(Math.pow(v, 1.6) * k).toFixed(3)})`;
+          c.fillRect(x, y, 1, 1);
+        }
+      }
+      t.refresh();
+      t.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
     // faisceau de projecteur (dans le ciel)
     if (!this.textures.exists('gala_beam')) {
       const bt = this.textures.createCanvas('gala_beam', 48, 256);
@@ -542,24 +462,46 @@ Object.assign(GameScene.prototype, {
     return this.ledgeBlocks.find((bl) => Math.abs(b.bottom - bl.top) < 4 && b.center.x > bl.x0 - 4 && b.center.x < bl.x1 + 4) || null;
   },
 
-  // ----- vie du décor (purement visuel, jamais dans la simulation) -----
+  // ----- vie du décor (purement visuel, jamais dans la simulation) : brume, halos, écran, sigle qui s'illumine -----
   galaAmbience() {
-    const A = this.galaArt(), fx = this.stageFx;
+    const A = this.galaArt(), fx = this.stageFx, W = this.W;
     const keep = (o) => (fx.push(o), o);
-    // faisceaux de projecteurs dans le ciel
-    [[A.F1 + 30, -1, 0], [A.F1 + 60, 1, 1], [A.F0 - 20, 1, 2]].forEach(([xa, s, k]) => {
-      const bx = Math.min(A.w - 4, Math.max(4, xa)) * GPX, by = (A.by - 120) * GPX;
-      const beam = keep(this.add.image(bx, by, 'gala_beam').setOrigin(0.5, 1).setDepth(-9.8).setAlpha(0.16).setBlendMode(Phaser.BlendModes.ADD));
-      beam.setDisplaySize(96, Math.max(520, by + 60));
-      beam.angle = s * (14 + k * 6);
-      keep(this.tweens.add({ targets: beam, angle: -s * 16, duration: 6000 + k * 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
+    const P = (id, o) => keep(this.toPlane(id, o));
+    const ADD = Phaser.BlendModes.ADD;
+    // halo lumineux (doux, il « bave » dans la brume)
+    const glow = (id, x, y, ww, hh, tint, a) => P(id, this.add.image(x, y, 'gala_glow').setDisplaySize(ww, hh).setTint(tint).setAlpha(a).setBlendMode(ADD).setDepth(-7));
+    // nappe de brume
+    const fog = (id, y, hh, tint, a, ww) => P(id, this.add.image(W / 2, y, 'gala_fog').setDisplaySize(ww || W * 1.4, hh).setTint(tint).setAlpha(a).setDepth(-7));
+    const pulse = (o, a1, ms) => keep(this.tweens.add({ targets: o, alpha: a1, duration: ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
+    const by = A.by * GPX, cx = A.cx * GPX;
+    // ciel : projecteurs qui balaient, très voilés
+    [[A.F0 + 30, 1, 0], [A.F1 - 30, -1, 1]].forEach(([xa, s, k]) => {
+      const beam = P('sky', this.add.image(xa * GPX, (A.roof - 4) * GPX, 'gala_beam').setOrigin(0.5, 1).setAlpha(0.09).setBlendMode(ADD));
+      beam.setDisplaySize(110, Math.max(560, (A.roof - 4) * GPX + 80));
+      beam.angle = s * 18;
+      keep(this.tweens.add({ targets: beam, angle: -s * 14, duration: 7000 + k * 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
     });
+    // brume lointaine sur la colline et la ville
+    fog('hill', by - 120, 260, 0x6a6898, 0.6);
+    fog('town', by - 40, 240, 0x7a72a2, 0.5);
+    // le palais : halos des portes, des lanternes, de l'écran ; le sigle de la tour qui s'illumine
+    glow('palace', cx, by - 40, 300, 170, 0xff9a48, 0.28);
+    [A.cx - 54, A.cx + 53].forEach((x) => pulse(glow('palace', x * GPX + 1, by - 62, 70, 70, 0xffb060, 0.45), 0.3, 1800 + x));
+    glow('palace', cx, ((A.scr.y0 + A.scr.y1) / 2) * GPX, (A.scr.x1 - A.scr.x0) * GPX + 160, (A.scr.y1 - A.scr.y0) * GPX + 120, 0x8aa0ff, 0.14);
+    const sx = A.sig.x * GPX, sy = A.sig.y * GPX;
+    const halo = glow('palace', sx, sy, 150, 150, 0xffc860, 0.5);
+    const core = glow('palace', sx, sy, 64, 64, 0xfff0c0, 0.55);
+    pulse(halo, 0.95, 2200);
+    pulse(core, 0.9, 2200);
+    // un rayon de lumière monte du sigle dans la brume
+    const ray = P('palace', this.add.image(sx, sy - 6, 'gala_beam').setOrigin(0.5, 1).setDisplaySize(70, sy + 40).setTint(0xffd890).setAlpha(0.1).setBlendMode(ADD));
+    pulse(ray, 0.2, 2200);
     // l'écran : le logo, un plan de film, puis « EN DIRECT » avec chaque combattant…
     const s = A.scr;
-    const scrImg = keep(this.add.image(s.x0 * GPX, s.y0 * GPX, 'gala_scr_logo').setOrigin(0).setScale(GPX).setDepth(-9));
-    const live = this.add.container(0, 0).setDepth(-8.9).setVisible(false);
+    const scrImg = P('palace', this.add.image(s.x0 * GPX, s.y0 * GPX, 'gala_scr_logo').setOrigin(0).setScale(GPX));
+    const live = this.toPlane('palace', this.add.container(0, 0).setVisible(false));
     keep({ remove: () => live.destroy() }); // (un Container a déjà une méthode remove : on l'enveloppe)
-    const scrX = ((s.x0 + s.x1) / 2) * GPX, top = s.y0 * GPX;
+    const scrX = ((s.x0 + s.x1) / 2) * GPX, top = s.y0 * GPX, sh = (s.y1 - s.y0) * GPX;
     let slot = 0;
     const showScreen = () => {
       if (!scrImg.active) return;
@@ -575,11 +517,11 @@ Object.assign(GameScene.prototype, {
       const pl = pls[it];
       scrImg.setVisible(false);
       live.setVisible(true);
-      live.add(this.add.rectangle(s.x0 * GPX, top, (s.x1 - s.x0) * GPX, (s.y1 - s.y0) * GPX, 0x06040f).setOrigin(0));
+      live.add(this.add.rectangle(s.x0 * GPX, top, (s.x1 - s.x0) * GPX, sh, 0x06040f).setOrigin(0));
       const key = `${pl.char}_idle0`;
-      if (this.textures.exists(key)) live.add(this.add.image(scrX, top + 70, key).setScale(1.6));
-      live.add(this.add.text(scrX, top + 6, '● EN DIRECT', { fontFamily: FONT, fontSize: '16px', color: '#ff5a6e' }).setOrigin(0.5, 0));
-      live.add(this.add.text(scrX, top + 112, 'NOMINÉ : ' + (pl.def && pl.def.name ? pl.def.name : pl.char).toUpperCase(), { fontFamily: FONT, fontSize: '16px', color: '#e0c27a' }).setOrigin(0.5, 1));
+      if (this.textures.exists(key)) live.add(this.add.image(scrX, top + sh / 2 + 2, key).setScale(0.8));
+      live.add(this.add.text(scrX, top + 4, '● EN DIRECT', { fontFamily: FONT, fontSize: '16px', color: '#ff5a6e' }).setOrigin(0.5, 0));
+      live.add(this.add.text(scrX, top + sh - 3, (pl.def && pl.def.name ? pl.def.name : pl.char).toUpperCase(), { fontFamily: FONT, fontSize: '16px', color: '#e0c27a' }).setOrigin(0.5, 1));
     };
     keep(this.time.addEvent({ delay: 4000, loop: true, callback: showScreen }));
     // ampoules autour de l'écran : chenillard (3 images toutes faites qu'on alterne)
@@ -589,29 +531,49 @@ Object.assign(GameScene.prototype, {
     const bx0 = s.x0 - 4, by0 = s.y0 - 4, bw = s.x1 - s.x0 + 8, bh = s.y1 - s.y0 + 8;
     for (let ph = 0; ph < 3; ph++)
       mkCanvas(this, 'gala_bulbs' + ph, bw, bh, (c) => pts.forEach(([x, y], i) => {
-        c.fillStyle = (i + ph) % 3 ? GC.warm3 : GC.gold0;
+        c.fillStyle = (i + ph) % 3 ? GC.warm2 : '#4a3416';
         c.fillRect(x - bx0, y - by0, 1, 1);
       }), 'raw');
-    const bulbs = keep(this.add.image(bx0 * GPX, by0 * GPX, 'gala_bulbs0').setOrigin(0).setScale(GPX).setDepth(-8.8));
+    const bulbs = P('palace', this.add.image(bx0 * GPX, by0 * GPX, 'gala_bulbs0').setOrigin(0).setScale(GPX));
     let phase = 0;
-    keep(this.time.addEvent({ delay: 200, loop: true, callback: () => bulbs.active && bulbs.setTexture('gala_bulbs' + (++phase % 3)) }));
-    // flashs des photographes : dans la foule des marches et au premier plan
+    keep(this.time.addEvent({ delay: 220, loop: true, callback: () => bulbs.active && bulbs.setTexture('gala_bulbs' + (++phase % 3)) }));
+    // brume au pied du palais, et quelques nappes qui dérivent lentement devant lui
+    fog('palace', by - 10, 200, 0x8a82b0, 0.6);
+    fog('palace', by - 150, 160, 0x6e6896, 0.22);
+    for (let i = 0; i < 4; i++) {
+      const wisp = P('palace', this.add.image(W * (0.15 + 0.25 * i), by - 120 + i * 34, 'gala_fog').setDisplaySize(W * 0.55, 80).setTint(0x9a92c0).setAlpha(0.2));
+      keep(this.tweens.add({ targets: wisp, x: wisp.x + (i % 2 ? -120 : 120), duration: 16000 + i * 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
+    }
+    // le public : brume derrière lui, lumière des lampes du parvis sur les premiers rangs, téléphones, flashs
+    fog('crowd', by + 30, 150, 0x7a70a0, 0.5);
+    fog('crowd', by + 200, 240, 0x4a4468, 0.3);
+    glow('crowd', cx, A.mainB * GPX + 20, L.mainW + 200, 120, 0xffa860, 0.16);
+    const crowdY = (y) => Math.min(this.H - 6, y);
+    const phones = [];
+    for (let i = 0; i < 14; i++) {
+      const x = Math.round((Math.random() * this.W) / GPX) * GPX, y = crowdY(Math.round((by + 16 + Math.random() * (this.H - by - 20)) / GPX) * GPX);
+      const ph = P('crowd', this.add.rectangle(x, y, 4, 6, 0xcfe0ff).setAlpha(0));
+      const g = glow('crowd', x, y, 34, 34, 0x9ab8ff, 0);
+      phones.push([ph, g]);
+    }
     keep(this.time.addEvent({
-      delay: 140, loop: true,
+      delay: 300, loop: true,
+      callback: () => phones.forEach(([ph, g]) => {
+        if (!ph.active || Math.random() > 0.12) return;
+        const on = ph.alpha < 0.5;
+        ph.setAlpha(on ? 1 : 0);
+        g.setAlpha(on ? 0.5 : 0);
+      }),
+    }));
+    keep(this.time.addEvent({
+      delay: 150, loop: true,
       callback: () => {
-        if (Math.random() > 0.5) return;
-        let xA, yA;
-        const side = Math.random() < 0.5 ? -1 : 1;
-        if (Math.random() < 0.55) {
-          yA = A.by - 36 + Math.random() * 34;
-          xA = A.cx + side * (44 + Math.random() * (A.FW - 30));
-        } else {
-          if (A.h - A.mainB < 12) return;
-          yA = A.mainB + 10 + Math.random() * (A.h - A.mainB - 10);
-          xA = A.cx + side * (40 + Math.random() * (A.w / 2 - 40));
-        }
-        const g = this.add.image(Math.round(xA) * GPX, Math.round(yA) * GPX, 'gala_spark').setScale(GPX).setDepth(-6).setBlendMode(Phaser.BlendModes.ADD);
-        this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+        if (Math.random() > 0.45) return;
+        const x = Math.round((Math.random() * this.W) / GPX) * GPX;
+        const yMin = by + 12, y = Math.round((yMin + Math.random() * Math.max(10, Math.min(this.H, by + 420) - yMin)) / GPX) * GPX;
+        const sp = this.toPlane('crowd', this.add.image(x, y, 'gala_spark').setScale(GPX).setBlendMode(ADD));
+        const gl = this.toPlane('crowd', this.add.image(x, y, 'gala_glow').setDisplaySize(90, 90).setTint(0xe8eeff).setAlpha(0.6).setBlendMode(ADD));
+        this.tweens.add({ targets: [sp, gl], alpha: 0, duration: 220, onComplete: () => { sp.destroy(); gl.destroy(); } });
       },
     }));
   },
