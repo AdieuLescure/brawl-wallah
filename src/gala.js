@@ -481,8 +481,8 @@ Object.assign(GameScene.prototype, {
       keep(this.tweens.add({ targets: beam, angle: -s * 14, duration: 7000 + k * 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
     });
     // brume lointaine sur la colline et la ville
-    fog('hill', by - 120, 260, 0x6a6898, 0.6);
-    fog('town', by - 40, 240, 0x7a72a2, 0.5);
+    fog('hill', by - 120, 260, 0x6a6898, 0.45);
+    fog('town', by - 40, 240, 0x7a72a2, 0.35);
     // le palais : halos des portes, des lanternes, de l'écran ; le sigle de la tour qui s'illumine
     glow('palace', cx, by - 40, 300, 170, 0xff9a48, 0.28);
     [A.cx - 54, A.cx + 53].forEach((x) => pulse(glow('palace', x * GPX + 1, by - 62, 70, 70, 0xffb060, 0.45), 0.3, 1800 + x));
@@ -537,14 +537,14 @@ Object.assign(GameScene.prototype, {
     let phase = 0;
     keep(this.time.addEvent({ delay: 220, loop: true, callback: () => bulbs.active && bulbs.setTexture('gala_bulbs' + (++phase % 3)) }));
     // brume au pied du palais, et quelques nappes qui dérivent lentement devant lui
-    fog('palace', by - 10, 200, 0x8a82b0, 0.6);
-    fog('palace', by - 150, 160, 0x6e6896, 0.22);
+    fog('palace', by - 10, 150, 0x8a82b0, 0.4);
+    fog('palace', by - 150, 160, 0x6e6896, 0.14);
     for (let i = 0; i < 4; i++) {
-      const wisp = P('palace', this.add.image(W * (0.15 + 0.25 * i), by - 120 + i * 34, 'gala_fog').setDisplaySize(W * 0.55, 80).setTint(0x9a92c0).setAlpha(0.2));
+      const wisp = P('palace', this.add.image(W * (0.15 + 0.25 * i), by - 120 + i * 34, 'gala_fog').setDisplaySize(W * 0.55, 80).setTint(0x9a92c0).setAlpha(0.12));
       keep(this.tweens.add({ targets: wisp, x: wisp.x + (i % 2 ? -120 : 120), duration: 16000 + i * 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
     }
     // le public : brume derrière lui, lumière des lampes du parvis sur les premiers rangs, téléphones, flashs
-    fog('crowd', by + 30, 150, 0x7a70a0, 0.5);
+    fog('crowd', by + 30, 130, 0x7a70a0, 0.38);
     fog('crowd', by + 200, 240, 0x4a4468, 0.3);
     glow('crowd', cx, A.mainB * GPX + 20, L.mainW + 200, 120, 0xffa860, 0.16);
     const crowdY = (y) => Math.min(this.H - 6, y);

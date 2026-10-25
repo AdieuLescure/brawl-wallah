@@ -93,12 +93,19 @@
       if (this.planes && this.planes.length) {
         bgc.setZoom(1);
         bgc.centerOn(this.W / 2, this.H / 2);
-        const mx = cam.midPoint.x, my = cam.midPoint.y;
+        // centre RÉEL de la caméra (après les limites ; midPoint n'est recalculé qu'au rendu)
+        const sxc = cam.useBounds ? cam.clampX(cam.scrollX) : cam.scrollX, syc = cam.useBounds ? cam.clampY(cam.scrollY) : cam.scrollY;
+        const mx = sxc + this.W / 2, my = syc + this.H / 2;
         for (const p of this.planes) {
           const zl = Math.max(1, 1 + (this.camZ - 1) * p.f);
           const hw = this.W / (2 * zl), hh = this.H / (2 * zl);
           const px = Math.min(this.W - hw, Math.max(hw, this.W / 2 + (mx - this.W / 2) * p.f));
-          const py = Math.min(this.H - hh, Math.max(hh, this.H / 2 + (my - this.H / 2) * p.f));
+          // en hauteur, chaque plan (sauf le ciel) reste calé sur la ligne du sol : le pied du décor ne « décolle »
+          // jamais du terrain quand la caméra monte ou descend (sinon on voyait un grand vide brumeux sous les persos)
+          const by = L.baseY;
+          const py0 = p.id === 'sky' ? this.H / 2 + (my - this.H / 2) * p.f : by - ((by - my) * this.camZ) / zl;
+          // (le haut de ces plans est transparent, et leur bas est prolongé par une « jupe » de leur couleur : setPlanes)
+          const py = p.id === 'sky' ? Math.min(this.H - hh, Math.max(hh, py0)) : py0;
           p.c.setScale(zl);
           p.c.setPosition(this.W / 2 - px * zl, this.H / 2 - py * zl);
         }

@@ -325,7 +325,8 @@
       dSX: { type: 'melee', pose: 'boom', prePose: 'boomPre', startup: 420, active: 140, total: 900, w: 270, h: 210, ox: 0, oy: -20, dmg: 15, kb: 350, ks: 9.2, ang: -1.15, stun: 240, cd: 2500, cdKey: 'dS', nuke: true, fx: { nuke: true },
         neutron: Object.assign({}, NEUTRON, { vx: 760, life: 720, dmg: 5 }) },
       // ALLEY-OOP : saut très haut, dunk sur celui qui est au-dessus, puis le ballon repart vers le bas (remonter)
-      uS: { type: 'melee', pose: 'dunk', startup: 90, active: 220, total: 600, w: 84, h: 100, ox: 16, oy: -64, dmg: 7, kb: 250, ks: 5, ang: -1.3, stun: 210, rise: 860, riseX: 100, onceAir: 'leap', recovery: true, dunk: 220, fx: { ghosts: 2, dunkFx: true },
+      // (dunk renforcé, demande de Noah : il ne pouvait pas tuer à 275 % ; tue vers 140 % depuis le centre)
+      uS: { type: 'melee', pose: 'dunk', startup: 90, active: 220, total: 600, w: 84, h: 100, ox: 16, oy: -64, dmg: 9, kb: 300, ks: 7.6, ang: -1.3, stun: 210, rise: 860, riseX: 100, onceAir: 'leap', recovery: true, dunk: 220, fx: { ghosts: 2, dunkFx: true },
         proj: { kind: 'ball', tex: 'bball', s: 3, vx: 240, vy: 560, grav: 900, life: 1500, w: 34, h: 34, ox: 22, oy: -46, dmg: 7, kb: 230, ks: 4.4, ang: 1.0, stun: 220 } },
       dAS: GP({ pose: 'stomp', fx: { ghosts: 2 } }), // COUP DE BOTTE
     }), ['COUP   OBJET (CASQUETTE)', 'SPÉCIAL TOUPIE', 'SPÉ AV CASQUETTE', 'SPÉ H/B ALLEY-OOP/FISSION', 'AIR BAS COUP DE BOTTE', 'BAS TENU : TABLEAU E=MC²']);

@@ -80,7 +80,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     SPÉCIAL + BAS TENU au sol (bit d'entrée 22 `shold`, champ `pl.sHold`) = il écrit (`eqMs`, 0,5 s par morceau, 1,5 s
     en tout), attaquable ; interrompu, ce qui est écrit reste ; effacé quand il perd une vie. FISSION (appui court,
     type `fission`, 2 `neutron`) ; formule complète = RÉACTION EN CHAÎNE (`dSX`, `nuke`, préparation 0,42 s, consomme la
-    formule au moment où elle part). ALLEY-OOP (spéciale haut, `dunk` : ballon `bball` lancé vers le bas).
+    formule au moment où elle part). ALLEY-OOP (spéciale haut, `dunk` : ballon `bball` lancé vers le bas ; renforcée pour tuer vers 140 % depuis le centre, Noah ne pouvait pas tuer à 275 %).
     Branché sur `nxPick`/`nxStart`/`nxTimer` (`game.js`) et `bzStep`/`bzProj`/`bzHit`/`die`/`botInput` (enveloppés).
   - `kits.js` : MOVESETS, 2 boutons d'attaque façon Brawlhalla (doc « Brawl Proto — armes, spéciales et combos »).
     COUP + direction = les coups de la FAMILLE D'ARME (`FAMILY` : poings, objet, allonge ; `tirLights` pour TIR), mêmes
@@ -168,8 +168,11 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   `draw(c, sec)` dessine tout, `sec('plan')` annonce le plan ; une texture `key_plan` par plan + `key` = tout, pour les
   aperçus ; le hasard du dessin est remis à zéro dans `draw`). `PLANES` (nuit : ciel/collines/ville ; désert :
   ciel/loin/milieu/près) et `GALA_PLANES` donnent `f` par plan ; `setPlanes` les pose (un Container chacun, `bgImg`
-  caché) et `updateCamera` (`anim.js`) les déplace : chaque plan suit une fraction `f` de la caméra (zoom compris),
-  sans jamais montrer ses bords (bgCam fixe). `f` > 1 = devant le terrain (le public de la cérémonie). Les objets
+  caché) et `updateCamera` (`anim.js`) les déplace : chaque plan suit une fraction `f` de la caméra (zoom compris) ;
+  en hauteur, tous les plans sauf le ciel restent CALÉS SUR LA LIGNE DU SOL (`L.baseY`), sinon le pied du décor
+  décollait du terrain (grand vide brumeux, plateformes illisibles) ; centre réel de la caméra = `clampX/clampY` du
+  défilement (`midPoint` n'est à jour qu'au rendu) ; chaque plan est prolongé vers le bas par une « jupe » de sa
+  couleur (bgCam fixe). `f` > 1 = devant le terrain (le public de la cérémonie). Les objets
   animés du décor vont dans leur plan avec `toPlane(id, objet, derrière)` (le ver des sables : derrière les dunes du
   milieu, plus de masque).
 - Effets d'un coup (traînée, croissant, flammes…) : lancés par `whenAtk` au moment où le coup PART (`atk.hitAt`), donc
@@ -204,6 +207,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - Un nouveau perso doit aussi être ajouté à `CHARS` dans `server/core.js` (sinon le serveur refuse son choix en ligne).
 - Effets visuels : jamais d'état visuel remis à zéro par une minuterie (`this.time`, `tweens`) — pendant un rejeu en
   ligne elles sont désactivées (le perso restait tout blanc, l'aigle restait figé). La teinte est décidée à chaque image
-  dans `step` d'après `flashUntil` ; un objet à effacer pendant un rejeu est détruit tout de suite.
+  dans `step` d'après `flashUntil` ; un objet à effacer pendant un rejeu est détruit tout de suite. `restore()`
+  (netcode) n'écrase JAMAIS un champ du joueur qui tient un objet affiché (tableau `boardImg`, cartouches `ammoImg`,
+  formule `eqImg`…) : avant, l'instantané le remettait à `null` et l'image restait figée sur le terrain (bug vu en
+  ligne : aigle, tableau de NATANAX, cartouches de Denodoom). Test : `leak.py` (rejeux + inventaire des objets orphelins).
 - Bouton X en haut pendant un combat : quitter (hors ligne) ou abandonner (en ligne, message `leave` au serveur).
 - Tester avec Playwright (Chromium déjà installé) en pilotant `game.step()` image par image.

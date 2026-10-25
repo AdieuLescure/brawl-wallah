@@ -4616,7 +4616,17 @@ Object.assign(GameScene.prototype, {
     if (!ok) return;
     def.list.forEach((p, i) => {
       const c = this.add.container(0, 0).setDepth(-10 + i * 0.2);
-      c.add(this.add.image(0, 0, def.key + '_' + p.id).setOrigin(0).setScale(def.scale));
+      const key = def.key + '_' + p.id;
+      // « jupe » : le plan est prolongé vers le bas par la couleur de sa dernière ligne (au milieu), pour qu'il puisse
+      // suivre la caméra en hauteur sans jamais laisser voir son bord du bas
+      if (p.id !== 'sky') {
+        const src = this.textures.get(key).getSourceImage();
+        try {
+          const d = src.getContext('2d').getImageData(Math.floor(src.width / 2), src.height - 1, 1, 1).data;
+          if (d[3] > 0) c.add(this.add.rectangle(0, this.H - 2, this.W, this.H * 2, (d[0] << 16) | (d[1] << 8) | d[2]).setOrigin(0));
+        } catch (e) {}
+      }
+      c.add(this.add.image(0, 0, key).setOrigin(0).setScale(def.scale));
       this.planes.push({ id: p.id, f: p.f, c });
     });
   },
@@ -5509,8 +5519,8 @@ Object.assign(GameScene.prototype, {
       keep(this.tweens.add({ targets: beam, angle: -s * 14, duration: 7000 + k * 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
     });
     // brume lointaine sur la colline et la ville
-    fog('hill', by - 120, 260, 0x6a6898, 0.6);
-    fog('town', by - 40, 240, 0x7a72a2, 0.5);
+    fog('hill', by - 120, 260, 0x6a6898, 0.45);
+    fog('town', by - 40, 240, 0x7a72a2, 0.35);
     // le palais : halos des portes, des lanternes, de l'écran ; le sigle de la tour qui s'illumine
     glow('palace', cx, by - 40, 300, 170, 0xff9a48, 0.28);
     [A.cx - 54, A.cx + 53].forEach((x) => pulse(glow('palace', x * GPX + 1, by - 62, 70, 70, 0xffb060, 0.45), 0.3, 1800 + x));
@@ -5565,14 +5575,14 @@ Object.assign(GameScene.prototype, {
     let phase = 0;
     keep(this.time.addEvent({ delay: 220, loop: true, callback: () => bulbs.active && bulbs.setTexture('gala_bulbs' + (++phase % 3)) }));
     // brume au pied du palais, et quelques nappes qui dérivent lentement devant lui
-    fog('palace', by - 10, 200, 0x8a82b0, 0.6);
-    fog('palace', by - 150, 160, 0x6e6896, 0.22);
+    fog('palace', by - 10, 150, 0x8a82b0, 0.4);
+    fog('palace', by - 150, 160, 0x6e6896, 0.14);
     for (let i = 0; i < 4; i++) {
-      const wisp = P('palace', this.add.image(W * (0.15 + 0.25 * i), by - 120 + i * 34, 'gala_fog').setDisplaySize(W * 0.55, 80).setTint(0x9a92c0).setAlpha(0.2));
+      const wisp = P('palace', this.add.image(W * (0.15 + 0.25 * i), by - 120 + i * 34, 'gala_fog').setDisplaySize(W * 0.55, 80).setTint(0x9a92c0).setAlpha(0.12));
       keep(this.tweens.add({ targets: wisp, x: wisp.x + (i % 2 ? -120 : 120), duration: 16000 + i * 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }));
     }
     // le public : brume derrière lui, lumière des lampes du parvis sur les premiers rangs, téléphones, flashs
-    fog('crowd', by + 30, 150, 0x7a70a0, 0.5);
+    fog('crowd', by + 30, 130, 0x7a70a0, 0.38);
     fog('crowd', by + 200, 240, 0x4a4468, 0.3);
     glow('crowd', cx, A.mainB * GPX + 20, L.mainW + 200, 120, 0xffa860, 0.16);
     const crowdY = (y) => Math.min(this.H - 6, y);
@@ -7033,7 +7043,8 @@ Object.assign(GameScene.prototype, {
       dSX: { type: 'melee', pose: 'boom', prePose: 'boomPre', startup: 420, active: 140, total: 900, w: 270, h: 210, ox: 0, oy: -20, dmg: 15, kb: 350, ks: 9.2, ang: -1.15, stun: 240, cd: 2500, cdKey: 'dS', nuke: true, fx: { nuke: true },
         neutron: Object.assign({}, NEUTRON, { vx: 760, life: 720, dmg: 5 }) },
       // ALLEY-OOP : saut très haut, dunk sur celui qui est au-dessus, puis le ballon repart vers le bas (remonter)
-      uS: { type: 'melee', pose: 'dunk', startup: 90, active: 220, total: 600, w: 84, h: 100, ox: 16, oy: -64, dmg: 7, kb: 250, ks: 5, ang: -1.3, stun: 210, rise: 860, riseX: 100, onceAir: 'leap', recovery: true, dunk: 220, fx: { ghosts: 2, dunkFx: true },
+      // (dunk renforcé, demande de Noah : il ne pouvait pas tuer à 275 % ; tue vers 140 % depuis le centre)
+      uS: { type: 'melee', pose: 'dunk', startup: 90, active: 220, total: 600, w: 84, h: 100, ox: 16, oy: -64, dmg: 9, kb: 300, ks: 7.6, ang: -1.3, stun: 210, rise: 860, riseX: 100, onceAir: 'leap', recovery: true, dunk: 220, fx: { ghosts: 2, dunkFx: true },
         proj: { kind: 'ball', tex: 'bball', s: 3, vx: 240, vy: 560, grav: 900, life: 1500, w: 34, h: 34, ox: 22, oy: -46, dmg: 7, kb: 230, ks: 4.4, ang: 1.0, stun: 220 } },
       dAS: GP({ pose: 'stomp', fx: { ghosts: 2 } }), // COUP DE BOTTE
     }), ['COUP   OBJET (CASQUETTE)', 'SPÉCIAL TOUPIE', 'SPÉ AV CASQUETTE', 'SPÉ H/B ALLEY-OOP/FISSION', 'AIR BAS COUP DE BOTTE', 'BAS TENU : TABLEAU E=MC²']);
@@ -7317,12 +7328,19 @@ Object.assign(GameScene.prototype, {
       if (this.planes && this.planes.length) {
         bgc.setZoom(1);
         bgc.centerOn(this.W / 2, this.H / 2);
-        const mx = cam.midPoint.x, my = cam.midPoint.y;
+        // centre RÉEL de la caméra (après les limites ; midPoint n'est recalculé qu'au rendu)
+        const sxc = cam.useBounds ? cam.clampX(cam.scrollX) : cam.scrollX, syc = cam.useBounds ? cam.clampY(cam.scrollY) : cam.scrollY;
+        const mx = sxc + this.W / 2, my = syc + this.H / 2;
         for (const p of this.planes) {
           const zl = Math.max(1, 1 + (this.camZ - 1) * p.f);
           const hw = this.W / (2 * zl), hh = this.H / (2 * zl);
           const px = Math.min(this.W - hw, Math.max(hw, this.W / 2 + (mx - this.W / 2) * p.f));
-          const py = Math.min(this.H - hh, Math.max(hh, this.H / 2 + (my - this.H / 2) * p.f));
+          // en hauteur, chaque plan (sauf le ciel) reste calé sur la ligne du sol : le pied du décor ne « décolle »
+          // jamais du terrain quand la caméra monte ou descend (sinon on voyait un grand vide brumeux sous les persos)
+          const by = L.baseY;
+          const py0 = p.id === 'sky' ? this.H / 2 + (my - this.H / 2) * p.f : by - ((by - my) * this.camZ) / zl;
+          // (le haut de ces plans est transparent, et leur bas est prolongé par une « jupe » de leur couleur : setPlanes)
+          const py = p.id === 'sky' ? Math.min(this.H - hh, Math.max(hh, py0)) : py0;
           p.c.setScale(zl);
           p.c.setPosition(this.W / 2 - px * zl, this.H / 2 - py * zl);
         }
@@ -8582,7 +8600,9 @@ Object.assign(GameScene.prototype, {
       b.allowGravity = !!o.g;
       b.blocked.down = !!o.bd; b.blocked.up = !!o.bu; b.touching.down = !!o.td; b.touching.none = !!o.tn;
       for (const k in pl) if (!P_SKIP.has(k) && plainVal(pl[k]) && !(k in o.f)) pl[k] = undefined;
-      Object.assign(pl, o.f);
+      // (un champ qui tient une image du décor — tableau, cartouches, aigle… — n'est jamais écrasé : sinon l'image,
+      // remise à « null » par le rejeu, restait figée à l'écran ; le code d'affichage l'efface lui-même si besoin)
+      for (const k in o.f) if (!(pl[k] && typeof pl[k] === 'object')) pl[k] = o.f[k];
       pl.atk = o.atk;
       pl.moveCd = { ...o.moveCd };
       pl.grab = o.grab ? { victim: this.pl(o.grab.v), start: o.grab.start, slamAt: o.grab.slamAt, spec: o.grab.spec } : null;

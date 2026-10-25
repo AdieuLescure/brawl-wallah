@@ -48,7 +48,17 @@ Object.assign(GameScene.prototype, {
     if (!ok) return;
     def.list.forEach((p, i) => {
       const c = this.add.container(0, 0).setDepth(-10 + i * 0.2);
-      c.add(this.add.image(0, 0, def.key + '_' + p.id).setOrigin(0).setScale(def.scale));
+      const key = def.key + '_' + p.id;
+      // « jupe » : le plan est prolongé vers le bas par la couleur de sa dernière ligne (au milieu), pour qu'il puisse
+      // suivre la caméra en hauteur sans jamais laisser voir son bord du bas
+      if (p.id !== 'sky') {
+        const src = this.textures.get(key).getSourceImage();
+        try {
+          const d = src.getContext('2d').getImageData(Math.floor(src.width / 2), src.height - 1, 1, 1).data;
+          if (d[3] > 0) c.add(this.add.rectangle(0, this.H - 2, this.W, this.H * 2, (d[0] << 16) | (d[1] << 8) | d[2]).setOrigin(0));
+        } catch (e) {}
+      }
+      c.add(this.add.image(0, 0, key).setOrigin(0).setScale(def.scale));
       this.planes.push({ id: p.id, f: p.f, c });
     });
   },

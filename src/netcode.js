@@ -84,7 +84,9 @@ Object.assign(GameScene.prototype, {
       b.allowGravity = !!o.g;
       b.blocked.down = !!o.bd; b.blocked.up = !!o.bu; b.touching.down = !!o.td; b.touching.none = !!o.tn;
       for (const k in pl) if (!P_SKIP.has(k) && plainVal(pl[k]) && !(k in o.f)) pl[k] = undefined;
-      Object.assign(pl, o.f);
+      // (un champ qui tient une image du décor — tableau, cartouches, aigle… — n'est jamais écrasé : sinon l'image,
+      // remise à « null » par le rejeu, restait figée à l'écran ; le code d'affichage l'efface lui-même si besoin)
+      for (const k in o.f) if (!(pl[k] && typeof pl[k] === 'object')) pl[k] = o.f[k];
       pl.atk = o.atk;
       pl.moveCd = { ...o.moveCd };
       pl.grab = o.grab ? { victim: this.pl(o.grab.v), start: o.grab.start, slamAt: o.grab.slamAt, spec: o.grab.spec } : null;
