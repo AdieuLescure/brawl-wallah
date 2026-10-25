@@ -951,11 +951,17 @@ class GameScene extends Phaser.Scene {
     return pl;
   }
 
+  // point de départ d'un perso (la CÉRÉMONIE évite son pupitre et pose sur ses plateformes basses)
+  spawnAt(x) {
+    return this.stageId === 'gala' && this.galaSpawn ? this.galaSpawn(x) : { x, y: L.baseY - 110 };
+  }
+
   beginMatch(charId) {
     const others = playable().filter((c) => c !== charId);
     const botChar = this.forceBot || (this.training ? trainDummy : others[Math.floor(Math.random() * others.length)]);
-    this.p1 = this.makePlayer(charId, this.W / 2 - 150, L.baseY - 110, true);
-    this.p2 = this.makePlayer(botChar, this.W / 2 + 150, L.baseY - 110, false);
+    const s1 = this.spawnAt(this.W / 2 - 150), s2 = this.spawnAt(this.W / 2 + 150);
+    this.p1 = this.makePlayer(charId, s1.x, s1.y, true);
+    this.p2 = this.makePlayer(botChar, s2.x, s2.y, false);
     this.p1.i = 0;
     this.p2.i = 1;
     this.p1.team = 0;
@@ -3281,7 +3287,7 @@ class GameScene extends Phaser.Scene {
       const ceiling = b.blocked.up || b.touching.up;
       const inner = ceiling ? b.halfWidth + 130 : b.top > L.baseY - 6 ? b.halfWidth + 36 : 8;
       if (out < -inner || out > b.halfWidth + 46) continue;
-      if (b.top < L.baseY - 50 || b.top > L.baseY + 70) continue;
+      if (b.top < L.baseY - 50 || b.top > L.baseY + (this.mainH || 56) + 14) continue; // (parvis plus épais à la CÉRÉMONIE)
       if (this.pls.some((o) => o !== pl && o.ledgeSide === side)) continue; // déjà pris par quelqu'un
       this.grabLedge(pl, side, now);
       return true;
@@ -3554,5 +3560,4 @@ Promise.race([
 ])
   .catch(() => {})
   .then(() => (typeof loadPngChars === 'function' ? loadPngChars() : null))
-  .then(() => (typeof loadGalaArt === 'function' ? loadGalaArt() : null))
   .then(boot);

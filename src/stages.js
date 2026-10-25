@@ -107,13 +107,12 @@ Object.assign(GameScene.prototype, {
     const mp = this.mainPlat;
     if (!mp) return out;
     const main = id === 'gala' ? 'main_gala' : id === 'dune' ? 'main_dune' : 'main';
-    out.push({ key: main, x: mp.x, y: mp.y, w: mp.displayWidth, h: mp.displayHeight });
+    const mh = id === 'gala' && typeof GALA !== 'undefined' ? GALA.mainH : 56; // le parvis de la cérémonie est plus épais
+    out.push({ key: main, x: mp.x, y: L.baseY + mh / 2, w: mp.displayWidth, h: mh });
     if (id === 'gala' && this.galaGeom) {
+      const s = this.galaArt().scr;
+      out.push({ key: 'gala_scr_logo', x: ((s.x0 + s.x1) / 2) * GPX, y: ((s.y0 + s.y1) / 2) * GPX, w: (s.x1 - s.x0) * GPX, h: (s.y1 - s.y0) * GPX });
       this.galaGeom().forEach((g) => out.push({ key: g.key, x: (g.x0 + g.x1) / 2, y: g.top + g.h / 2, w: g.x1 - g.x0, h: g.h }));
-      this.galaDecals().concat(this.galaFrontDecals()).forEach((d) => {
-        const f = this.textures.get(d.key).getSourceImage();
-        out.push({ key: d.key, x: d.x, y: d.y, w: f.width / 2, h: f.height / 2 });
-      });
     } else (this.softPlats || []).forEach((p) => out.push({ key: id === 'dune' ? 'soft_dune' : 'soft', x: p.x, y: p.y, w: p.displayWidth, h: p.displayHeight }));
     return out;
   },

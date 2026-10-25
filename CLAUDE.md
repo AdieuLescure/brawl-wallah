@@ -35,17 +35,24 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     0 nuit, 1 désert, 2 hasard = défaut historique, 3 cérémonie ; aperçu dessiné par `stageShapes`). Campagne :
     `STAGES[chapitre % 3]` (la finale, chapitre 6, à la cérémonie). En ligne : le créateur du salon la choisit (envoyée
     au serveur avec `join`, renvoyée dans `hello` et `start`) ; duel classé : tirée du code de la salle (`stageFromCode`).
-  - `gala.js` + `gala_art.js` : l'arène CÉRÉMONIE (palais du cinéma, montée des marches, tapis rouge, écran géant,
-    flashs, projecteurs ; musique `SONGS.gala`, marche originale). Logo et sigle des LUCAS D'OR (images de Noah dans
-    `tools/art/gala/`, converties par `tools/art/gala_export.py` en `gala_art.js` = `GALA_ART`, chargées par
-    `loadGalaArt()` avant le démarrage) : posés en vraies images, réduits proprement (`galaDecal`, même rapport, jamais
-    déformés, filtre lissé) sur l'écran géant, le fronton, les bannières, la contremarche du parvis, la loge, une affiche
-    en bas à gauche. PLATEFORMES À ELLE (`GALA`, `galaGeom`, créées par `setGalaGeom` ; les 3 plateformes d'origine sont
-    coupées avec `stageOff`) : LOGE (gauche, 56 px d'épaisseur, dessus à 210 px du sol), CORNICHE (droite, 48 px, 250 px),
-    PASSERELLE (en haut à gauche, 335 px, ajourée). Toutes se traversent par dessous et se quittent par BAS tenu ; les
-    deux balcons ont un MUR sur leur face extérieure (côté vide) et des REBORDS à leurs coins (`ledgeBlocks`).
-    Ne pas mettre de plafond plein ni de mur côté centre : un perso éjecté y était « sauvé » (KO divisés par 2 en
-    simulation). Les bots relancent un saut en l'air pour monter sur les balcons (`stageId === 'gala'` dans `bots.js`).
+  - `gala.js` + `gala_art.js` : l'arène CÉRÉMONIE, d'après l'image de référence de Noah (palais du cinéma, écran géant,
+    bannières, montée des marches derrière le parvis, foule et flashs, aile gauche à balcon, immeuble bleu, château sur
+    la colline, limousine, palmiers ; musique `SONGS.gala`, marche originale). TOUT en pixel art à la résolution des
+    persos : 1 pixel d'art = `GPX` = 2 pixels du jeu (textures `mkCanvas(..., 'raw')`, `setScale(GPX)`). Logo et sigle des
+    LUCAS D'OR (originaux dans `tools/art/gala/`) REDESSINÉS en pixels par `tools/art/gala_export.py` → `gala_art.js`
+    (`GALA_PIX` : sigle réduit puis ramené à 3 tons d'or ; textes refaits lettre à lettre, petites capitales et
+    capitales à empattements, même mise en page que l'original) et peints DANS le décor par `galaSpr` (bannières,
+    plaque du parvis, écussons, écran) ou `galaWarp` (en perspective : bannière sur potence de l'aile gauche, médaillons
+    tissés dans le tapis). Relancer `python3 tools/art/gala_export.py src/gala_art.js [aperçu.png]` si on change les
+    lettres. PLATEFORMES (`GALA.plats`, `galaGeom`, créées par `setGalaGeom` ; les 3 plateformes d'origine coupées avec
+    `stageOff`) : LOGE (gauche, 190 px du sol), ÉCRAN (devant l'écran, 320), BALCON (droite, 330), SCÈNE DES
+    PRÉSENTATEURS (droite, 128) et le PUPITRE posé dessus (188, mur à droite). Rideaux drapés + écusson au sigle. Toutes se
+    traversent par dessous et se quittent par BAS tenu ; mur seulement sur la face `wall` ; REBORDS à tous leurs coins
+    (`ledgeBlocks`). PARVIS plus épais (`GALA.mainH` = 104 px, `this.mainH`, utilisé par `tryLedge`). Départs : `spawnAt`
+    (`galaSpawn` : jamais dans le pupitre, posé sur une plateforme basse). Leçons des simulations de bots : pas de plafond
+    plein ni de mur côté centre, plateformes à l'intérieur des bords du parvis, pupitre bas, scène pas à 110 px
+    (sinon refuges et KO divisés par 2). Les bots sautent par-dessus un mur et relancent un saut pour monter
+    (`stageId === 'gala'` dans `bots.js`).
   - `adieu.js` : le perso AdieuLescure (données, textures de ses objets, mécaniques uniques) + le PASTIS de Deadlulu.
     CTRL+Z (`type: 'rewind'`) : retour à la position d'il y a 1 s et dégâts reçus annulés, recharge 11 s (trace dans
     les champs `zx0..9`, `zy0..9`, `zd0..9` du joueur, donc sauvegardée par le netcode). CONTRÔLE (`type: 'catch'`) :

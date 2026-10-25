@@ -220,7 +220,8 @@ Object.assign(GameScene.prototype, {
     // départs : face au centre
     const XS = N === 2 ? [-150, 150] : N === 3 ? [-230, 230, 0] : [-250, 250, -90, 90];
     this.pls = cfg.chars.map((c, i) => {
-      const pl = this.makePlayer(c, this.W / 2 + XS[i], L.baseY - 110, cfg.me === i);
+      const sp = this.spawnAt(this.W / 2 + XS[i]);
+      const pl = this.makePlayer(c, sp.x, sp.y, cfg.me === i);
       pl.i = i;
       pl.facing = XS[i] <= 0 ? 1 : -1;
       pl.name = String((cfg.names && cfg.names[i]) || '').toUpperCase().slice(0, 12);
