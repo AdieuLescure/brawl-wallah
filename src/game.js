@@ -327,6 +327,7 @@ function mkCanvas(scene, key, w, h, fn, mode) {
   const r = mode === 'raw' ? 1 : RES;
   const t = scene.textures.createCanvas(key, w * r, h * r);
   const c = t.getContext();
+  delete c.fillRect; // (un canevas recyclé par Phaser peut garder le fillRect trafiqué de makePlanes : dessin vide)
   c.imageSmoothingEnabled = false;
   if (mode === 'native') fn(c, r);
   else if (mode === 'epx') {

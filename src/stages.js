@@ -34,6 +34,7 @@ Object.assign(GameScene.prototype, {
         let cur = null;
         c.fillRect = (x, y, ww, hh) => { if (cur === id) orig(x, y, ww, hh); };
         draw(c, (s) => { cur = s; });
+        delete c.fillRect; // (le canevas peut resservir à une autre texture : on lui rend son fillRect)
       }, mode)
     );
     PLANES_BUILT[key] = sig;
@@ -52,9 +53,10 @@ Object.assign(GameScene.prototype, {
       // « jupe » : le plan est prolongé vers le bas par la couleur de sa dernière ligne (au milieu), pour qu'il puisse
       // suivre la caméra en hauteur sans jamais laisser voir son bord du bas
       if (p.id !== 'sky') {
-        const src = this.textures.get(key).getSourceImage();
+        const tx = this.textures.get(key), src = tx.getSourceImage(), sw = tx.source[0].width, sh = tx.source[0].height;
         try {
-          const d = src.getContext('2d').getImageData(Math.floor(src.width / 2), src.height - 1, 1, 1).data;
+          const i0 = ((sh - 1) * sw + Math.floor(sw / 2)) * 4;
+          const d = src.getContext ? src.getContext('2d').getImageData(Math.floor(sw / 2), sh - 1, 1, 1).data : src.subarray(i0, i0 + 4);
           if (d[3] > 0) c.add(this.add.rectangle(0, this.H - 2, this.W, this.H * 2, (d[0] << 16) | (d[1] << 8) | d[2]).setOrigin(0));
         } catch (e) {}
       }

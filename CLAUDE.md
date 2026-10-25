@@ -176,7 +176,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   en hauteur, tous les plans sauf le ciel restent CALÉS SUR LA LIGNE DU SOL (`L.baseY`), sinon le pied du décor
   décollait du terrain (grand vide brumeux, plateformes illisibles) ; centre réel de la caméra = `clampX/clampY` du
   défilement (`midPoint` n'est à jour qu'au rendu) ; chaque plan est prolongé vers le bas par une « jupe » de sa
-  couleur (bgCam fixe). `f` > 1 = devant le terrain (le public de la cérémonie). Les objets
+  couleur (bgCam fixe). ATTENTION : `makePlanes` trafique `fillRect` du canevas pendant le dessin ; il est remis
+  ensuite (`delete c.fillRect`, aussi au début de `mkCanvas`), car Phaser RECYCLE les canevas (CanvasPool, commun aux
+  jeux recréés quand on tourne le téléphone) : sinon des textures dessinées plus tard sortaient VIDES (plateformes
+  invisibles, décor disparu = « que de la brume »). `f` > 1 = devant le terrain (le public de la cérémonie). Les objets
   animés du décor vont dans leur plan avec `toPlane(id, objet, derrière)` (le ver des sables : derrière les dunes du
   milieu, plus de masque).
 - Effets d'un coup (traînée, croissant, flammes…) : lancés par `whenAtk` au moment où le coup PART (`atk.hitAt`), donc
