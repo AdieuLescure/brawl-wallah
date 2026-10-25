@@ -327,6 +327,9 @@ const SONGS = {
   },
 };
 if (typeof DUNE_MIDI !== 'undefined') SONGS.desert = { midi: DUNE_MIDI };
+// CÉRÉMONIE : le MIDI de Noah réarrangé en combat d'arcade (la marche reste en secours)
+SONGS.galaOld = SONGS.gala;
+if (typeof GALA_MIDI !== 'undefined') SONGS.gala = { midi: GALA_MIDI };
 else SONGS.desert = SONGS.desertOld;
 const JINGLES = {
   win: { bpm: 150, notes: 'C5 E5 G5 C6 - - E6 - - - - - - - - -', chord: [60, 64, 67, 72] },
@@ -449,12 +452,16 @@ const MUSIC = {
       else if (note === 42 || note === 44) this.drum('hat', t, bus, 0.5 + v);
       else if (note === 46) this.drum('ohat', t, bus);
       else if (note === 49 || note === 57) this.drum('crash', t, bus);
+      else if (note === 45 || note === 47) this.drum('dum', t, bus);
+      else if (note === 48 || note === 50) this.drum('tom', t, bus);
       else this.drum('tek', t, bus);
       return;
     }
     const hz = hzOf(note);
     if (kind === 'lead') this.voice('lead', hz, t, Math.max(dur, 0.05), bus, 1, { lead: 'square', leadVol: 0.05 + 0.07 * v });
     else if (kind === 'arp') this.voice('arp', hz, t, Math.max(dur, 0.04), bus, 0.6 + 1.6 * v);
+    else if (kind === 'pulse') this.voice('pulse', hz, t, Math.max(dur, 0.05), bus, 0.3 + v);
+    else if (kind === 'brass') this.voice('brass', hz, t, Math.max(dur, 0.05), bus, 0.3 + v);
     else this.voice('bass', hz, t, Math.max(dur, 0.06), bus);
   },
   stepAt(c, t, sd) {
@@ -507,6 +514,21 @@ const MUSIC = {
       o.type = 'sawtooth'; vol = 0.03; a = 0.6; rel = 0.6;
       const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
       o.connect(f); node = f;
+    } else if (kind === 'pulse') {
+      // onde « pulse » 25 % (son de console 8 bits), pour les réponses aiguës
+      if (!this.pw || this.pw.ctx !== ctx) {
+        const N = 32, re = new Float32Array(N), im = new Float32Array(N);
+        for (let i = 1; i < N; i++) im[i] = Math.sin(i * Math.PI * 0.25) / i;
+        this.pw = { ctx, wave: ctx.createPeriodicWave(re, im) };
+      }
+      o.setPeriodicWave(this.pw.wave); vol = 0.045 * (k || 1); rel = 0.08;
+    } else if (kind === 'brass') {
+      // « cuivres » d'arcade : dent de scie dont le filtre s'ouvre puis se referme
+      o.type = 'sawtooth'; vol = 0.028 * (k || 1); a = 0.012; rel = 0.07;
+      o.detune.value = (Math.random() - 0.5) * 10;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 2;
+      f.frequency.setValueAtTime(700, t); f.frequency.linearRampToValueAtTime(3200, t + 0.03); f.frequency.exponentialRampToValueAtTime(1100, t + 0.25);
+      o.connect(f); node = f;
     } else if (kind === 'lead') {
       o.type = (song && song.lead) || 'square'; vol = (song && song.leadVol) || 0.1;
       // vibrato sur les notes longues
@@ -530,10 +552,10 @@ const MUSIC = {
     const ctx = SFX.ctx;
     const g = ctx.createGain();
     g.connect(bus);
-    if (kind === 'kick' || kind === 'dum') {
+    if (kind === 'kick' || kind === 'dum' || kind === 'tom') {
       const o = ctx.createOscillator();
-      o.frequency.setValueAtTime(kind === 'kick' ? 150 : 210, t);
-      o.frequency.exponentialRampToValueAtTime(kind === 'kick' ? 42 : 95, t + 0.16);
+      o.frequency.setValueAtTime(kind === 'kick' ? 150 : kind === 'tom' ? 300 : 210, t);
+      o.frequency.exponentialRampToValueAtTime(kind === 'kick' ? 42 : kind === 'tom' ? 140 : 95, t + 0.16);
       g.gain.setValueAtTime(kind === 'kick' ? 0.55 : 0.4, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'kick' ? 0.28 : 0.22));
       o.connect(g); o.start(t); o.stop(t + 0.3);

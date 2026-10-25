@@ -101,6 +101,10 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `extras.js` : vibration, indicateurs hors écran, réglages, entraînement, bouton quitter
   - `music_dune.js` : la musique du désert, convertie depuis le MIDI de Noah (`DUNE_MIDI`, 4 pistes : lead, arp,
     basse, batterie). Intro (mesures 1-11) une fois, puis boucle des mesures 12-43 (`loopStart`/`loopEnd`).
+  - `music_gala.js` : la musique de la CÉRÉMONIE = MIDI de Noah (`tools/music/gala_source.mid`, ré mineur, Dm C Bb A,
+    ~103 BPM) réarrangé en combat d'arcade à 112 BPM par `tools/music/gala_arrange.py` (`GALA_MIDI`, 6 pistes : lead =
+    la mélodie de l'original nettoyée, pulse = réponses aiguës + écho, brass = accords « cuivres », arp, bass, drums ;
+    intro 4 mesures puis boucle A, A' doublé, pont). L'ancienne marche reste en `SONGS.galaOld`.
   - `audio.js` : son 100 % synthétisé (aucun fichier ; le désert joue `DUNE_MIDI` via `tickMidi`). `SFX.play(nom)` = bruitages en couches + réverbération ;
     `MUSIC` = séquenceur avec 3 morceaux originaux (`menu`, `night`, `desert`, notes écrites dans `SONGS`), jingles
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
