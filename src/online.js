@@ -313,17 +313,7 @@ function leaveOnline() {
   boot();
   rotateCheck();
 }
-function rotateCheck() {
-  let el = document.getElementById('rot');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'rot';
-    el.textContent = 'Tourne ton téléphone en mode paysage pour jouer en ligne';
-    document.body.appendChild(el);
-  }
-  el.style.display = canonLayout && window.innerHeight > window.innerWidth ? 'flex' : 'none';
-}
-window.addEventListener('resize', rotateCheck);
+// (rotateCheck : dans game.js, pour tout le jeu)
 
 Object.assign(GameScene.prototype, {
   onlineEnter() {

@@ -1356,11 +1356,12 @@ class GameScene extends Phaser.Scene {
     const P = L.portrait;
     const at = (lx, ly, px, py) => (P ? [this.W - px * z, this.H - py * z] : [this.W - lx * z, this.H - ly * z]);
     const o = { stick: { x: fx(180), y: this.H - 170, s: 1 } };
-    const put = (k, [x, y]) => (o[k] = { x: fx(x), y, s: z });
-    put('attack', at(150, 150, 140, 190));
-    put('special', at(330, 112, 300, 118));
-    put('jump', at(132, 338, 128, 370));
-    put('block', at(318, 290, 290, 300));
+    const put = (k, [x, y], k2) => (o[k] = { x: fx(x), y, s: z * (P ? 1 : k2 || 1) });
+    // disposition de Noah (en largeur) : SPÉCIAL en haut, COUP à gauche, ESQUIVE à droite, SAUT en bas, en losange
+    put('attack', at(397, 229, 140, 190), 0.9);
+    put('special', at(261, 352, 300, 118), 1);
+    put('jump', at(258, 104, 128, 370), 1.15);
+    put('block', at(115, 233, 290, 300), 1.3);
     return o;
   }
 
@@ -3523,7 +3524,7 @@ function enterFullscreen() {
     const f = el.requestFullscreen || el.webkitRequestFullscreen;
     if (f) {
       const r = f.call(el);
-      if (r && r.catch) r.catch(() => {});
+      if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
     }
   } catch (e) {}
 }
@@ -3545,9 +3546,11 @@ let sessionReady = false; // connecté ou invité : on saute l'écran titre
 let canonLayout = false; // jeu en ligne : géométrie identique sur tous les téléphones
 function computeLayout() {
   if (canonLayout) return { W: 1280, H: 720, portrait: false, mainW: 760, baseY: 490 };
-  const vw = Math.max(window.innerWidth, 320);
-  const vh = Math.max(window.innerHeight, 240);
-  const portrait = vh > vw;
+  // le jeu se joue TOUJOURS en largeur (paysage) : téléphone tenu en hauteur = écran « tourne ton téléphone »
+  // (rotateCheck) ; on calcule donc toujours la mise en page paysage, même si la page s'ouvre en hauteur
+  const vw = Math.max(window.innerWidth, window.innerHeight, 320);
+  const vh = Math.max(Math.min(window.innerWidth, window.innerHeight), 240);
+  const portrait = false;
   let W, H;
   if (portrait) {
     W = 720;
@@ -3566,6 +3569,7 @@ function boot() {
     game.destroy(true);
     game = null;
   }
+  rotPaused = false;
   document.getElementById('game').innerHTML = '';
   L = computeLayout();
   lastPortrait = L.portrait;
@@ -3585,10 +3589,43 @@ function boot() {
 
 let resizeTimer = null;
 function onResize() {
+  rotateCheck();
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    if (!canonLayout && window.innerHeight > window.innerWidth !== lastPortrait) boot();
+    rotateCheck();
+    // plus de rechargement quand on tourne le téléphone (toujours en paysage) ; seulement si la forme de l'écran
+    // a beaucoup changé, et jamais pendant un combat
+    if (canonLayout || !game || window.innerHeight > window.innerWidth) return;
+    const nl = computeLayout(), sc = game.scene && game.scene.getScene('game');
+    const busy = sc && (sc.state === 'play' || sc.state === 'countdown');
+    if (!busy && Math.abs(nl.W - L.W) / L.W > 0.06) boot();
   }, 300);
+}
+// téléphone tenu en hauteur : on cache le jeu derrière « tourne ton téléphone » (iPhone ne sait pas bloquer la
+// rotation) ; hors ligne, la partie est mise en pause en attendant
+let rotPaused = false;
+function rotateCheck() {
+  let el = document.getElementById('rot');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'rot';
+    el.innerHTML = '<div><div style="font-size:54px;line-height:1.2;margin-bottom:18px">&#x21bb;</div>TOURNE TON TÉLÉPHONE<br>À L\'HORIZONTALE<br>POUR JOUER</div>';
+    document.body.appendChild(el);
+  }
+  const port = window.innerHeight > window.innerWidth;
+  el.style.display = port ? 'flex' : 'none';
+  if (port && game && !game.isRunning) setTimeout(rotateCheck, 300); // (le jeu démarre encore)
+  try {
+    if (game && game.isRunning && game.loop && (typeof onlineStage === 'undefined' || !onlineStage)) {
+      if (port && game.loop.running && !rotPaused) {
+        game.loop.sleep();
+        rotPaused = true;
+      } else if (!port && rotPaused) {
+        game.loop.wake();
+        rotPaused = false;
+      }
+    }
+  } catch (e) {}
 }
 window.addEventListener('resize', onResize);
 window.addEventListener('orientationchange', onResize);
@@ -3600,4 +3637,7 @@ Promise.race([
 ])
   .catch(() => {})
   .then(() => (typeof loadPngChars === 'function' ? loadPngChars() : null))
-  .then(boot);
+  .then(() => {
+    boot();
+    rotateCheck();
+  });

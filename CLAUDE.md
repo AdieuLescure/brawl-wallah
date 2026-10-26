@@ -218,5 +218,12 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   (netcode) n'écrase JAMAIS un champ du joueur qui tient un objet affiché (tableau `boardImg`, cartouches `ammoImg`,
   formule `eqImg`…) : avant, l'instantané le remettait à `null` et l'image restait figée sur le terrain (bug vu en
   ligne : aigle, tableau de NATANAX, cartouches de Denodoom). Test : `leak.py` (rejeux + inventaire des objets orphelins).
+- TOUJOURS EN PAYSAGE (demande de Noah) : `computeLayout` calcule toujours la mise en page en largeur ; téléphone tenu
+  en hauteur = écran « TOURNE TON TÉLÉPHONE » (`rotateCheck`, div `#rot`, `game.js`) et pause hors ligne (`rotPaused`,
+  `game.loop.sleep/wake`) ; plus de rechargement du jeu à la rotation (`onResize` ne relance `boot` que si la forme de
+  l'écran change beaucoup, hors combat). Android en plein écran : `screen.orientation.lock('landscape')`. Plus besoin
+  de préparer les nouvelles arènes / écrans pour la hauteur (`L.portrait` reste à false ; ancien code gardé).
+- BOUTONS PAR DÉFAUT = la disposition de Noah (`defaultLayout`) : losange à droite, SPÉCIAL en haut (taille 1), COUP à
+  gauche (0,9), ESQUIVE à droite (1,3), SAUT en bas (1,15), distances au bord droit / bas en pixels du jeu.
 - Bouton X en haut pendant un combat : quitter (hors ligne) ou abandonner (en ligne, message `leave` au serveur).
 - Tester avec Playwright (Chromium déjà installé) en pilotant `game.step()` image par image.
