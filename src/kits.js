@@ -355,8 +355,10 @@
       // TROPHÉE : un grand trophée doré sort du sol un peu plus loin et envoie l'ennemi vers le haut
       dS: { type: 'proj', pose: 'point', prePose: 'pointPre', startup: 110, total: 480, cd: 1700, max: 1, replace: true, relance: true, fx: {},
         proj: { kind: 'hermine', tex: 'kyCup', s: 3, vx: 0, life: 800, act: 620, w: 60, h: 118, ox: 128, oy: 0, bottom: true, dmg: 8, kb: 330, ks: 7.2, ang: -1.52, stun: 250, pop: 420 } },
-      // MOIII : tête levée, main en porte-voix ; le mot monte à la verticale (remonter)
-      uS: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 80, active: 300, total: 560, w: 52, h: 200, ox: 6, oy: -104, dmg: 8, kb: 270, ks: 6.4, ang: -1.45, stun: 210, rise: 820, riseX: 90, onceAir: 'moi', recovery: true, moi: true, fx: { ghosts: 2 } },
+      // MOIII : tête levée, main en porte-voix, le mot monte à la verticale. Au sol : sur place, jusqu'à la plateforme du
+      // dessus ; en l'air (uSA) : il remonte (une fois par saut)
+      uS: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 90, active: 280, total: 540, w: 54, h: 196, ox: 6, oy: -128, dmg: 9, kb: 280, ks: 6.6, ang: -1.45, stun: 220, cd: 700, moi: true, moiN: 10, fx: {} },
+      uSA: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 80, active: 300, total: 560, w: 52, h: 200, ox: 6, oy: -104, dmg: 8, kb: 270, ks: 6.4, ang: -1.45, stun: 210, rise: 820, riseX: 90, onceAir: 'moi', recovery: true, moi: true, moiN: 9, fx: { ghosts: 2 } },
       // GENOUX : de face, à genoux, bras croisés ; onde de choc à l'atterrissage (un peu plus large que lui)
       dAS: GP({ pose: 'knee', dmg: 9, kb: 300, ks: 6.6, w: 56, h: 66, ox: 0, oy: 40, dive: 800, knee: true, fx: { ghosts: 2 },
         shock: { dmg: 5, kb: 210, ks: 3.4, ang: -1.0, stun: 200, w: 112, h: 34 } }),

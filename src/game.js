@@ -967,6 +967,7 @@ class GameScene extends Phaser.Scene {
       hornUsed: false,
       blinkUsed: false,
       leapUsed: false,
+      moiUsed: false,
       dashCd: 0,
       sprintDir: 0,
       chaseLeft: 0,
@@ -2756,7 +2757,7 @@ class GameScene extends Phaser.Scene {
     vic.gcUntil = 0;
     if (spec.freeze) vic.freezeUntil = now + spec.freeze; // KEY FRAME : image figée
     if (spec.slow) vic.slowUntil = now + spec.slow;
-    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = false; // être touché rend aussi les capacités de retour
+    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = vic.moiUsed = false; // être touché rend aussi les capacités de retour
     if (vic.jumps === 0) vic.jumps = 1; // être touché rend un saut
     vic.tumble = Math.max(vic.tumble || 0, tumbleFor(vic.damage));
     if (this.training) this.trainReport(att, vic, spec, stunMs, rem, combo);
@@ -3313,7 +3314,7 @@ class GameScene extends Phaser.Scene {
     pl.floatUsed = false;
     pl.dashUsed = false;
     pl.ledgeInvUsed = false;
-    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = pl.vanishUsed = false;
+    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = pl.vanishUsed = pl.moiUsed = false;
     pl.gcUntil = 0;
   }
 

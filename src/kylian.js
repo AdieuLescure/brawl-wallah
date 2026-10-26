@@ -14,7 +14,7 @@
 // Tout l'état de jeu est en champs simples (kyLove, kyLastX/Y, loveUntil, kyKissAt, kyKissX, kyKissF, kyTalkUntil).
 // Les images (demoiselle, texte MOIII, bulle, cœurs) sont seulement de l'affichage, recalculées à chaque image.
 // ===========================================================================
-const KY = { max: 100, perPx: 1 / 45, perJump: 3, loveMs: 12000, dmgUp: 1.2, spdUp: 1.2, kissMs: 1150, lockMs: 650, talkMs: 1300, moiChars: 9 };
+const KY = { max: 100, perPx: 1 / 115, perJump: 1.5, loveMs: 15000, dmgUp: 1.2, spdUp: 1.2, kissMs: 1150, lockMs: 650, talkMs: 1300, moiChars: 9 };
 
 CHARS.kylian = {
   id: 'kylian', name: 'KYLIAN', role: 'GÉNÉRAL DU BUT', roleCol: '#f0c850', cardCol: '#6e5a36',
@@ -94,7 +94,7 @@ Object.assign(GameScene.prototype, {
     // MOIIIIII : le mot écrit à la verticale au-dessus de sa tête, il s'allonge jusqu'au bout de la zone de frappe
     const a = pl.atk;
     if (alive && a && a.m.moi && now >= a.hitAt - 40 && now < a.hitAt + a.m.active + 80) {
-      const n = Math.min(KY.moiChars, 3 + Math.floor((now - a.hitAt + 40) / 30));
+      const n = Math.min(a.m.moiN || KY.moiChars, 3 + Math.floor((now - a.hitAt + 40) / 30));
       const txt = 'MOI' + 'I'.repeat(Math.max(0, n - 3));
       if (!pl.moiTxt && !this.resim)
         pl.moiTxt = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '19px', color: '#fff3a0', stroke: '#5a1a10', strokeThickness: 6 }).setOrigin(0, 0.5).setAngle(-90).setDepth(29);
@@ -106,7 +106,7 @@ Object.assign(GameScene.prototype, {
     // « T'ES PAS CONTENT ? » au-dessus de sa tête après un tir
     if (alive && now < (pl.kyTalkUntil || 0)) {
       if (!pl.talkTxt && !this.resim)
-        pl.talkTxt = this.add.text(0, 0, 'T\'ES PAS CONTENT ?', { fontFamily: FONT, fontSize: '13px', color: '#1a1312', backgroundColor: '#ffffff', padding: { x: 6, y: 4 } }).setOrigin(0.5, 1).setDepth(41);
+        pl.talkTxt = this.add.text(0, 0, 'T\'ES PAS CONTENT ?', { fontFamily: FONT, fontSize: '14px', color: '#ffb3cc', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(41);
       if (pl.talkTxt) pl.talkTxt.setPosition(s.x, b.y - 30).setVisible(!(now < (pl.invisUntil || 0)));
     } else if (pl.talkTxt) {
       pl.talkTxt.destroy();
@@ -195,7 +195,7 @@ Object.assign(GameScene.prototype, {
   const baseStart = P.nxStart;
   P.nxStart = function (pl, m, now, grounded) {
     if (baseStart) baseStart.call(this, pl, m, now, grounded);
-    if (pl.def.love && m.kyShot) pl.kyTalkUntil = now + KY.talkMs;
+    if (pl.def.love && m.kyShot && m.spread) pl.kyTalkUntil = now + KY.talkMs; // seulement le tir amoureux (3 ballons)
   };
   // perdre une vie : fini l'amour (la jauge, elle, reste)
   const baseDie = P.die;

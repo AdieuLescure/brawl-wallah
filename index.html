@@ -1932,6 +1932,7 @@ class GameScene extends Phaser.Scene {
       hornUsed: false,
       blinkUsed: false,
       leapUsed: false,
+      moiUsed: false,
       dashCd: 0,
       sprintDir: 0,
       chaseLeft: 0,
@@ -3721,7 +3722,7 @@ class GameScene extends Phaser.Scene {
     vic.gcUntil = 0;
     if (spec.freeze) vic.freezeUntil = now + spec.freeze; // KEY FRAME : image figée
     if (spec.slow) vic.slowUntil = now + spec.slow;
-    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = false; // être touché rend aussi les capacités de retour
+    vic.chargeUsed = vic.hornUsed = vic.blinkUsed = vic.leapUsed = vic.floatUsed = vic.vanishUsed = vic.moiUsed = false; // être touché rend aussi les capacités de retour
     if (vic.jumps === 0) vic.jumps = 1; // être touché rend un saut
     vic.tumble = Math.max(vic.tumble || 0, tumbleFor(vic.damage));
     if (this.training) this.trainReport(att, vic, spec, stunMs, rem, combo);
@@ -4278,7 +4279,7 @@ class GameScene extends Phaser.Scene {
     pl.floatUsed = false;
     pl.dashUsed = false;
     pl.ledgeInvUsed = false;
-    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = pl.vanishUsed = false;
+    pl.chargeUsed = pl.hornUsed = pl.blinkUsed = pl.leapUsed = pl.vanishUsed = pl.moiUsed = false;
     pl.gcUntil = 0;
   }
 
@@ -6783,7 +6784,7 @@ Object.assign(GameScene.prototype, {
 // Tout l'état de jeu est en champs simples (kyLove, kyLastX/Y, loveUntil, kyKissAt, kyKissX, kyKissF, kyTalkUntil).
 // Les images (demoiselle, texte MOIII, bulle, cœurs) sont seulement de l'affichage, recalculées à chaque image.
 // ===========================================================================
-const KY = { max: 100, perPx: 1 / 45, perJump: 3, loveMs: 12000, dmgUp: 1.2, spdUp: 1.2, kissMs: 1150, lockMs: 650, talkMs: 1300, moiChars: 9 };
+const KY = { max: 100, perPx: 1 / 115, perJump: 1.5, loveMs: 15000, dmgUp: 1.2, spdUp: 1.2, kissMs: 1150, lockMs: 650, talkMs: 1300, moiChars: 9 };
 
 CHARS.kylian = {
   id: 'kylian', name: 'KYLIAN', role: 'GÉNÉRAL DU BUT', roleCol: '#f0c850', cardCol: '#6e5a36',
@@ -6863,7 +6864,7 @@ Object.assign(GameScene.prototype, {
     // MOIIIIII : le mot écrit à la verticale au-dessus de sa tête, il s'allonge jusqu'au bout de la zone de frappe
     const a = pl.atk;
     if (alive && a && a.m.moi && now >= a.hitAt - 40 && now < a.hitAt + a.m.active + 80) {
-      const n = Math.min(KY.moiChars, 3 + Math.floor((now - a.hitAt + 40) / 30));
+      const n = Math.min(a.m.moiN || KY.moiChars, 3 + Math.floor((now - a.hitAt + 40) / 30));
       const txt = 'MOI' + 'I'.repeat(Math.max(0, n - 3));
       if (!pl.moiTxt && !this.resim)
         pl.moiTxt = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '19px', color: '#fff3a0', stroke: '#5a1a10', strokeThickness: 6 }).setOrigin(0, 0.5).setAngle(-90).setDepth(29);
@@ -6875,7 +6876,7 @@ Object.assign(GameScene.prototype, {
     // « T'ES PAS CONTENT ? » au-dessus de sa tête après un tir
     if (alive && now < (pl.kyTalkUntil || 0)) {
       if (!pl.talkTxt && !this.resim)
-        pl.talkTxt = this.add.text(0, 0, 'T\'ES PAS CONTENT ?', { fontFamily: FONT, fontSize: '13px', color: '#1a1312', backgroundColor: '#ffffff', padding: { x: 6, y: 4 } }).setOrigin(0.5, 1).setDepth(41);
+        pl.talkTxt = this.add.text(0, 0, 'T\'ES PAS CONTENT ?', { fontFamily: FONT, fontSize: '14px', color: '#ffb3cc', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(41);
       if (pl.talkTxt) pl.talkTxt.setPosition(s.x, b.y - 30).setVisible(!(now < (pl.invisUntil || 0)));
     } else if (pl.talkTxt) {
       pl.talkTxt.destroy();
@@ -6964,7 +6965,7 @@ Object.assign(GameScene.prototype, {
   const baseStart = P.nxStart;
   P.nxStart = function (pl, m, now, grounded) {
     if (baseStart) baseStart.call(this, pl, m, now, grounded);
-    if (pl.def.love && m.kyShot) pl.kyTalkUntil = now + KY.talkMs;
+    if (pl.def.love && m.kyShot && m.spread) pl.kyTalkUntil = now + KY.talkMs; // seulement le tir amoureux (3 ballons)
   };
   // perdre une vie : fini l'amour (la jauge, elle, reste)
   const baseDie = P.die;
@@ -7331,8 +7332,10 @@ Object.assign(GameScene.prototype, {
       // TROPHÉE : un grand trophée doré sort du sol un peu plus loin et envoie l'ennemi vers le haut
       dS: { type: 'proj', pose: 'point', prePose: 'pointPre', startup: 110, total: 480, cd: 1700, max: 1, replace: true, relance: true, fx: {},
         proj: { kind: 'hermine', tex: 'kyCup', s: 3, vx: 0, life: 800, act: 620, w: 60, h: 118, ox: 128, oy: 0, bottom: true, dmg: 8, kb: 330, ks: 7.2, ang: -1.52, stun: 250, pop: 420 } },
-      // MOIII : tête levée, main en porte-voix ; le mot monte à la verticale (remonter)
-      uS: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 80, active: 300, total: 560, w: 52, h: 200, ox: 6, oy: -104, dmg: 8, kb: 270, ks: 6.4, ang: -1.45, stun: 210, rise: 820, riseX: 90, onceAir: 'moi', recovery: true, moi: true, fx: { ghosts: 2 } },
+      // MOIII : tête levée, main en porte-voix, le mot monte à la verticale. Au sol : sur place, jusqu'à la plateforme du
+      // dessus ; en l'air (uSA) : il remonte (une fois par saut)
+      uS: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 90, active: 280, total: 540, w: 54, h: 196, ox: 6, oy: -128, dmg: 9, kb: 280, ks: 6.6, ang: -1.45, stun: 220, cd: 700, moi: true, moiN: 10, fx: {} },
+      uSA: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 80, active: 300, total: 560, w: 52, h: 200, ox: 6, oy: -104, dmg: 8, kb: 270, ks: 6.4, ang: -1.45, stun: 210, rise: 820, riseX: 90, onceAir: 'moi', recovery: true, moi: true, moiN: 9, fx: { ghosts: 2 } },
       // GENOUX : de face, à genoux, bras croisés ; onde de choc à l'atterrissage (un peu plus large que lui)
       dAS: GP({ pose: 'knee', dmg: 9, kb: 300, ks: 6.6, w: 56, h: 66, ox: 0, oy: 40, dive: 800, knee: true, fx: { ghosts: 2 },
         shock: { dmg: 5, kb: 210, ks: 3.4, ang: -1.0, stun: 200, w: 112, h: 34 } }),

@@ -84,12 +84,15 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     Branché sur `nxPick`/`nxStart`/`nxTimer` (`game.js`) et `bzStep`/`bzProj`/`bzHit`/`die`/`botInput` (enveloppés).
   - `kylian.js` : le perso KYLIAN (uniforme militaire marron d'apparat d'après la photo de Noah, insignes INVENTÉS ;
     famille POINGS aux pieds). JAUGE BISOU (`love`, `kyLove`, réglages `KY`) : se remplit en bougeant (distance +
-    sauts, pas quand il est projeté) ; pleine = une DEMOISELLE en robe de soirée rouge (personnage INVENTÉ, pas une
+    sauts, pas quand il est projeté), LENTEMENT exprès (Noah : « le pic de son gameplay », ~1 bisou / 85 s chez les
+    bots) et n'est PAS remise à zéro quand il perd une vie ; pleine = une DEMOISELLE en robe de soirée rouge (personnage INVENTÉ, pas une
     vraie personne ; postures `girl0/girl1/girlKiss` dans SA planche) vient lui faire un bisou (`kyKissAt`, verrou
-    0,65 s, posture `kissed`) → AMOUREUX 12 s (`loveUntil`) : +20 % dégâts (`bzHit`), +20 % vitesse (`spdMul`), TIR
-    = 3 ballons (`sSL`, `spread`, recharge 1,7 s). Spéciales : VOLÉE (nS), TIR (sS, bulle « T'ES PAS CONTENT ? »
-    `kyTalkUntil`), TROPHÉE (dS : grand trophée doré INVENTÉ — pas celui de la vraie Coupe du monde — qui sort du sol,
-    kind `hermine`, tex `kyCup`), MOIII (uS : mot « MOIIIIII » écrit à la verticale = zone de frappe), GENOUX (dAS :
+    0,65 s, posture `kissed`) → AMOUREUX 15 s (`loveUntil`) : +20 % dégâts (`bzHit`), +20 % vitesse (`spdMul`), TIR
+    = 3 ballons (`sSL`, `spread`, recharge 1,7 s). Spéciales : VOLÉE (nS), TIR (sS ; « T'ES PAS CONTENT ? » en simple
+    texte, SEULEMENT sur le tir amoureux `sSL`, `kyTalkUntil`), TROPHÉE (dS : grand trophée doré INVENTÉ — pas celui de la vraie Coupe du monde — qui sort du sol,
+    kind `hermine`, tex `kyCup` ; Noah a demandé le vrai trophée en photo : refusé, œuvre protégée), MOIII (mot « MOIIIIII »
+    écrit à la verticale = zone de frappe ; uS au sol = SUR PLACE, portée jusqu'à la plateforme du dessus ; uSA en l'air
+    = il remonte, `onceAir: 'moi'` → `moiUsed` rendu à l'atterrissage et quand on est touché, comme `leapUsed`), GENOUX (dAS :
     posture DE FACE `knee`, `front_frame`, onde de choc `shock` à l'atterrissage, un peu plus large que lui).
     Images (demoiselle, MOIII, bulle) = affichage recalculé à chaque image dans `kyShow` (règle des rejeux).
   - `kits.js` : MOVESETS, 2 boutons d'attaque façon Brawlhalla (doc « Brawl Proto — armes, spéciales et combos »).
