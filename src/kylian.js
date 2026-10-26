@@ -158,13 +158,20 @@ Object.assign(GameScene.prototype, {
     // ballon de foot
     iconTex(this, 'kyball', ['..kkkkk..', '.kWWkWWk.', 'kWWkkkWWk', 'kWWWkWWWk', 'kkWWWWWkk', 'kWkWWWkWk', 'kWWkkkWWk', '.kWWkWWk.', '..kkkkk..'], '#000',
       { k: '#16121a', W: '#f4f4f0' });
-    // grand trophée doré (inventé) : coupe à deux anses, étoile, pied et socle sombre à plaque dorée
+    // TROPHÉE (dessin à nous, demande de Noah : « une boule dorée, stylée ») : ballon d'or gravé, collerette à griffes,
+    // colonne cannelée, socle noir à liseré d'or et plaque (dessiné par tools/art/ky_cup.py)
     iconTex(this, 'kyCup', [
-      '...kkkkkkkkkkkk...', '..kYYYYYYYYYYYYk..', 'kkkyYYYYYYYYYYgkkk', 'kY.kyYYYYYYYYYgk.Yk', 'kY.kyYYYWYYYYYgk.Yk', 'kY.kyYYWWWYYYYgk.Yk',
-      '.kYkyYWWWWWYYYgkYk.', '..kkyYYWWWYYYYgkk..', '....kyYWYWYYYgk....', '....kyYYYYYYYgk....', '.....kyYYYYYgk.....', '......kyYYYgk......',
-      '.......kyYgk.......', '.......kyYgk.......', '.......kyYgk.......', '......kyYYYgk......', '.....kyYYYYYgk.....', '....kkkkkkkkkkk....',
-      '....kDDDDDDDDDk....', '....kDDYYYYYDDk....', '....kDDggggggDk....', '...kkkkkkkkkkkkk...', '...kDDDDDDDDDDDk...', '...kkkkkkkkkkkkk...',
-    ].map((r) => r.padEnd(19, '.').slice(0, 19)), '#000', { k: '#1a1206', Y: '#f0c850', y: '#fff0a0', g: '#a07020', W: '#ffffff', D: '#2a2230' });
+      "........kkkkkk.........", "......kkYYYGYYkk.......", "....kkYYyyyGyYYYkk.....", "...kYYyyyyyGYYYYYgk....",
+      "...kYyWWyyYGYYYYYgk....", "..kYyWWyyYYGYYYYYogk...", ".kYyyWyyYYYGYYYYooogk..", ".kYyyyYYYYGGYYooooogk..",
+      ".kGGGYYYYGGGGooooGGGk..", "kYYyGGGGGooooGGGGGoggk.", "kYYYYYYGooooooGooogggk.", "kYYYYYYYGooooGoooggggk.",
+      ".kYYYYYYGooooGooggggk..", ".kYYYYooGooooGggggggk..", ".kgYYoooGGGGGGggggggk..", "..kgoooGooooggGggggk...",
+      "...kgoGGooggggGGggk....", "...kggGooggggggGggk....", "....kYggggggggggkYk....", ".....kYkYgggggYkYk.....",
+      "......kGGGGGGGGGk......", "......kgooooooogk......", ".......kGGGGGGGk.......", "........kYyYogk........",
+      "........kYyYogk........", "........kgggggk........", "........kYyYogk........", "........kYyYogk........",
+      "........kYyYogk........", ".....kkkGGGGGGGkkk.....", "....kGGGGGGGGGGGGGk....", "....kbBBBBBBBBBBBBk....",
+      "...kbBBBBBBBBBBBBBBk...", "...kbBBBYYYyYYYBBBBk...", "..kbBBBBgggggggBBBBBk..", "..kbBBBBBBBBBBBBBBBBk..",
+      "..kGGGGGGGGGGGGGGGGGk..", "...kkkkkkkkkkkkkkkkk...",
+    ], '#000', { k: '#140e04', Y: '#f0c850', y: '#fff0a0', o: '#d4a034', g: '#9a6a18', G: '#7a5010', W: '#ffffff', B: '#18161e', b: '#34303e' });
   },
 });
 

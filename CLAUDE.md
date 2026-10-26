@@ -89,8 +89,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     vraie personne ; postures `girl0/girl1/girlKiss` dans SA planche) vient lui faire un bisou (`kyKissAt`, verrou
     0,65 s, posture `kissed`) → AMOUREUX 15 s (`loveUntil`) : +20 % dégâts (`bzHit`), +20 % vitesse (`spdMul`), TIR
     = 3 ballons (`sSL`, `spread`, recharge 1,7 s). Spéciales : VOLÉE (nS), TIR (sS ; « T'ES PAS CONTENT ? » en simple
-    texte, SEULEMENT sur le tir amoureux `sSL`, `kyTalkUntil`), TROPHÉE (dS : grand trophée doré INVENTÉ — pas celui de la vraie Coupe du monde — qui sort du sol,
-    kind `hermine`, tex `kyCup` ; Noah a demandé le vrai trophée en photo : refusé, œuvre protégée), MOIII (mot « MOIIIIII »
+    texte, SEULEMENT sur le tir amoureux `sSL`, `kyTalkUntil`), TROPHÉE (dS : BOULE DORÉE stylée — ballon d'or gravé, colonne, socle noir, dessin à nous par
+    `tools/art/ky_cup.py` — qui sort du sol, kind `hermine`, tex `kyCup` ; JAMAIS la Coupe du monde ni sa silhouette,
+    même « faite par un proche » ou recolorée : refusé plusieurs fois, œuvre protégée), MOIII (mot « MOIIIIII »
     écrit à la verticale = zone de frappe ; uS au sol = SUR PLACE, portée jusqu'à la plateforme du dessus ; uSA en l'air
     = il remonte, `onceAir: 'moi'` → `moiUsed` rendu à l'atterrissage et quand on est touché, comme `leapUsed`), GENOUX (dAS :
     posture DE FACE `knee`, `front_frame`, onde de choc `shock` à l'atterrissage, un peu plus large que lui).
