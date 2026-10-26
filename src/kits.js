@@ -334,11 +334,40 @@
     BARE.natanax = lights('poings', NXP);
   }
 
+  // ---------------- KYLIAN (POINGS, aux pieds) : JAUGE BISOU, amoureux = plus fort, plus vite, 3 ballons ----------------
+  {
+    const BALL = { kind: 'kyball', tex: 'kyball', s: 3.2, vx: 940, vy: -60, grav: 260, life: 950, w: 34, h: 34, ox: 34, oy: 6, dmg: 7, kb: 210, ks: 3.8, ang: -0.35, stun: 220, small: true };
+    set('kylian', { speed: 375, jump: 690, weight: 1.0, role: 'GÉNÉRAL DU BUT', family: 'POINGS' }, Object.assign(lights('poings', {
+      n1: { pose: 'kick', h: 40, oy: 16, fx: { cres: 'cres_ky', s: 2.4, ang: 10 } }, n2: { pose: 'kick', h: 40, oy: 16, fx: { cres: 'cres_ky', s: 2.4, ang: 10 } },
+      n3: { pose: 'header', fx: { cres: 'cres_ky', s: 3.2, ang: -20 } }, // COUP DE TÊTE
+      s: { pose: 'strike', fx: { cres: 'cres_ky', s: 3, ang: 0, ghosts: 1 } }, // FRAPPE
+      u: { pose: 'juggle', fx: { cres: 'cres_ky', s: 3, ang: -80 } }, // JONGLE
+      d: { pose: 'tackle', fx: { dust: true, ghosts: 1 } }, // TACLE GLISSÉ
+      sa: { pose: 'airkick', fx: { cres: 'cres_ky', s: 3, ang: 0 } }, // REPRISE
+      ua: { pose: 'bicycle', fx: { cres: 'cres_ky', s: 3.2, ang: -100 } }, // RETOURNÉ
+      da: { pose: 'stomp', fx: { cres: 'cres_ky', s: 3, ang: 90 } }, // SEMELLE
+    }), {
+      // VOLÉE : la reprise de volée, penché en arrière, bras écartés (le gros coup qui tue)
+      nS: { type: 'melee', pose: 'volley', prePose: 'volleyPre', startup: 150, active: 120, total: 540, w: 96, h: 52, ox: 52, oy: 14, dmg: 11, kb: 290, ks: 7.2, ang: -0.55, stun: 230, cd: 1200, fx: { cres: 'cres_ky', s: 4, ang: 15, ghosts: 2, dust: true } },
+      // TIR : un ballon ; « T'ES PAS CONTENT ? » au-dessus de sa tête (amoureux : sSL, 3 ballons, recharge plus longue)
+      sS: { type: 'proj', pose: 'shoot', prePose: 'shootPre', startup: 110, total: 420, cd: 1000, relance: true, kyShot: true, fx: {}, proj: BALL },
+      sSL: { type: 'proj', pose: 'shoot', prePose: 'shootPre', startup: 110, total: 460, cd: 1700, cdKey: 'sS', relance: true, kyShot: true, fx: {}, proj: BALL, spread: [-330, 210] },
+      // TROPHÉE : un grand trophée doré sort du sol un peu plus loin et envoie l'ennemi vers le haut
+      dS: { type: 'proj', pose: 'point', prePose: 'pointPre', startup: 110, total: 480, cd: 1700, max: 1, replace: true, relance: true, fx: {},
+        proj: { kind: 'hermine', tex: 'kyCup', s: 3, vx: 0, life: 800, act: 620, w: 60, h: 118, ox: 128, oy: 0, bottom: true, dmg: 8, kb: 330, ks: 7.2, ang: -1.52, stun: 250, pop: 420 } },
+      // MOIII : tête levée, main en porte-voix ; le mot monte à la verticale (remonter)
+      uS: { type: 'melee', pose: 'moi', prePose: 'moiPre', startup: 80, active: 300, total: 560, w: 52, h: 200, ox: 6, oy: -104, dmg: 8, kb: 270, ks: 6.4, ang: -1.45, stun: 210, rise: 820, riseX: 90, onceAir: 'moi', recovery: true, moi: true, fx: { ghosts: 2 } },
+      // GENOUX : de face, à genoux, bras croisés ; onde de choc à l'atterrissage (un peu plus large que lui)
+      dAS: GP({ pose: 'knee', dmg: 9, kb: 300, ks: 6.6, w: 56, h: 66, ox: 0, oy: 40, dive: 800, knee: true, fx: { ghosts: 2 },
+        shock: { dmg: 5, kb: 210, ks: 3.4, ang: -1.0, stun: 200, w: 112, h: 34 } }),
+    }), ['COUP   POINGS (AU PIED)', 'SPÉCIAL VOLÉE', 'SPÉ AV TIR (3 SI AMOUREUX)', 'SPÉ H/B MOIII/TROPHÉE', 'AIR BAS GENOUX', 'BOUGE : JAUGE BISOU']);
+  }
+
   // ---- finitions communes : catégories, identifiants (usure), charge, tirs que le mur arrête ----
   const LIGHTS = ['nL', 'sL', 'uL', 'dL', 'sA', 'uA', 'dA'];
   const HEAVIES = ['sH', 'uH', 'dH', 'uAH', 'dAH']; // (Astra et Nini, en réserve, gardent l'ancienne grammaire)
-  const SPECIALS = ['nS', 'sS', 'uS', 'dS', 'dAS', 'nSA', 'sSA', 'uSA', 'dSA', 'dSW', 'dSX'];
-  const BLOCKABLE = { pellet: 1, neutron: 1, orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1, shuttle: 1 };
+  const SPECIALS = ['nS', 'sS', 'uS', 'dS', 'dAS', 'nSA', 'sSA', 'uSA', 'dSA', 'dSW', 'dSX', 'sSL'];
+  const BLOCKABLE = { pellet: 1, neutron: 1, orb: 1, comet: 1, bullet: 1, bottle: 1, tomato: 1, ball: 1, kiss: 1, corgi: 1, suitcase: 1, paper: 1, shuttle: 1, kyball: 1 };
   const finish = (id, mv) => {
     for (const k of Object.keys(mv)) {
       const mid = id + '.' + k;

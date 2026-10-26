@@ -82,6 +82,16 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     type `fission`, 2 `neutron`) ; formule complète = RÉACTION EN CHAÎNE (`dSX`, `nuke`, préparation 0,42 s, consomme la
     formule au moment où elle part). ALLEY-OOP (spéciale haut, `dunk` : ballon `bball` lancé vers le bas ; renforcée pour tuer vers 140 % depuis le centre, Noah ne pouvait pas tuer à 275 %).
     Branché sur `nxPick`/`nxStart`/`nxTimer` (`game.js`) et `bzStep`/`bzProj`/`bzHit`/`die`/`botInput` (enveloppés).
+  - `kylian.js` : le perso KYLIAN (uniforme militaire marron d'apparat d'après la photo de Noah, insignes INVENTÉS ;
+    famille POINGS aux pieds). JAUGE BISOU (`love`, `kyLove`, réglages `KY`) : se remplit en bougeant (distance +
+    sauts, pas quand il est projeté) ; pleine = une DEMOISELLE en robe de soirée rouge (personnage INVENTÉ, pas une
+    vraie personne ; postures `girl0/girl1/girlKiss` dans SA planche) vient lui faire un bisou (`kyKissAt`, verrou
+    0,65 s, posture `kissed`) → AMOUREUX 12 s (`loveUntil`) : +20 % dégâts (`bzHit`), +20 % vitesse (`spdMul`), TIR
+    = 3 ballons (`sSL`, `spread`, recharge 1,7 s). Spéciales : VOLÉE (nS), TIR (sS, bulle « T'ES PAS CONTENT ? »
+    `kyTalkUntil`), TROPHÉE (dS : grand trophée doré INVENTÉ — pas celui de la vraie Coupe du monde — qui sort du sol,
+    kind `hermine`, tex `kyCup`), MOIII (uS : mot « MOIIIIII » écrit à la verticale = zone de frappe), GENOUX (dAS :
+    posture DE FACE `knee`, `front_frame`, onde de choc `shock` à l'atterrissage, un peu plus large que lui).
+    Images (demoiselle, MOIII, bulle) = affichage recalculé à chaque image dans `kyShow` (règle des rejeux).
   - `kits.js` : MOVESETS, 2 boutons d'attaque façon Brawlhalla (doc « Brawl Proto — armes, spéciales et combos »).
     COUP + direction = les coups de la FAMILLE D'ARME (`FAMILY` : poings, objet, allonge ; `tirLights` pour TIR), mêmes
     chiffres pour toute la famille, le perso ne choisit que ses postures et effets (`lights(fam, P)`). Clés : `nL`
@@ -110,7 +120,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     victoire/défaite, tempo accéléré en mort subite. Réglages : BRUITAGES et MUSIQUE séparés.
   - `head.html` : en-tête HTML (le bloc `<!--ONLINE-->` est retiré pour la version hors ligne)
 - `src/pngs.js` : persos redessinés en pixel art (planches PNG intégrées), générés par `tools/art/export.py`
-  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py`, `ln4_set.py`, `natanax_set.py` = postures de Toro,
+  (`flat.py` = moteur à aplats, `toro_set.py`, `lulu_set.py`, `deno_set.py`, `adieu_set.py`, `bz_set.py`, `menes_set.py`, `ln4_set.py`, `natanax_set.py`, `kylian_set.py` = postures de Toro,
   Deadlulu, Denodoom, AdieuLescure, BIGZINZIN, MÉNÈS (gros ventre, t-shirt blanc trop court, claquettes), LN4 (raquette `rq`, casque `hm`, champagne `bt`, volant `sc`) et NATANAX (casquette `cap`, ballon `bb`, craie, atome, `armBehind` = bras levé derrière la tête, version sans casquette `_n` avec `NOCAP_SKIN`) — case de 80 x 72 pour l'antenne, version dorée avec `GOLD_SKIN`) ; `extra_poses.py` ajoute à tous la course en 4 temps, la réception, la chute et les
   préparations des gros coups. Style : celui de la référence de Noah
   (aplats anguleux, 3 tons, contour noir, gros poings et pieds), ~62 px de haut, affichés à l'échelle 1,25.
@@ -125,7 +135,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   avant, bas ; haut = remonter au sol et en l'air ; air bas = plongeon). Plan dans le document « Brawl Proto — armes,
   spéciales et combos ». L'ancienne mécanique LÉGER / LOURD / SPÉCIAL est gardée sur la branche `trois-boutons`
   (ne pas la supprimer).
-- Familles : POINGS (Toro, Ménès, AdieuLescure aux pieds), OBJET EN MAIN (BIGZINZIN, NATANAX), ALLONGE (Deadlulu, LN4),
+- Familles : POINGS (Toro, Ménès, AdieuLescure et Kylian aux pieds), OBJET EN MAIN (BIGZINZIN, NATANAX), ALLONGE (Deadlulu, LN4),
   TIR (Denodoom au fusil à pompe ; pensée aussi pour pistolets, arc, magie). Nouvelle famille si aucune ne colle.
 - Pour chaque nouveau perso : 1) déterminer sa famille d'arme, ou PROPOSER plusieurs familles à Noah quand l'objet s'y
   prête ; 2) ses spéciales (3 au sol + remonter + plongeon, au moins une « relance » qui permet de repartir sur des

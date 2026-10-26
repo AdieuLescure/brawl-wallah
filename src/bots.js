@@ -60,6 +60,12 @@ const BOT_MOVES = {
     ['nS', [0, 120], [-40, 60], 1.2], ['sS', [120, 380], [-60, 60], 2, { any: true }], ['dS', [0, 150], [-40, 60], 1, { tgtGround: true }],
     ['uS', [0, 100], [-220, -20], 0.6], ['dAS', [0, 60], [60, 260], 1],
   ],
+  kylian: [
+    ['nL', [0, 90], [-60, 50], 4], ['sL', [50, 160], [-50, 50], 2.5], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 2],
+    ['sA', [30, 140], [-60, 60], 3], ['uA', [0, 90], [-160, 10], 2], ['dA', [0, 60], [30, 160], 1.5],
+    ['nS', [20, 130], [-40, 50], 1.4], ['sS', [140, 520], [-60, 60], 2, { any: true }], ['dS', [90, 170], [-40, 60], 1.2, { tgtGround: true }],
+    ['uS', [0, 90], [-220, -20], 0.6], ['dAS', [0, 70], [60, 260], 1],
+  ],
   astra: [
     ['nL', [0, 80], [-60, 50], 2], ['sL', [60, 190], [-40, 40], 3], ['uL', [0, 90], [-170, -20], 2], ['dL', [0, 110], [-20, 60], 1.5],
     ['sH', [200, 650], [-60, 60], 1.5], ['uH', [60, 320], [-260, -60], 2], ['dH', [0, 110], [-60, 60], 2],
@@ -77,7 +83,7 @@ const BOT_AIR = { sA: 1, uA: 1, dA: 1, uAH: 1, dAH: 1, dAS: 1 };
 const BOT_KIND = { sH: 'H', uH: 'H', dH: 'H', uAH: 'H', dAH: 'H', nS: 'S', sS: 'S', uS: 'S', dS: 'S', dAS: 'S', uSA: 'S' };
 for (const id in BOT_MOVES)
   BOT_MOVES[id] = BOT_MOVES[id].map(([k, dx, dy, w, ex]) => Object.assign({ k, dx, dy, w, air: !!BOT_AIR[k], kind: BOT_KIND[k] || 'L' }, ex || {}));
-const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90, bigzinzin: 120, ln4: 120, natanax: 110 };
+const BOT_PREF = { toro: 70, astra: 330, grom: 60, deadlulu: 200, denodoom: 160, nini: 90, adieulescure: 90, bigzinzin: 120, ln4: 120, natanax: 110, kylian: 110 };
 // le coup peut-il servir dans cette situation (au sol / en l'air) ?
 const botFits = (o, grounded) => o.any || o.air === !grounded;
 

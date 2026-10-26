@@ -1039,7 +1039,7 @@ class GameScene extends Phaser.Scene {
       const gfg = this.add.rectangle(gx, gy, gw, 8 * k, 0x7df9ff).setOrigin(0, 0.5).setDepth(51);
       const air = this.add.rectangle(align === 'left' ? gx + gw + 10 * k : gx - 10 * k, gy, 8 * k, 8 * k, 0xffe9a8).setDepth(51);
       let rfg = null;
-      if (pl.char === 'nini' || pl.def.heat || pl.def.money) {
+      if (pl.char === 'nini' || pl.def.heat || pl.def.money || pl.def.love) {
         const ry = gy + 14 * k;
         this.add.rectangle(gx, ry, gw, 8 * k, 0x000000, 0.55).setOrigin(0, 0.5).setDepth(50).setStrokeStyle(2, 0xffffff, 0.5);
         rfg = this.add.rectangle(gx, ry, 1, 8 * k, 0xff4d8d).setOrigin(0, 0.5).setDepth(51);
@@ -1091,6 +1091,12 @@ class GameScene extends Phaser.Scene {
         const mk = gold ? (pl.goldUntil - now) / BZ.goldMs : Math.min((pl.money || 0) / BZ.max, 1);
         pl.hud.rfg.width = Math.max(pl.hud.gw * mk, 1);
         pl.hud.rfg.setFillStyle(gold ? (Math.floor(now / 110) % 2 ? 0xffd23a : 0xfff3a0) : 0x4caf50);
+      } else if (pl.hud.rfg && pl.def.love) {
+        // JAUGE BISOU (KYLIAN) : rose qui se remplit en bougeant ; amoureux = temps restant, rouge et rose qui clignotent
+        const inLove = now < (pl.loveUntil || 0);
+        const lk = inLove ? (pl.loveUntil - now) / KY.loveMs : Math.min((pl.kyLove || 0) / KY.max, 1);
+        pl.hud.rfg.width = Math.max(pl.hud.gw * lk, 1);
+        pl.hud.rfg.setFillStyle(inLove ? (Math.floor(now / 120) % 2 ? 0xff3b6b : 0xffb3cc) : lk >= 1 ? 0xffffff : 0xff7eb6);
       } else if (pl.hud.rfg && pl.def.heat) {
         const hk = Math.min((pl.heat || 0) / 100, 1);
         pl.hud.rfg.width = Math.max(pl.hud.gw * hk, 1);
@@ -2068,6 +2074,8 @@ class GameScene extends Phaser.Scene {
           pl.atk.done = true;
           this.spawnProj(pl, other, m, now);
           if (m.double) this.sched(m.double, 'double', { pi: pl.i, aid: pl.atk.id });
+          // plusieurs ballons en éventail (KYLIAN amoureux)
+          if (m.spread) m.spread.forEach((vy) => this.spawnProj(pl, other, m, now, 0, Object.assign({}, m.proj, { vy })));
         }
       } else if (now >= pl.atk.hitAt && now < pl.atk.hitAt + m.active) {
         const bc = b.center;

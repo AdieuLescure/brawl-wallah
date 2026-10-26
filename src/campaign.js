@@ -45,6 +45,7 @@ const STORY = {
     adieulescure: [['adieulescure', 'Ton éclat ? Je l\'ai déjà joué en une-deux, du pied gauche.'], ['hero', 'Alors je vais faire CTRL+Z sur ta passe.']],
     bigzinzin: [['bigzinzin', 'Cet éclat, je l\'ai monté en 4K. Tu veux l\'original ? Ça va te coûter cher.'], ['hero', 'Je paie en coups de poing.']],
     natanax: [['natanax', 'L\'éclat ? Je l\'ai mis en équation. Il me manque juste une variable : toi.'], ['hero', 'Résous ça avec tes poings.']],
+    kylian: [['kylian', 'L\'éclat ? C\'est qui qui l\'a gagné ? Moi. MOIII.'], ['hero', 'Plus pour longtemps.']],
     ln4: [['ln4', 'Feux éteints ! L\'éclat est au bout de la ligne droite, si tu tiens le rythme.'], ['hero', 'Je ne freine jamais.']],
     ombre: [['nar', 'Cinq éclats brillent. Un sixième manque, et une silhouette sombre barre la route.'], ['ombre', 'Tu as réuni cinq éclats. Il manque le tien. Je suis tout ce que tu n\'as pas osé être.'], ['hero', 'Alors on règle ça ici.']],
   },
@@ -58,6 +59,7 @@ const STORY = {
     adieulescure: [['adieulescure', 'Bien joué... Pas de CTRL+Z sur une défaite, hein.'], ['nar', 'L\'éclat roule jusqu\'à tes pieds.']],
     bigzinzin: [['bigzinzin', 'Coupez ! ...On la garde, celle-là. Prends l\'éclat, c\'est offert.'], ['nar', 'Un éclat de plus, et pas un centime dépensé.']],
     natanax: [['natanax', 'Ma casquette... Bon, tu as gagné, by order of moi-même. Prends-le.'], ['nar', 'Un éclat de plus, et pas une seule explosion.']],
+    kylian: [['kylian', 'T\'es pas content ? ...Bon. Prends-le, il est à toi.'], ['nar', 'Un éclat de plus, sans bisou cette fois.']],
     ln4: [['ln4', 'La ligne d\'arrivée, ce n\'est pas une fin, c\'est un nouveau départ. Prends-le.'], ['nar', 'Un éclat de plus, arrosé au champagne.']],
   },
   epilogue: [

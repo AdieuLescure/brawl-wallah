@@ -7,7 +7,7 @@
 import os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = ['sprites48.js', 'chars48.js', 'pngs.js', 'game.js', 'stages.js', 'gala_art.js', 'gala.js', 'adieu.js', 'bigzinzin.js', 'ln4.js', 'natanax.js', 'kits.js', 'anim.js', 'art.js', 'campaign.js', 'netcode.js', 'online.js', 'bots.js', 'extras.js', 'music_dune.js', 'music_gala.js', 'audio.js']
+SRC = ['sprites48.js', 'chars48.js', 'pngs.js', 'game.js', 'stages.js', 'gala_art.js', 'gala.js', 'adieu.js', 'bigzinzin.js', 'ln4.js', 'natanax.js', 'kylian.js', 'kits.js', 'anim.js', 'art.js', 'campaign.js', 'netcode.js', 'online.js', 'bots.js', 'extras.js', 'music_dune.js', 'music_gala.js', 'audio.js']
 
 
 def read(p):

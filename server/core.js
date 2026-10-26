@@ -2,7 +2,7 @@
 // Logique serveur (salles + file d'attente), indépendante de la plateforme.
 // Utilisée par Cloudflare (relay.js) ET par le serveur de test local (dev-server.js).
 // ===========================================================================
-export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini', 'adieulescure', 'bigzinzin', 'ln4', 'natanax'];
+export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini', 'adieulescure', 'bigzinzin', 'ln4', 'natanax', 'kylian'];
 export const STAGES = ['night', 'dune', 'gala'];
 const MAX_MSG = 4000;
 
