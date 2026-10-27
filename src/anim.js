@@ -78,10 +78,13 @@
           ty = (y0 + y1) / 2 - 30;
         }
       }
-      const k = Math.min(1, dt * 4);
+      // coup final (show.js) : la caméra zoome sur la victime et la suit
+      const cf = this.camForce;
+      if (cf) { tz = cf.z; tx = cf.x; ty = cf.y; }
+      const k = Math.min(1, dt * (cf ? 7 : 4));
       this.camZ += (tz - this.camZ) * k;
-      this.camX += (tx - this.camX) * Math.min(1, dt * 6);
-      this.camY += (ty - this.camY) * Math.min(1, dt * 6);
+      this.camX += (tx - this.camX) * Math.min(1, dt * (cf ? 10 : 6));
+      this.camY += (ty - this.camY) * Math.min(1, dt * (cf ? 10 : 6));
       cam.setZoom(this.camZ);
       // dézoomé (< 1) : on peut voir un peu au-delà de l'écran de base (zone de jeu plus grande)
       const zo = Math.min(this.camZ, 1);

@@ -112,6 +112,13 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
     aussi les postures dessinées en plus si elles existent : `<pose>Pre` (préparation), `fall`, `crouch`, course en 4
     temps (`run0, run2, run1, run3`). Ne touche jamais la simulation.
+  - `show.js` : SPECTACLE (combats à 2, hors entraînement et campagne) : présentation « VS » avant le combat
+    (`vsSplash` : bandes aux couleurs `cardCol`, perso, nom, rôle ; hors ligne état `countdown` 1,9 s puis « COMBAT ! » ;
+    en ligne pendant le compte à rebours existant) ; COUP FINAL (coup mortel sur la dernière vie, dans `impactFx`) :
+    arrêt sur image plus long `SHOW.finalStop` DANS la simulation (identique sur les 2 téléphones), caméra qui zoome et
+    suit la victime (`koCam` → `camForce` lu par `updateCamera`), ralenti hors ligne seulement (`slowUntil`, temps
+    réel) ; ÉCRAN DE VICTOIRE (`victoryScreen`, 1 s après la fin) : gagnant en grand dans sa pose (`SHOW.pose`), son
+    nom, sa réplique (`SHOW.quote` : à compléter pour chaque nouveau perso).
   - `extras.js` : vibration, indicateurs hors écran, réglages, entraînement, bouton quitter
   - `music_dune.js` : la musique du désert, convertie depuis le MIDI de Noah (`DUNE_MIDI`, 4 pistes : lead, arp,
     basse, batterie). Intro (mesures 1-11) une fois, puis boucle des mesures 12-43 (`loopStart`/`loopEnd`).
