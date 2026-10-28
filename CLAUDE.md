@@ -69,7 +69,13 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     8 s (postures `_g` de la planche, choisies dans `step`/`anim.js`). DOUBLURE (`type: 'vanish'`) : téléport vers le
     haut, invisible (`invisUntil`), silhouette de billets = projectile `decoy` qui encaisse un coup (`bzDecoyHit`,
     `bzProj`). KEY FRAME : projectile `keyframe`, `freeze` = image figée (`freezeUntil`). FEUILLE A4 : projectile `paper`.
-  - `ln4.js` : le perso LN4 (pilote de F1 et joueur de badminton, combinaison noire et orange SANS logo de marque).
+  - `ln4.js` : le perso LN4 (pilote de F1 et joueur de badminton ; refait d'après les photos de Noah : longs cheveux
+    bruns ondulés jusqu'aux épaules, raie au milieu, bouc ; combinaison ORANGE à col et bandes noirs, poignets bleu nuit,
+    mains nues, bottines noires à éclair jaune fluo, SANS logo de marque : écussons unis + petit « 4 »).
+    POISON (passif) : 4 coups sur le même ennemi en 10 s (`lnCount` dans `bzHit` ; champs de la victime `lnFrom`,
+    `lnT0`, `lnHits`) → 1 % toutes les 0,8 s pendant 4 s (`poisonUntil`, `poisonNext`, `lnPoison`), sans recul ; pas de
+    compte pendant le poison ; points verts au-dessus de la victime (`lnPips`, affichage). Réglé avec des simulations
+    de bots (10 % toutes les 0,5 s le rendait imbattable).
     VOLANT (`shuttle` : part vite puis freine, `LN.drag`), CHAMPAGNE (spéciale haut, `rise`), ARRÊT AU STAND
     (`type: 'pit'`, au sol : immobile 0,5 s puis PNEUS NEUFS `tyreUntil` 6 s = `spdMul` 1,25 et FEUX ÉTEINTS +30 %),
     FEUX ÉTEINTS (spéciale avant, `dashV`, 5 feux rouges). Branché sur `bzStep`/`bzProj`/`extraFx` (enveloppés).

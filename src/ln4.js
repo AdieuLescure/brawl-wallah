@@ -1,19 +1,23 @@
 // ===========================================================================
-// LN4 : pilote de F1 (combinaison noire et orange, gants, bottines, casque) et joueur de badminton (raquette, volant).
+// LN4 : pilote de F1 (combinaison orange à bandes noires, longs cheveux ondulés, bottines, casque) et joueur de badminton (raquette, volant).
 // Mécaniques :
 //  - VOLANT (SPÉCIAL) : le volant part très vite puis freine d'un coup et retombe (comme un vrai volant).
 //  - CHAMPAGNE (SPÉCIAL haut) : le podium ! le jet de champagne le propulse vers le haut et arrose en dessous.
 //  - ARRÊT AU STAND (SPÉCIAL bas, au sol) : une demi-seconde immobile (attaquable), puis PNEUS NEUFS pendant 6 s :
 //    il court 25 % plus vite et FEUX ÉTEINTS (LOURD) l'emmène 30 % plus loin.
 //  - FEUX ÉTEINTS (LOURD) : départ arrêté, les 5 feux rouges s'éteignent et il fonce tout droit.
-// Tout l'état de jeu est en champs simples (tyreUntil, spdMul) : sauvegardé en ligne.
+//  - POISON (passif, demande de Noah) : après un premier coup sur l'ennemi, s'il en place 3 autres (COUP ou SPÉCIAL)
+//    dans les 10 s, l'ennemi est empoisonné : 1 % toutes les 0,8 s pendant 4 s (5 % en tout), sans recul.
+//    Pas de cumul : les coups ne comptent pas tant que le poison agit (réglé par simulations de bots). Des points verts au-dessus de l'ennemi montrent le compte.
+// Tout l'état de jeu est en champs simples (tyreUntil, spdMul ; sur la victime : lnFrom, lnT0, lnHits,
+// poisonUntil, poisonNext) : sauvegardé en ligne.
 // ===========================================================================
-const LN = { tyreMs: 6000, spd: 1.25, dash: 1.3, drag: 0.94 };
+const LN = { tyreMs: 6000, spd: 1.25, dash: 1.3, drag: 0.94, poiWin: 10000, poiNeed: 4, poiMs: 4000, poiEvery: 800, poiTick: 1 };
 
 CHARS.ln4 = {
   id: 'ln4', name: 'LN4', role: 'PILOTE SMASHEUR', roleCol: '#ffa040', cardCol: '#ff7a00',
   speed: 365, jump: 690, weight: 0.97, jumps: 3, f1: true,
-  pal: { main: '#2c1a10', dark: '#1a1a22', skin: '#ecbc96', skin2: '#d09a74', hair: '#2c1a10', accent: '#ff7a00', glove: '#26262e' },
+  pal: { main: '#f06a00', dark: '#18181f', skin: '#ecbc96', skin2: '#d09a74', hair: '#2a1a10', accent: '#d8f030', glove: '#ecbc96' },
   fx: { main: 0xff7a00, alt: 0xffd09a, core: 0xffffff, cres: 'cres_ln' },
   help: [],
   moves: {},
@@ -43,6 +47,67 @@ Object.assign(GameScene.prototype, {
     if ((b.blocked.down || b.touching.down) && Math.abs(b.velocity.x) > 120 && now - (pl.tyreFx || 0) > 70) {
       pl.tyreFx = now;
       this.smokeFx(s.x - Math.sign(b.velocity.x) * 20, b.bottom - 4, -Math.sign(b.velocity.x), 0.6);
+    }
+  },
+
+  // POISON : compte des coups de LN4 sur sa victime (appelé avant les dégâts de chaque coup)
+  lnCount(att, vic, now) {
+    if (!att.def.f1 || att === vic) return;
+    if (now < (vic.poisonUntil || 0)) return; // (pas de compte tant que le poison agit)
+    if (vic.lnFrom !== att.i || !vic.lnHits || now - (vic.lnT0 || 0) > LN.poiWin) {
+      vic.lnFrom = att.i;
+      vic.lnT0 = now;
+      vic.lnHits = 1;
+    } else vic.lnHits++;
+    if (vic.lnHits < LN.poiNeed) return;
+    vic.lnHits = 0;
+    vic.poisonUntil = now + LN.poiMs;
+    vic.poisonNext = now + LN.poiEvery;
+    if (this.resim) return;
+    const c = vic.sprite.body.center;
+    this.popup(c.x, c.y - 100, 'EMPOISONNÉ !', '#9cff5a');
+    this.shockwave(c.x, c.y, { main: 0x7cff4a, alt: 0xd8f030 });
+  },
+
+  // POISON : les petits dégâts réguliers (tous les persos peuvent le subir)
+  lnPoison(pl, now) {
+    if (!(now < (pl.poisonUntil || 0)) || pl.stocks <= 0) return;
+    if (now < (pl.poisonNext || 0)) return;
+    pl.poisonNext = (pl.poisonNext || now) + LN.poiEvery;
+    pl.damage += LN.poiTick;
+    pl.flashUntil = now + 90;
+    pl.flashCol = 0x7cff4a;
+    if (this.resim) return;
+    const s = pl.sprite;
+    for (let i = 0; i < 3; i++) {
+      const q = this.add.rectangle(s.x + (Math.random() - 0.5) * 36, s.y - 10 + (Math.random() - 0.5) * 30, 6, 6, i % 2 ? 0x7cff4a : 0xd8f030).setDepth(31);
+      this.tweens.add({ targets: q, y: q.y - 30 - Math.random() * 20, alpha: 0, duration: 420, onComplete: () => q.destroy() });
+    }
+  },
+
+  // affichage : 4 points au-dessus de la victime (verts = coups comptés), qui clignotent pendant le poison
+  lnPips(pl, now) {
+    const on = pl.stocks > 0 && pl.lnHits > 0 && now - (pl.lnT0 || 0) <= LN.poiWin;
+    const poisoned = pl.stocks > 0 && now < (pl.poisonUntil || 0);
+    if (!on && !poisoned) {
+      if (pl.lnGfx) { pl.lnGfx.destroy(); pl.lnGfx = null; }
+      return;
+    }
+    if (!pl.lnGfx && !this.resim) pl.lnGfx = this.add.graphics().setDepth(41);
+    const g = pl.lnGfx;
+    if (!g) return;
+    g.clear();
+    const s = pl.sprite, x0 = s.x - 27, y = s.body.y - 34;
+    if (poisoned) {
+      g.fillStyle(Math.floor(now / 140) % 2 ? 0x7cff4a : 0x2e8a1a, 1);
+      g.fillRect(x0 + 6, y - 2, 42, 8);
+      g.lineStyle(2, 0x000000, 1).strokeRect(x0 + 6, y - 2, 42, 8);
+      return;
+    }
+    for (let i = 0; i < LN.poiNeed; i++) {
+      g.fillStyle(i < pl.lnHits ? 0x7cff4a : 0x203020, 1);
+      g.fillRect(x0 + i * 14, y, 10, 6);
+      g.lineStyle(2, 0x000000, 1).strokeRect(x0 + i * 14, y, 10, 6);
     }
   },
 
@@ -87,6 +152,21 @@ Object.assign(GameScene.prototype, {
   P.bzStep = function (pl, other, now) {
     if (baseStep) baseStep.call(this, pl, other, now);
     this.lnStep(pl, now);
+    this.lnPoison(pl, now);
+    this.lnPips(pl, now);
+  };
+  const baseHit = P.bzHit;
+  P.bzHit = function (att, vic, spec, now) {
+    if (baseHit) spec = baseHit.call(this, att, vic, spec, now);
+    this.lnCount(att, vic, now);
+    return spec;
+  };
+  // perdre une vie : le poison et le compte s'arrêtent
+  const baseDie = P.die;
+  P.die = function (pl, now) {
+    pl.poisonUntil = 0;
+    pl.lnHits = 0;
+    return baseDie.call(this, pl, now);
   };
   const baseProj = P.bzProj;
   P.bzProj = function (p, now) {

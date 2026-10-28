@@ -1,6 +1,7 @@
-# LN4 : pilote de F1 et joueur de badminton. Combinaison de course noire à bandes orange (épaules, flancs,
-# jambes), gants et bottines noir et orange, cheveux bruns bouclés en volume, barbe courte.
-# Pas de logo de marque : seulement un « 4 » orange sur la poitrine.
+# LN4 : pilote de F1 et joueur de badminton. Combinaison de course ORANGE (d'après la photo de Noah) : col montant
+# noir, empiècements noirs sur les épaules, bande noire sur les flancs et à l'arrière des jambes, poignets bleu nuit,
+# mains nues, bottines noires à éclairs jaune fluo. Longs cheveux bruns ondulés jusqu'aux épaules (raie au milieu),
+# sourcils épais, barbe courte (bouc). AUCUN logo de marque : deux petits écussons unis et un « 4 » noir.
 # Accessoires (dessinés selon la posture) : raquette de badminton (rq), casque orange (hm), bouteille de
 # champagne (bt), volant de badminton (sc), tenus dans la main proche (ou lointaine pour le volant).
 import math
@@ -10,18 +11,20 @@ from toro_set import slab, fold, sub, add, mul, rot, FIST, P0, N0
 W, H = 80, 64
 OX = 11
 SKIN = mat('#9a6446', '#d09a74', '#ecbc96', '#f8d6b8')
-HAIR = mat('#140c08', '#2c1a10', '#4a2e1a', '#6a4428')
-SUIT = mat('#08080c', '#1a1a22', '#2e2e3a', '#4a4a58')
+HAIR = mat('#140a06', '#2a1a10', '#46301e', '#6a4a2c')
+ORA = mat('#a84400', '#f06a00', '#ff8c26', '#ffc07a')
+ORA_FAR = mat('#803400', '#c45400', '#e47418')
+SUIT = mat('#08080c', '#18181f', '#2a2a34', '#40404c')   # empiècements noirs
 SUIT_FAR = mat('#060608', '#121218', '#22222c')
-ORA = mat('#a84400', '#ff7a00', '#ffa040', '#ffd09a')
-ORA_FAR = mat('#803400', '#cc6200', '#e88a30')
+NAVY = mat('#0a1020', '#18243e', '#2a3a5c')
 BOOT = mat('#08080c', '#1c1c24', '#3a3a46')
-FACE = {'w': (255, 255, 255, 255), 'k': K, 'b': (52, 30, 16, 255), 'm': (150, 76, 60, 255), 'r': (205, 92, 80, 255)}
-GLOVE = {'k': K, 'W': hexc('#40404c'), 'w': hexc('#26262e'), 'g': hexc('#ff7a00')}
-GLOVE_FAR = {'k': K, 'W': hexc('#30303a'), 'w': hexc('#1c1c24'), 'g': hexc('#cc6200')}
-BEARD = (118, 76, 52, 255)
-BEARD_D = (84, 52, 34, 255)
-FOUR = {'o': hexc('#ff8a1e')}
+NEON = mat('#8aa010', '#d8f030', '#f4ff8a')
+FACE = {'w': (255, 255, 255, 255), 'k': K, 'b': (34, 20, 12, 255), 'm': (150, 76, 60, 255), 'r': (205, 92, 80, 255)}
+GLOVE = {'k': K, 'W': hexc('#f8d6b8'), 'w': hexc('#ecbc96'), 'g': hexc('#d09a74')}      # mains nues
+GLOVE_FAR = {'k': K, 'W': hexc('#e2b896'), 'w': hexc('#cc9a78'), 'g': hexc('#ae7c5a')}
+BEARD = (86, 54, 34, 255)
+BEARD_D = (58, 36, 22, 255)
+FOUR = {'o': hexc('#14141a')}
 OPEN = ['.kkkk...', 'kWWWWk..', 'kWWWWWk.', 'kWWWWWk.', 'kwWWWWk.', 'kgwwwwk.', '.kkkkk..']
 
 
@@ -40,24 +43,25 @@ def ell(c, rx, ry, n=14, a0=0.0, a1=6.283, rot_=0.0):
 def torso(P, lean):
     T = lambda pts: [add(rot(sub(p, P0), lean), P) for p in pts]
     it = []
-    # bas de la combinaison (bassin)
-    it.append(Part(SUIT, T([(20, 39), (38, 39), (39, 45), (31, 45), (29, 47), (27, 45), (19, 45)]), shades=[(T([(20, 39), (24, 39), (25, 45), (19, 45)]), 0)], outline='outer'))
-    # buste : combinaison noire, épaules et flancs orange, col montant
-    it.append(Part(SUIT, T([(19, 22), (26, 20), (35, 20), (39, 22), (38.4, 31), (38.6, 40.5), (20.2, 40.5), (20, 31)]),
-                   shades=[(T([(19, 22), (23.5, 21), (24, 40.5), (20.2, 40.5), (20, 31)]), 0), (T([(34, 21), (39, 22), (38.6, 28), (35.4, 26)]), 2),
-                           # épaules orange
-                           (T([(19, 22), (25, 20.4), (24.6, 24.6), (19.6, 26.2)]), -1)]))
-    it.append(Part(ORA, T([(19.4, 22.4), (24.8, 20.6), (24.2, 24), (20, 25.6)]), base=1, outline=False))
-    it.append(Part(ORA, T([(34.6, 20.6), (38.8, 22.2), (38.6, 25), (34.4, 23.6)]), base=2, outline=False))
-    # bande orange sur le flanc (de l'aisselle à la hanche)
-    it.append(Part(ORA, T([(36.6, 25.6), (38.4, 26.4), (38.6, 40.4), (36.8, 40.4)]), base=1, outline=False))
-    it.append(Part(ORA, T([(20.2, 27), (21.6, 26.4), (21.8, 40.4), (20.2, 40.4)]), base=0, outline=False))
-    # ceinture de la combinaison
-    it.append(Part(SUIT, T([(20.2, 38.6), (38.6, 38.6), (38.6, 40.6), (20.2, 40.6)]), base=2, outline=False))
-    # col montant orange
-    it.append(Part(ORA, T([(27, 19.2), (34, 19.2), (34.4, 21.6), (26.6, 21.6)]), base=1, outline=False))
-    # « 4 » orange sur la poitrine
-    c = T([(31.6, 27.2)])[0]
+    # bas de la combinaison (bassin), orange
+    it.append(Part(ORA, T([(20, 39), (38, 39), (39, 45), (31, 45), (29, 47), (27, 45), (19, 45)]), shades=[(T([(20, 39), (24, 39), (25, 45), (19, 45)]), 0)], outline='outer'))
+    # buste orange
+    it.append(Part(ORA, T([(19, 22), (26, 20), (35, 20), (39, 22), (38.4, 31), (38.6, 40.5), (20.2, 40.5), (20, 31)]),
+                   shades=[(T([(19, 22), (23.5, 21), (24, 40.5), (20.2, 40.5), (20, 31)]), 0), (T([(34, 21), (39, 22), (38.6, 28), (35.4, 26)]), 2)]))
+    # empiècements noirs sur le haut des épaules
+    it.append(Part(SUIT, T([(19.2, 22.2), (25.4, 20.2), (26.4, 21.8), (24.6, 23.4), (19.8, 25)]), base=1, outline=False))
+    it.append(Part(SUIT, T([(34.6, 20.4), (39, 22), (38.8, 24), (35.4, 22.6)]), base=2, outline=False))
+    # bande noire sur le flanc (de l'aisselle à la hanche)
+    it.append(Part(SUIT, T([(36.4, 25.4), (38.4, 26.2), (38.6, 40.4), (36.6, 40.4)]), base=1, outline=False))
+    it.append(Part(SUIT, T([(20.2, 26.6), (22, 26), (22.2, 40.4), (20.2, 40.4)]), base=0, outline=False))
+    # fermeture éclair (trait sombre) et deux petits écussons unis (sans marque)
+    it.append(Part(ORA, T([(31.2, 21.6), (31.8, 21.6), (31.8, 38.6), (31.2, 38.6)]), base=0, outline=False))
+    it.append(Part(NAVY, T([(32.6, 24.6), (36, 24.6), (36, 26.2), (32.6, 26.2)]), base=2, outline=False))
+    it.append(Part(mat('#c8ccd8', '#f4f6fa', '#ffffff'), T([(26.4, 26.6), (30.2, 26.6), (30.2, 28), (26.4, 28)]), base=1, outline=False))
+    # col montant noir
+    it.append(Part(SUIT, T([(27, 18.6), (34.2, 18.6), (34.6, 21.8), (26.6, 21.8)]), base=2, shades=[(T([(27, 18.6), (29, 18.6), (28.8, 21.8), (26.6, 21.8)]), 1)]))
+    # petit « 4 » noir sur la hanche
+    c = T([(33.6, 33.6)])[0]
     it.append(stamp(['o.o', 'o.o', 'ooo', '..o', '..o'], FOUR, round(c[0]), round(c[1])))
     return it, T
 
@@ -67,36 +71,37 @@ def head(N, tilt, expr, flow):
     o = (round(N[0] - N0[0]), round(N[1] - N0[1]))
     it = []
     f = flow
-    # boucles de derrière : du volume, jusqu'en haut de la nuque (bord en vagues = boucles)
-    it.append(Part(HAIR, T([(22.4, 8), (24, 4.4), (27.4, 3.4), (28.8, 9), (28.6, 14.6), (27.6, 17.6), (26.4, 19.4 + f * 0.2), (25, 18.4), (23.6, 19.2), (22.6, 17.2), (21.2, 16.4), (21.6, 14), (20.6, 12.4), (21.6, 10.6)]),
-                   shades=[(T([(21.2, 16.4), (23.4, 14.6), (24.4, 17.6), (23.6, 19.2), (22.6, 17.2)]), 0), (T([(22.8, 8), (25.4, 6.4), (26, 10.4), (23.2, 11.6)]), 2),
-                           (T([(24.4, 12.6), (25.6, 12.2), (25.8, 13.6), (24.6, 14)]), 3)], base=1))
+    # longs cheveux de derrière : tombent jusque sur les épaules, pointes ondulées
+    back = [(23.2, 6), (26, 2.6), (30, 1.6), (29.4, 9), (30, 15), (29.6, 20), (30.6, 24.6 + f * 0.3), (28.6, 25.4), (27.4, 23.8), (26, 26 + f * 0.4),
+            (24.4, 24.2), (22.6, 25.4 + f * 0.3), (21.6, 22.6), (20, 21.8), (20.8, 19), (19.4, 16.6), (20.6, 14), (20, 11.4), (21.4, 9)]
+    it.append(Part(HAIR, T(back),
+                   shades=[(T([(20, 21.8), (22.4, 18.6), (24, 22), (22.6, 25.4), (21.6, 22.6)]), 0), (T([(22.4, 8), (25.6, 5), (26.4, 10.6), (23.2, 12)]), 2),
+                           (T([(24.6, 14), (26, 13.4), (26.6, 17.6), (25.2, 18.2)]), 3), (T([(22, 13.4), (23, 13), (23.4, 16.2), (22.4, 16.4)]), 2),
+                           (T([(27, 19.6), (28.4, 19.2), (28.6, 22.6), (27.4, 22.8)]), 2)], base=1))
     it.append(Part(SKIN, T([(28, 18), (33, 18), (33, 22), (28, 22)]), base=0))
     # visage
     it.append(Part(SKIN, T([(25, 6), (30, 4), (35, 5), (38, 8), (38.4, 11.5), (39.6, 13.6), (38.6, 14.6), (38.2, 16), (37, 18.6), (34, 20.4), (30, 20.4), (27, 18), (24.5, 13)]),
                    shades=[(T([(24.5, 13), (25, 6), (29, 9), (29.6, 20.4), (28.6, 20.2), (27, 18)]), 1),
                            (T([(35, 9), (38, 10), (38.2, 12.4), (36, 13)]), 3), (T([(37.2, 12), (39.6, 13.6), (38.6, 14.6), (37.4, 14.2)]), 3)], base=2))
-    # boucles brunes du dessus : bord irrégulier, une mèche qui tombe sur le front
-    curls = [(25.4, 14.6), (23.6, 12.6), (24, 10.4), (22.8, 8.6), (23.6, 6.4), (23.4, 4.4), (25.4, 2.6), (26.6, 0.4), (29, 0.6), (30.6, -1), (32.8, 0), (34.6, -1), (36.4, 0.4), (38.6, 0.4),
-             (39.6, 2.4), (41.6, 3.2), (41.4, 5.4), (42.4, 7 + f * 0.3), (40.6, 8.6), (39.4, 7.4), (38.4, 9.2), (37, 7), (35.6, 8.6), (34.4, 6.4), (33, 8.2), (31.6, 6.8), (30.2, 8.6),
-             (28.8, 8.2), (28, 10.8), (28.4, 13), (27, 14.4)]
-    it.append(Part(HAIR, T(curls),
-                   shades=[(T([(26.6, 2.6), (30, 1.2), (33, 0.8), (32, 2.2), (28.6, 3.2), (26.4, 4.6)]), 3), (T([(35, 1.4), (38.6, 2.8), (40.2, 4.8), (36.4, 3.6)]), 2),
-                           (T([(24.6, 15.6), (23, 12.2), (23, 8.6), (25.4, 9.4), (27, 13.4), (26.6, 17)]), 0),
-                           (T([(29.6, 4.2), (31, 3.6), (31.4, 5), (30, 5.4)]), 2), (T([(34.6, 3.6), (36, 3.2), (36.4, 4.6), (35, 5)]), 2)]))
+    # dessus : raie au milieu, les cheveux retombent de chaque côté du front et cachent l'oreille
+    top = [(23.4, 9), (23.6, 5.2), (25.6, 2.6), (28.6, 1), (32.4, 0.6), (35.6, 1.4), (38.2, 3.2), (39.4, 5.6), (38.6, 7.2), (37.2, 5.6), (35.4, 4.6), (33.6, 4.8),
+           (32.4, 3.6), (31.2, 5), (30, 7.4), (28.8, 10.6), (28.4, 14.4), (28.8, 17.4), (28, 19), (27, 17.8), (26.4, 16), (25.6, 14.6), (24.6, 12.4)]
+    it.append(Part(HAIR, T(top),
+                   shades=[(T([(27, 2.4), (30.6, 1.2), (32, 1.6), (29, 3.4), (26.6, 4.6)]), 3), (T([(34, 1.8), (37.4, 3.2), (37.8, 4.8), (35, 3.6)]), 2),
+                           (T([(24.6, 12.4), (26.4, 9.6), (27.6, 13.6), (28.4, 17.6), (27.2, 16.2)]), 0), (T([(29.2, 8.6), (30, 7.6), (29.6, 12.6), (28.9, 13)]), 2)]))
     fx, fy = o
-    # barbe courte brune (joues, menton) + moustache
+    # barbe courte (bouc) + moustache, sourcils épais
     st = {'s': BEARD, 'd': BEARD_D}
-    it.append(stamp(["s........", "s.......s", ".s.....s.", "..sdddd.."], st, 29 + fx, 15 + fy))
-    it.append(stamp(["dd.d"], st, 33 + fx, 15 + fy))
+    it.append(stamp(["s.......s", ".s.....s.", "..sdddd..", "....dd..."], st, 29 + fx, 16 + fy))
+    it.append(stamp(["dddd"], st, 34 + fx, 15 + fy))
     if expr == 'hurt':
-        it.append(stamp(["kkkk.kk", "....k..", ".kkk..."], FACE, 31 + fx, 9 + fy))
+        it.append(stamp(["bbbb.bbb", "kkkk.kk.", "....k..."], FACE, 31 + fx, 8 + fy))
         it.append(stamp(["mmr."], FACE, 34 + fx, 17 + fy))
     elif expr == 'shout':
-        it.append(stamp(["bbbb..bb", "...wk.wk", "...wk..."], FACE, 30 + fx, 9 + fy))
+        it.append(stamp(["bbbbb.bbb", "....wk.wk", "....wk..."], FACE, 29 + fx, 8 + fy))
         it.append(stamp(["kkk", "mrk"], FACE, 34 + fx, 16 + fy))
     else:
-        it.append(stamp(["bbbb..bb", "...wk.wk", "...wk..."], FACE, 30 + fx, 9 + fy))
+        it.append(stamp(["bbbbb.bbb", "....wk.wk", "....wk..."], FACE, 29 + fx, 8 + fy))
         it.append(stamp([".mmk"], FACE, 33 + fx, 17 + fy))
     return it
 
@@ -147,11 +152,10 @@ def shuttle(c, ang):
 
 def arm(sh, el, wr, far, fist):
     d = sub(wr, el); L = math.hypot(*d) or 1; u = (d[0] / L, d[1] / L)
-    M = SUIT_FAR if far else SUIT
-    O = ORA_FAR if far else ORA
+    M = ORA_FAR if far else ORA
     it = [slab(sh, el, 5.6, 5.0, M, ext0=0.8, ext1=1.0), slab(el, wr, 5.0, 4.6, M, ext0=1.2, ext1=0.2)]
-    # bande orange le long du bras (épaule -> coude)
-    it.append(slab(sh, add(sh, mul(sub(el, sh), 0.75)), 2.0, 1.6, O, base=1, dark=0.3))
+    # poignet bleu nuit
+    it.append(slab(add(wr, mul(u, -2.2)), add(wr, mul(u, 0.4)), 5.0, 5.0, NAVY, base=1, dark=0.4))
     if fist is None: return it
     rows = OPEN if fist == 'O' else FIST[fist]
     anchor = {'R': (0, 3.5), 'L': (7, 3.5), 'U': (3.5, 7), 'UL': (3.5, 7), 'D': (3.5, 0), 'O': (1, 3)}[fist]
@@ -161,22 +165,25 @@ def arm(sh, el, wr, far, fist):
 
 
 def leg(hip, kn, an, far, foot, foot_rot):
-    M = SUIT_FAR if far else SUIT
-    O = ORA_FAR if far else ORA
+    M = ORA_FAR if far else ORA
+    D = SUIT_FAR if far else SUIT
     it = []
     R = lambda pts: [add(rot((x * foot, y), foot_rot * foot), an) for x, y in pts]
-    # bottine de course : noire, talon et lacets orange
-    it.append(Part(BOOT, R([(-3.5, 1.2), (3, 1.2), (8, 3.0), (9, 4.4), (8.5, 5), (-3.8, 5)]), shades=[(R([(-3.6, 3.6), (-1, 3.6), (-1, 5), (-3.8, 5)]), -1)]))
-    it.append(Part(ORA if not far else ORA_FAR, R([(-3.6, 3.4), (-0.6, 3.4), (-0.6, 5), (-3.8, 5)]), base=1, outline=False))
-    it.append(Part(ORA if not far else ORA_FAR, R([(1.2, 1.6), (4, 1.8), (4.4, 2.8), (1.4, 2.6)]), base=2, outline=False))
+    # bottine de course noire, éclair jaune fluo sur le côté
+    it.append(Part(BOOT, R([(-3.5, 1.2), (3, 1.2), (8, 3.0), (9, 4.4), (8.5, 5), (-3.8, 5)]), shades=[(R([(-3.6, 3.6), (-1, 3.6), (-1, 5), (-3.8, 5)]), 0)]))
+    it.append(Part(NEON, R([(-2.4, 2.6), (1.8, 2), (4.8, 3.2), (1.6, 3.4), (-1.6, 4.2)]), base=1 if not far else 0, outline=False))
     it.append(slab(kn, add(an, mul(sub(an, kn), 0.08)), 6.6, 6.0, M, ext0=1.5))
     it.append(slab(hip, kn, 7.8, 6.8, M, ext0=1.0, ext1=1.2))
-    # bande orange sur le côté de la jambe
-    it.append(slab(add(hip, mul(sub(kn, hip), 0.1)), kn, 1.8, 1.6, O, base=1, dark=0.3))
-    it.append(slab(kn, add(kn, mul(sub(an, kn), 0.85)), 1.6, 1.4, O, base=1, dark=0.3))
+    # bande noire le long de la jambe (côté arrière)
+    dk0 = sub(kn, hip); L0 = math.hypot(*dk0) or 1; nb = (-dk0[1] / L0, dk0[0] / L0)
+    if nb[0] * foot > 0: nb = (-nb[0], -nb[1])  # vers l'arrière du pied
+    it.append(slab(add(add(hip, mul(dk0, 0.08)), mul(nb, 2.6)), add(kn, mul(nb, 2.4)), 2.0, 1.8, D, base=1, dark=0.3))
+    da = sub(an, kn); La = math.hypot(*da) or 1; na = (-da[1] / La, da[0] / La)
+    if na[0] * foot > 0: na = (-na[0], -na[1])
+    it.append(slab(add(kn, mul(na, 2.2)), add(add(kn, mul(da, 0.86)), mul(na, 2.0)), 1.8, 1.6, D, base=1, dark=0.3))
     dk = sub(kn, hip); Lk = math.hypot(*dk) or 1
     n = (-dk[1] / Lk, dk[0] / Lk)
-    it[-3].shades.append((fold(add(kn, mul(n, -1)), mul(n, 1), 2.6), 0))
+    it[3].shades.append((fold(add(kn, mul(n, -1)), mul(n, 1), 2.6), 0))
     return it
 
 

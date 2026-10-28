@@ -297,7 +297,7 @@
       // CHAMPAGNE : le podium ! le jet le propulse vers le haut et arrose ceux qui sont dessous (remonter)
       uS: { type: 'melee', pose: 'champ', startup: 90, active: 260, total: 600, w: 80, h: 110, ox: 0, oy: 60, dmg: 7, kb: 250, ks: 5, ang: -0.9, stun: 200, rise: 860, riseX: 110, onceAir: 'leap', recovery: true, fx: { champ: true } },
       dAS: GP({ pose: 'dive', fx: { ghosts: 2 } }), // SMASH PLONGEANT
-    }), ['COUP   ALLONGE (RAQUETTE)', 'SPÉCIAL VOLANT', 'SPÉ AV FEUX ÉTEINTS', 'SPÉ H/B CHAMPAGNE/STAND', 'AIR BAS SMASH PLONGEANT', 'STAND = PNEUS NEUFS (6 S)']);
+    }), ['COUP   ALLONGE (RAQUETTE)', 'SPÉCIAL VOLANT', 'SPÉ AV FEUX ÉTEINTS', 'SPÉ H/B CHAMPAGNE/STAND', 'AIR BAS SMASH PLONGEANT', '4 COUPS EN 10 S = POISON']);
   }
 
   // ---------------- NATANAX (OBJET EN MAIN ; sans casquette : POINGS) ----------------
