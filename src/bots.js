@@ -28,7 +28,7 @@ const BOT_MOVES = {
   deadlulu: [
     ['nL', [0, 120], [-60, 50], 4], ['sL', [60, 190], [-50, 50], 2.5], ['uL', [0, 110], [-170, -20], 2], ['dL', [0, 140], [-20, 60], 2],
     ['sA', [30, 170], [-60, 60], 3], ['uA', [0, 110], [-160, 10], 2], ['dA', [0, 70], [30, 160], 1.5],
-    ['nS', [110, 420], [-60, 60], 3, { any: true }], ['sS', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
+    ['sS', [110, 420], [-60, 60], 3, { any: true }], ['dS', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
     ['uS', [0, 90], [-200, -10], 0.8], ['dAS', [0, 60], [60, 260], 1],
   ],
   denodoom: [
@@ -174,11 +174,11 @@ Object.assign(GameScene.prototype, {
       const reach = (m.ox || 0) + (m.w || 0) / 2 + 40;
       const coming = now < ta.hitAt + (m.active || 0) && (m.type === 'melee' || m.type === 'grab') && adx < reach + 30 && Math.abs(dy) < 140;
       // contre (OBJECTION !, CONTRÔLE) : en bas + SPÉCIAL
-      const ctr = bot.def.moves.dS;
-      if (coming && ctr && (ctr.type === 'counter' || ctr.type === 'catch') && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: 'dS' }, grounded, now) && Math.random() < lv.dodge * 0.35) {
+      const ck = ['dS', 'nS'].find((k) => bot.def.moves[k] && (bot.def.moves[k].type === 'counter' || bot.def.moves[k].type === 'catch'));
+      if (coming && ck && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: ck }, grounded, now) && Math.random() < lv.dodge * 0.35) {
         i.special = true;
-        i.sy = 1;
-        i.sx = dir * 0.3;
+        i.sy = ck === 'dS' ? 1 : 0;
+        i.sx = ck === 'dS' ? dir * 0.3 : 0;
         return i;
       }
       if (coming && Math.random() < lv.dodge && now >= bot.dodgeCd && !bot.atk) {

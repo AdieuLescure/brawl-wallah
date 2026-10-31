@@ -629,8 +629,9 @@ Object.assign(GameScene.prototype, {
       return;
     }
     if (m.t === 'start') return this.onlineStart(m);
-    if (m.t === 'in' || m.t === 'hash') return n && this.netReceive(m);
-    if (m.t === 'desync') return this.onDesync(m.f);
+    if (m.t === 'in' || m.t === 'hash' || m.t === 'sync') return n && this.netReceive(m);
+    // écart : on resynchronise (seul un écart « fatal », ou un vieux client, arrête la partie)
+    if (m.t === 'desync') return n && !m.fatal && m.e !== undefined ? this.netReceive(m) : this.onDesync(m.f);
     if (m.t === 'left') {
       if (this.dropTxt) this.dropTxt.destroy();
       this.dropTxt = null;

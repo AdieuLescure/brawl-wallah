@@ -16,7 +16,7 @@ const NULLOBJ = new Proxy(function () {}, {
 });
 
 // Etat d'un joueur : tous ses champs simples (nombres, booléens, textes) sont sauvegardés, sauf ceux-ci
-const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff', 'markImg', 'heatFx', 'goldFx']);
+const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff', 'markImg', 'heatFx', 'goldFx']);
 const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string';
 
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
@@ -66,7 +66,7 @@ Object.assign(GameScene.prototype, {
         id: p.id, o: p.owner.i, t: p.target.i, spec: p.spec, x: p.x, y: p.y, vx: p.vx, vy: p.vy, born: p.born, armedAt: p.armedAt, lastTrail: p.lastTrail, f: p.f,
         spent: !!p.spent, bounced: !!p.bounced, back: !!p.back, carry: p.carry ? { ...p.carry } : null, hits: p.hits ? [...p.hits].map((q) => q.i) : null,
       }));
-    return JSON.stringify({ pls, projs, timers: this.timers, frame: this.frame, simFrames: this.simFrames, freeze: this.freezeLeft, atkSeq: this.atkSeq, projSeq: this.projSeq, sudden: !!this.sudden });
+    return JSON.stringify({ pls, projs, timers: this.timers, frame: this.frame, simFrames: this.simFrames, freeze: this.freezeLeft, atkSeq: this.atkSeq, projSeq: this.projSeq, sudden: !!this.sudden, endF: this.endF === undefined ? null : this.endF, endW: this.endW === undefined ? -1 : this.endW });
   },
 
   restore(str) {
@@ -92,11 +92,9 @@ Object.assign(GameScene.prototype, {
       pl.grab = o.grab ? { victim: this.pl(o.grab.v), start: o.grab.start, slamAt: o.grab.slamAt, spec: o.grab.spec } : null;
       s.setFlipX(pl.facing < 0);
       if (!pl.grab) s.setAngle(0);
-      // à plusieurs : un joueur éliminé n'a plus de corps (il peut revenir si le rejeu remonte avant son élimination)
-      if (this.pls.length > 2) {
-        b.enable = pl.stocks > 0;
-        pl.tag.setVisible(pl.stocks > 0);
-      }
+      // un joueur éliminé n'a plus de corps (il peut revenir si le rejeu remonte avant son élimination)
+      b.enable = pl.stocks > 0;
+      if (this.pls.length > 2) pl.tag.setVisible(pl.stocks > 0);
     });
     // projectiles : on garde les sprites existants, on recrée ceux qui manquent
     const live = new Map(this.projs.map((p) => [p.id, p]));
@@ -128,6 +126,8 @@ Object.assign(GameScene.prototype, {
     this.atkSeq = S.atkSeq;
     this.projSeq = S.projSeq;
     this.sudden = !!S.sudden;
+    this.endF = S.endF === undefined ? null : S.endF;
+    this.endW = S.endW === undefined ? -1 : S.endW;
   },
 
   makeProjSprite(p) {
@@ -244,6 +244,8 @@ Object.assign(GameScene.prototype, {
       inputs: this.pls.map(() => ({})), // inputs[joueur][image] = entier
       used: {}, snaps: {}, verified: -1, lastRemote: this.pls.map(() => NEUTRAL_IN), gone: {},
       hashes: { mine: {}, theirs: {} }, desync: false, stalled: 0, rollbacks: 0, maxRoll: 0,
+      // RESYNCHRO : en cas d'écart, l'état du « référent » (1er joueur encore là) est recopié chez les autres
+      epoch: 0, syncFrom: 0, forced: null, resyncs: 0, lastSyncSent: -999, waitSync: 0,
     };
     for (let f = 0; f < D; f++) this.net.inputs.forEach((a) => (a[f] = NEUTRAL_IN)); // images 0..D-1 : neutre pour tous
     // les gestes de pistolet/charge utilisent le hasard des bots : jamais en ligne
@@ -251,6 +253,9 @@ Object.assign(GameScene.prototype, {
     this.curIn = this.pls.map(() => NEUTRAL_IN);
     this.netInput = (i) => unpackInput(this.curIn[i]);
     this.snapAt = {};
+    this.endF = null;
+    this.endW = -1;
+    this.netFinal = false;
   },
 
   // les autres joueurs de la partie
@@ -284,9 +289,90 @@ Object.assign(GameScene.prototype, {
         if (f > n.remoteMax[r]) n.remoteMax[r] = f;
       });
     } else if (msg.t === 'hash') {
+      if ((msg.e || 0) !== n.epoch || msg.f < n.syncFrom) return; // empreinte d'avant une resynchro : périmée
       (n.hashes.theirs[msg.f] || (n.hashes.theirs[msg.f] = {}))[r] = msg.h;
       this.netCheckHash(msg.f);
+    } else if (msg.t === 'desync') {
+      // un autre joueur a vu un écart : si je suis le référent, j'envoie mon état
+      if ((msg.e || 0) === n.epoch) this.netDesync(msg.f);
+    } else if (msg.t === 'sync') {
+      this.netApplySync(r, msg);
     }
+  },
+
+  // le référent : le premier joueur encore dans la partie (le même chez tout le monde)
+  netAuthority() {
+    const n = this.net;
+    for (let i = 0; i < this.pls.length; i++) if (i === n.me || n.gone[i] === undefined) return i;
+    return 0;
+  },
+
+  // écart détecté (chez moi ou chez un autre) : plutôt que d'arrêter la partie, on recopie l'état du référent
+  netDesync(f) {
+    const n = this.net;
+    if (!n || this.over) return;
+    if (n.resyncs >= 12) {
+      // ça ne se rattrape pas : on arrête comme avant
+      if (!n.desync) {
+        n.desync = true;
+        n.send({ t: 'desync', f, fatal: true });
+        if (this.onDesync) this.onDesync(f);
+      }
+      return;
+    }
+    if (this.netAuthority() !== n.me) {
+      if (!n.waitSync || this.frame - n.waitSync > 150) {
+        n.waitSync = this.frame;
+        n.send({ t: 'desync', p: n.me, f, e: n.epoch });
+      }
+      return;
+    }
+    if (this.frame - n.lastSyncSent < 45) return; // une resynchro vient de partir
+    let V = n.verified + 1;
+    if (!n.snaps[V]) V = n.verified;
+    if (!n.snaps[V]) return;
+    n.lastSyncSent = this.frame;
+    n.resyncs++;
+    n.epoch++;
+    n.syncFrom = V;
+    n.hashes = { mine: {}, theirs: {} };
+    n.lastHashF = V - 1;
+    n.send({ t: 'sync', p: n.me, f: V, e: n.epoch, s: n.snaps[V] });
+    this.netSyncFx();
+  },
+
+  // l'état du référent arrive : on le pose à son image et on rejoue jusqu'à maintenant
+  netApplySync(r, msg) {
+    const n = this.net;
+    if (!n || r !== this.netAuthority() || !(msg.e > n.epoch) || typeof msg.s !== 'string') return;
+    const V = msg.f;
+    if (V <= this.frame - NET_KEEP + 2) {
+      // trop vieux (coupure) : impossible de rejouer jusqu'ici ; on redemande
+      n.waitSync = 0;
+      n.epoch = msg.e;
+      this.netDesync(V);
+      return;
+    }
+    n.epoch = msg.e;
+    n.resyncs++;
+    n.syncFrom = V;
+    n.hashes = { mine: {}, theirs: {} };
+    n.lastHashF = V - 1;
+    n.waitSync = 0;
+    n.forced = { f: V, s: msg.s };
+    if (this.frame > V) {
+      if (!n.snaps[V]) n.snaps[V] = msg.s;
+      this.netRollback(V, this.frame);
+      n.verified = Math.min(n.verified, V - 1);
+    }
+    this.netSyncFx();
+  },
+
+  netSyncFx() {
+    if (this.resim || !this.add || !this.add.text) return;
+    if (this.syncTxt && this.syncTxt.active) this.syncTxt.destroy();
+    const t = (this.syncTxt = this.add.text(this.W / 2, 64, 'RESYNCHRO', { fontFamily: FONT, fontSize: '14px', color: '#9be7ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(60));
+    this.tweens.add({ targets: t, alpha: 0, delay: 700, duration: 300, onComplete: () => t.destroy() });
   },
 
   netCheckHash(f) {
@@ -295,9 +381,8 @@ Object.assign(GameScene.prototype, {
     if (a === undefined || !th) return;
     for (const r in th) {
       if (th[r] !== a && !n.desync) {
-        n.desync = true;
-        n.send({ t: 'desync', f });
-        if (this.onDesync) this.onDesync(f);
+        this.netDesync(f);
+        break;
       }
     }
     // tout le monde a répondu : on oublie cette image
@@ -340,6 +425,11 @@ Object.assign(GameScene.prototype, {
       }
       this.acc -= STEP_MS;
       this.netStep();
+      // fin de partie confirmée (toutes les commandes jusqu'à l'image du KO sont connues) : on termine pour de bon
+      if (this.endF !== null && this.endF !== undefined && n.verified >= this.endF - 1 && !this.over) {
+        this.netFinal = true;
+        this.finish(this.endW >= 0 ? this.pls[this.endW] : null);
+      }
     }
     this.updateHud();
   },
@@ -379,11 +469,11 @@ Object.assign(GameScene.prototype, {
     // 3. empreinte de l'état (images confirmées) pour détecter une désynchronisation
     if (n.verified >= 30 && (n.verified % 30 === 0 || n.lastHashF === undefined)) {
       const F = n.verified - (n.verified % 30);
-      if (F > (n.lastHashF || 0) && n.snaps[F]) {
+      if (F > (n.lastHashF || 0) && F >= n.syncFrom && n.snaps[F]) {
         n.lastHashF = F;
         const h = hashStr(this.stateKey(n.snaps[F]));
         n.hashes.mine[F] = h;
-        n.send({ t: 'hash', p: n.me, f: F, h });
+        n.send({ t: 'hash', p: n.me, f: F, h, e: n.epoch });
         this.netCheckHash(F);
       }
     }
@@ -403,6 +493,7 @@ Object.assign(GameScene.prototype, {
     this.netPlay(f);
     // ménage
     const old = f - NET_KEEP;
+    if (n.forced && n.forced.f < old) n.forced = null;
     if (old >= 0) {
       delete n.snaps[old];
       delete n.used[old];
@@ -413,6 +504,8 @@ Object.assign(GameScene.prototype, {
   netPlay(f) {
     const n = this.net;
     const me = n.me;
+    // état imposé par le référent (resynchro) pour cette image
+    if (n.forced && n.forced.f === f) this.restore(n.forced.s);
     n.snaps[f] = this.snapshot();
     const used = this.pls.map((_, r) => {
       if (r === me) return n.inputs[me][f] !== undefined ? n.inputs[me][f] : NEUTRAL_IN;
@@ -430,7 +523,7 @@ Object.assign(GameScene.prototype, {
     const n = this.net;
     n.rollbacks++;
     n.maxRoll = Math.max(n.maxRoll, to - from);
-    this.restore(n.snaps[from]);
+    if (n.snaps[from]) this.restore(n.snaps[from]);
     this.beginResim();
     // la dernière entrée adverse connue AVANT l'image rejouée sert de base de prédiction
     for (let k = from; k < to; k++) this.netPlay(k);

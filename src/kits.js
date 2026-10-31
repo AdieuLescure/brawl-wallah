@@ -174,12 +174,12 @@
       ua: { pose: 'guitar', fx: { notes: true } }, // SOLO
       da: { pose: 'plunge', fx: { cres: 'cres_wood', s: 3, ang: 90 } }, // PIQUÉ
     }), {
-      nS: Object.assign({}, o.neutral, { cd: 500, proj: Object.assign({}, o.neutral.proj, { dmg: 8 }) }), // PASTIS (3 bouteilles à l'écran)
-      sS: Object.assign({}, o.down, { book: Object.assign({}, o.down.book, { mark: 5000, dmg: 11 }) }), // CODE PÉNAL : marque COUPABLE 5 s
-      dS: Object.assign({}, o.back, { cd: 2000 }), // OBJECTION !
+      nS: Object.assign({}, o.back, { cd: 2000 }), // OBJECTION ! (sans direction)
+      sS: Object.assign({}, o.neutral, { cd: 500, proj: Object.assign({}, o.neutral.proj, { dmg: 8 }) }), // PASTIS lancé vers l'avant (3 bouteilles à l'écran)
+      dS: Object.assign({}, o.down, { book: Object.assign({}, o.down.book, { mark: 5000, dmg: 11 }) }), // CODE PÉNAL : marque COUPABLE 5 s
       uS: Object.assign({}, o.upAir, { recovery: true }), // JAMBE DE FEU (remonter)
       dAS: o.downAir, // PLONGEON
-    }), ['COUP   ALLONGE (GUITARE)', 'SPÉCIAL PASTIS', 'SPÉ AV CODE PÉNAL', 'SPÉ H/B JAMBE FEU/OBJ.', 'AIR BAS PLONGEON', 'LIVRE = COUPABLE !']);
+    }), ['COUP   ALLONGE (GUITARE)', 'SPÉCIAL OBJECTION !', 'SPÉ AV PASTIS', 'SPÉ H/B JAMBE FEU/CODE', 'AIR BAS PLONGEON', 'LIVRE = COUPABLE !']);
   }
 
   // ---------------- DENODOOM (TIR) : fusil à pompe, L'AIGLE DE CARTHAGE ----------------

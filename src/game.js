@@ -981,6 +981,9 @@ class GameScene extends Phaser.Scene {
       slowUntil: 0,
       dropUntil: 0,
       downHold: 0,
+      prevDown: false,
+      dropIn: 0,
+      dropArmed: false,
       rage: 0,
       rageUntil: 0,
       charmUntil: 0,
@@ -1570,6 +1573,7 @@ class GameScene extends Phaser.Scene {
 
   simTick() {
     this.frame++;
+    if (this.endF !== null && this.endF !== undefined) return; // fin en attente de confirmation (en ligne)
     if (this.freezeLeft > 0) {
       this.freezeLeft--;
       return;
@@ -1944,15 +1948,26 @@ class GameScene extends Phaser.Scene {
         }
         // chute rapide
         if (inp.sy > 0.75 && !grounded && !pl.atk && b.velocity.y > -50) s.setVelocityY(Math.max(b.velocity.y, FAST_FALL));
-        // BAS tenu 0,15 s sur une plateforme fine : on la traverse
-        if (grounded && inp.sy > 0.7 && Math.abs(inp.sx) < 0.5 && b.bottom < L.baseY - 4 && !pl.atk) {
-          pl.downHold++;
-          if (pl.downHold >= 9) {
+        // plateforme fine : un COUP DE JOYSTICK vers le bas la traverse, même bref (2 images d'attente pour laisser
+        // passer un coup bas : COUP ou SPÉCIAL pendant ce temps = on attaque au lieu de descendre) ; BAS tenu marche aussi
+        const downNow = inp.sy > 0.55 && Math.abs(inp.sx) < 0.6;
+        const onSoft = grounded && b.bottom < L.baseY - 4;
+        if (onSoft && downNow && !pl.prevDown && !pl.atk) pl.dropIn = 3;
+        if (onSoft && downNow && !pl.atk) pl.downHold++;
+        else pl.downHold = 0;
+        if (pl.dropIn > 0) {
+          pl.dropIn--;
+          if (!onSoft || pl.atk || inp.sy < -0.3) pl.dropIn = 0, pl.dropArmed = false;
+        }
+        if ((pl.dropIn === 0 && pl.dropArmed) || pl.downHold >= 9) {
+          if (onSoft && !pl.atk) {
             pl.dropUntil = now + 250;
-            pl.downHold = 0;
             s.setVelocityY(150);
           }
-        } else pl.downHold = 0;
+          pl.downHold = 0;
+        }
+        pl.dropArmed = pl.dropIn > 0;
+        pl.prevDown = downNow;
         // attaque : LÉGER / LOURD / SPÉCIAL + direction
         const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now, wantS = pl.bufSp >= now;
         const gc = !grounded && now < (pl.gcUntil || 0);
@@ -3279,6 +3294,15 @@ class GameScene extends Phaser.Scene {
   }
 
   finish(winner) {
+    // EN LIGNE : la fin n'est décidée que quand l'image est CONFIRMÉE (sinon un KO « prédit » à tort terminait la
+    // partie sur un seul téléphone). En attendant, la simulation se fige (endF dans l'instantané : un rejeu l'annule).
+    if (this.net && !this.netFinal) {
+      if (this.endF === null || this.endF === undefined) {
+        this.endF = this.frame;
+        this.endW = winner ? winner.i : -1;
+      }
+      return;
+    }
     this.over = true;
     const meP = this.net ? this.pl(this.net.me) : this.p1;
     const won = !!winner && (winner === meP || (this.pls.length > 2 && winner.team === meP.team));

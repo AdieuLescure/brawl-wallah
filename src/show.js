@@ -117,6 +117,7 @@ const SHOW = {
   const baseFinish = P.finish;
   P.finish = function (winner) {
     baseFinish.call(this, winner);
+    if (!this.over) return; // en ligne : fin pas encore confirmée
     if (!winner || !duel(this) || (typeof camp !== 'undefined' && camp && camp.phase)) return;
     this.vicWinner = winner;
     this.vicAt = rnow() + SHOW.vicDelay;

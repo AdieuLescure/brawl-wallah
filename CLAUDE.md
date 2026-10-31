@@ -25,7 +25,14 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
   - `sprites48.js`, `chars48.js`, `art.js` : pixel art généré par code
   - `game.js` : moteur de combat, données des persos (`CHARS`), règles (`KB_BASE`, `STUN_*`, `DI_MAX`…), HUD, contrôles
   - `campaign.js` : menus, campagne solo (histoire, 6 chapitres)
-  - `netcode.js` : rollback type GGPO (instantanés génériques des joueurs, rejeu silencieux, recalage du rythme)
+  - `netcode.js` : rollback type GGPO (instantanés génériques des joueurs, rejeu silencieux, recalage du rythme).
+    Empreinte de l'état toutes les 30 images ; en cas d'écart, RESYNCHRO au lieu d'arrêter la partie : le RÉFÉRENT
+    (`netAuthority` = 1er joueur encore là) envoie son instantané (`sync`, avec `epoch` ; les vieilles empreintes sont
+    ignorées), les autres le posent à son image (`n.forced`) et rejouent jusqu'à maintenant. Après 12 resynchros :
+    arrêt comme avant (`desync` « fatal », partie non classée). FIN DE PARTIE EN LIGNE : `finish` ne fait que noter
+    `endF`/`endW` (dans l'instantané, la simulation se fige) ; la vraie fin attend que l'image soit CONFIRMÉE
+    (`netFinal`), sinon un KO prédit à tort terminait la partie sur un seul téléphone. Test : `e2e.py` (2 pages,
+    vrai `game.step` à 120 Hz contre 60 Hz, réseau avec retard, compare les états complets).
   - `online.js` : comptes Supabase, salons publics/privés, duel classé, reconnexion
   - `bots.js` : bots par niveau (temps de réaction, précision), mannequin d'entraînement
   - `stages.js` : terrains : « NUIT » (ville) et « DÉSERT » (dunes, deux lunes, ver géant qui surgit au loin,
@@ -54,7 +61,8 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     `stageOff`) : LOGE (gauche, 190 px du sol), ÉCRAN (haut gauche, 320, à côté de la tour), BALCON (droite, 330),
     SCÈNE DES PRÉSENTATEURS (droite, 128). Le PUPITRE posé sur la scène a été RETIRÉ (Noah) ; `galaPupitre` et le cas
     `pupitre` de `galaSpawn` restent au cas où. Rideaux drapés + écusson au sigle. Toutes se
-    traversent par dessous et se quittent par BAS tenu ; mur seulement sur la face `wall` ; REBORDS à tous leurs coins
+    traversent par dessous et se quittent par un COUP DE JOYSTICK vers le bas (`prevDown` : 3 images d'attente pour laisser
+    passer un coup bas ; BAS tenu marche aussi) ; mur seulement sur la face `wall` ; REBORDS à tous leurs coins
     (`ledgeBlocks`). PARVIS plus épais (`GALA.mainH` = 104 px, `this.mainH`, utilisé par `tryLedge`). Départs : `spawnAt`
     (`galaSpawn` : jamais dans le pupitre, posé sur une plateforme basse). Leçons des simulations de bots : pas de plafond
     plein ni de mur côté centre, plateformes à l'intérieur des bords du parvis, pas de bloc haut sur la scène, scène pas à 110 px
@@ -112,7 +120,7 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
     TIR (Denodoom, fusil à pompe) : 2 cartouches (`ammo`, rechargement auto), `shot`, plombs `pellet` plus faibles de
     loin, `recoil` en l'air. ALLONGE : `bounce` sur le coup bas en l'air. NATANAX sans casquette : COUPS des POINGS
     (`bareAll`, `famMoves`). Astra et Nini (en réserve) gardent l'ancienne grammaire. Mécaniques : CHAUFFE + ÉRUPTION
-    (Toro), PEAU DE PIERRE (Ménès, `armor` sur ses spéciales sauf le SUPLEX), COUPABLE ! (Deadlulu : la marque renforce
+    (Toro), PEAU DE PIERRE (Ménès, `armor` sur ses spéciales sauf le SUPLEX), COUPABLE ! (Deadlulu : SPÉCIAL seul = OBJECTION !, avant = PASTIS, bas = CODE PÉNAL ; la marque renforce
     sa prochaine SPÉCIALE), CTRL+Z (AdieuLescure). Vitesse, saut, poids, famille et textes d'aide aussi ici.
   - `anim.js` : animation d'affichage + CAMÉRA qui suit et zoome (2e caméra fixe pour l'interface : profondeur >= 50). `pl.sprite` = corps physique INVISIBLE ; `pl.view` = l'image affichée, recopiée à
     chaque image avec écrasement/étirement, préparation et détente des coups, tremblement, vrille, balancement. Choisit
@@ -164,6 +172,9 @@ Le propriétaire (Noah) ne code pas : réponses en français, courtes, sans jarg
 - La simulation doit rester **déterministe** (en ligne, les deux téléphones rejouent la même partie) :
   pas de `Math.random()` ni de temps réel dans la logique, seulement pour les effets visuels et les bots hors ligne.
   Tout état de jeu d'un joueur doit être un champ simple (nombre, booléen, texte) pour être sauvegardé par `snapshot()`.
+  Un champ de `P_SKIP` (`netcode.js`) n'est PAS sauvegardé : n'y mettre que de l'affichage ou des constantes (avant,
+  `spdMul`, recalculé APRÈS le mouvement par LN4 et Kylian, y était : désynchro quand un rejeu passait par les pneus
+  neufs ou l'amour).
 - Défense façon Brawlhalla : pas de garde. Esquive au sol sur place (recharge 1 s), ESQUIVE + côté au sol = SPRINT (1,9 × la vitesse,
   sans invincibilité, coupé par un saut ou une attaque), esquive aérienne une fois par saut, ESQUIVE DE POURSUITE juste
   après un coup qui touche (2 au sol, 1 en l'air).

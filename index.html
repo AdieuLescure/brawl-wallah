@@ -1946,6 +1946,9 @@ class GameScene extends Phaser.Scene {
       slowUntil: 0,
       dropUntil: 0,
       downHold: 0,
+      prevDown: false,
+      dropIn: 0,
+      dropArmed: false,
       rage: 0,
       rageUntil: 0,
       charmUntil: 0,
@@ -2535,6 +2538,7 @@ class GameScene extends Phaser.Scene {
 
   simTick() {
     this.frame++;
+    if (this.endF !== null && this.endF !== undefined) return; // fin en attente de confirmation (en ligne)
     if (this.freezeLeft > 0) {
       this.freezeLeft--;
       return;
@@ -2909,15 +2913,26 @@ class GameScene extends Phaser.Scene {
         }
         // chute rapide
         if (inp.sy > 0.75 && !grounded && !pl.atk && b.velocity.y > -50) s.setVelocityY(Math.max(b.velocity.y, FAST_FALL));
-        // BAS tenu 0,15 s sur une plateforme fine : on la traverse
-        if (grounded && inp.sy > 0.7 && Math.abs(inp.sx) < 0.5 && b.bottom < L.baseY - 4 && !pl.atk) {
-          pl.downHold++;
-          if (pl.downHold >= 9) {
+        // plateforme fine : un COUP DE JOYSTICK vers le bas la traverse, même bref (2 images d'attente pour laisser
+        // passer un coup bas : COUP ou SPÉCIAL pendant ce temps = on attaque au lieu de descendre) ; BAS tenu marche aussi
+        const downNow = inp.sy > 0.55 && Math.abs(inp.sx) < 0.6;
+        const onSoft = grounded && b.bottom < L.baseY - 4;
+        if (onSoft && downNow && !pl.prevDown && !pl.atk) pl.dropIn = 3;
+        if (onSoft && downNow && !pl.atk) pl.downHold++;
+        else pl.downHold = 0;
+        if (pl.dropIn > 0) {
+          pl.dropIn--;
+          if (!onSoft || pl.atk || inp.sy < -0.3) pl.dropIn = 0, pl.dropArmed = false;
+        }
+        if ((pl.dropIn === 0 && pl.dropArmed) || pl.downHold >= 9) {
+          if (onSoft && !pl.atk) {
             pl.dropUntil = now + 250;
-            pl.downHold = 0;
             s.setVelocityY(150);
           }
-        } else pl.downHold = 0;
+          pl.downHold = 0;
+        }
+        pl.dropArmed = pl.dropIn > 0;
+        pl.prevDown = downNow;
         // attaque : LÉGER / LOURD / SPÉCIAL + direction
         const wantL = pl.bufAtk >= now, wantH = pl.bufHeavy >= now, wantS = pl.bufSp >= now;
         const gc = !grounded && now < (pl.gcUntil || 0);
@@ -4244,6 +4259,15 @@ class GameScene extends Phaser.Scene {
   }
 
   finish(winner) {
+    // EN LIGNE : la fin n'est décidée que quand l'image est CONFIRMÉE (sinon un KO « prédit » à tort terminait la
+    // partie sur un seul téléphone). En attendant, la simulation se fige (endF dans l'instantané : un rejeu l'annule).
+    if (this.net && !this.netFinal) {
+      if (this.endF === null || this.endF === undefined) {
+        this.endF = this.frame;
+        this.endW = winner ? winner.i : -1;
+      }
+      return;
+    }
     this.over = true;
     const meP = this.net ? this.pl(this.net.me) : this.p1;
     const won = !!winner && (winner === meP || (this.pls.length > 2 && winner.team === meP.team));
@@ -7238,12 +7262,12 @@ Object.assign(GameScene.prototype, {
       ua: { pose: 'guitar', fx: { notes: true } }, // SOLO
       da: { pose: 'plunge', fx: { cres: 'cres_wood', s: 3, ang: 90 } }, // PIQUÉ
     }), {
-      nS: Object.assign({}, o.neutral, { cd: 500, proj: Object.assign({}, o.neutral.proj, { dmg: 8 }) }), // PASTIS (3 bouteilles à l'écran)
-      sS: Object.assign({}, o.down, { book: Object.assign({}, o.down.book, { mark: 5000, dmg: 11 }) }), // CODE PÉNAL : marque COUPABLE 5 s
-      dS: Object.assign({}, o.back, { cd: 2000 }), // OBJECTION !
+      nS: Object.assign({}, o.back, { cd: 2000 }), // OBJECTION ! (sans direction)
+      sS: Object.assign({}, o.neutral, { cd: 500, proj: Object.assign({}, o.neutral.proj, { dmg: 8 }) }), // PASTIS lancé vers l'avant (3 bouteilles à l'écran)
+      dS: Object.assign({}, o.down, { book: Object.assign({}, o.down.book, { mark: 5000, dmg: 11 }) }), // CODE PÉNAL : marque COUPABLE 5 s
       uS: Object.assign({}, o.upAir, { recovery: true }), // JAMBE DE FEU (remonter)
       dAS: o.downAir, // PLONGEON
-    }), ['COUP   ALLONGE (GUITARE)', 'SPÉCIAL PASTIS', 'SPÉ AV CODE PÉNAL', 'SPÉ H/B JAMBE FEU/OBJ.', 'AIR BAS PLONGEON', 'LIVRE = COUPABLE !']);
+    }), ['COUP   ALLONGE (GUITARE)', 'SPÉCIAL OBJECTION !', 'SPÉ AV PASTIS', 'SPÉ H/B JAMBE FEU/CODE', 'AIR BAS PLONGEON', 'LIVRE = COUPABLE !']);
   }
 
   // ---------------- DENODOOM (TIR) : fusil à pompe, L'AIGLE DE CARTHAGE ----------------
@@ -7985,6 +8009,7 @@ const SHOW = {
   const baseFinish = P.finish;
   P.finish = function (winner) {
     baseFinish.call(this, winner);
+    if (!this.over) return; // en ligne : fin pas encore confirmée
     if (!winner || !duel(this) || (typeof camp !== 'undefined' && camp && camp.phase)) return;
     this.vicWinner = winner;
     this.vicAt = rnow() + SHOW.vicDelay;
@@ -9079,7 +9104,7 @@ const NULLOBJ = new Proxy(function () {}, {
 });
 
 // Etat d'un joueur : tous ses champs simples (nombres, booléens, textes) sont sauvegardés, sauf ceux-ci
-const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'spdMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff', 'markImg', 'heatFx', 'goldFx']);
+const P_SKIP = new Set(['char', 'def', 'sprite', 'tag', 'human', 'hud', 'umb', 'chgBg', 'chgFg', 'chgRing', 'carryImg', 'atk', 'grab', 'moveCd', 'i', 'shade', 'lvl', 'aggr', 'dmgMul', 'flashUntil', 'lastHeart', 'lastAura', 'charmFx', 'catImg', 'flashCol', 'lastPuff', 'markImg', 'heatFx', 'goldFx']);
 const plainVal = (v) => v === null || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string';
 
 // --- entrées : 1 entier par image (sx, sy sur 8 bits, + 4 boutons) -> identique des deux côtés
@@ -9129,7 +9154,7 @@ Object.assign(GameScene.prototype, {
         id: p.id, o: p.owner.i, t: p.target.i, spec: p.spec, x: p.x, y: p.y, vx: p.vx, vy: p.vy, born: p.born, armedAt: p.armedAt, lastTrail: p.lastTrail, f: p.f,
         spent: !!p.spent, bounced: !!p.bounced, back: !!p.back, carry: p.carry ? { ...p.carry } : null, hits: p.hits ? [...p.hits].map((q) => q.i) : null,
       }));
-    return JSON.stringify({ pls, projs, timers: this.timers, frame: this.frame, simFrames: this.simFrames, freeze: this.freezeLeft, atkSeq: this.atkSeq, projSeq: this.projSeq, sudden: !!this.sudden });
+    return JSON.stringify({ pls, projs, timers: this.timers, frame: this.frame, simFrames: this.simFrames, freeze: this.freezeLeft, atkSeq: this.atkSeq, projSeq: this.projSeq, sudden: !!this.sudden, endF: this.endF === undefined ? null : this.endF, endW: this.endW === undefined ? -1 : this.endW });
   },
 
   restore(str) {
@@ -9155,11 +9180,9 @@ Object.assign(GameScene.prototype, {
       pl.grab = o.grab ? { victim: this.pl(o.grab.v), start: o.grab.start, slamAt: o.grab.slamAt, spec: o.grab.spec } : null;
       s.setFlipX(pl.facing < 0);
       if (!pl.grab) s.setAngle(0);
-      // à plusieurs : un joueur éliminé n'a plus de corps (il peut revenir si le rejeu remonte avant son élimination)
-      if (this.pls.length > 2) {
-        b.enable = pl.stocks > 0;
-        pl.tag.setVisible(pl.stocks > 0);
-      }
+      // un joueur éliminé n'a plus de corps (il peut revenir si le rejeu remonte avant son élimination)
+      b.enable = pl.stocks > 0;
+      if (this.pls.length > 2) pl.tag.setVisible(pl.stocks > 0);
     });
     // projectiles : on garde les sprites existants, on recrée ceux qui manquent
     const live = new Map(this.projs.map((p) => [p.id, p]));
@@ -9191,6 +9214,8 @@ Object.assign(GameScene.prototype, {
     this.atkSeq = S.atkSeq;
     this.projSeq = S.projSeq;
     this.sudden = !!S.sudden;
+    this.endF = S.endF === undefined ? null : S.endF;
+    this.endW = S.endW === undefined ? -1 : S.endW;
   },
 
   makeProjSprite(p) {
@@ -9307,6 +9332,8 @@ Object.assign(GameScene.prototype, {
       inputs: this.pls.map(() => ({})), // inputs[joueur][image] = entier
       used: {}, snaps: {}, verified: -1, lastRemote: this.pls.map(() => NEUTRAL_IN), gone: {},
       hashes: { mine: {}, theirs: {} }, desync: false, stalled: 0, rollbacks: 0, maxRoll: 0,
+      // RESYNCHRO : en cas d'écart, l'état du « référent » (1er joueur encore là) est recopié chez les autres
+      epoch: 0, syncFrom: 0, forced: null, resyncs: 0, lastSyncSent: -999, waitSync: 0,
     };
     for (let f = 0; f < D; f++) this.net.inputs.forEach((a) => (a[f] = NEUTRAL_IN)); // images 0..D-1 : neutre pour tous
     // les gestes de pistolet/charge utilisent le hasard des bots : jamais en ligne
@@ -9314,6 +9341,9 @@ Object.assign(GameScene.prototype, {
     this.curIn = this.pls.map(() => NEUTRAL_IN);
     this.netInput = (i) => unpackInput(this.curIn[i]);
     this.snapAt = {};
+    this.endF = null;
+    this.endW = -1;
+    this.netFinal = false;
   },
 
   // les autres joueurs de la partie
@@ -9347,9 +9377,90 @@ Object.assign(GameScene.prototype, {
         if (f > n.remoteMax[r]) n.remoteMax[r] = f;
       });
     } else if (msg.t === 'hash') {
+      if ((msg.e || 0) !== n.epoch || msg.f < n.syncFrom) return; // empreinte d'avant une resynchro : périmée
       (n.hashes.theirs[msg.f] || (n.hashes.theirs[msg.f] = {}))[r] = msg.h;
       this.netCheckHash(msg.f);
+    } else if (msg.t === 'desync') {
+      // un autre joueur a vu un écart : si je suis le référent, j'envoie mon état
+      if ((msg.e || 0) === n.epoch) this.netDesync(msg.f);
+    } else if (msg.t === 'sync') {
+      this.netApplySync(r, msg);
     }
+  },
+
+  // le référent : le premier joueur encore dans la partie (le même chez tout le monde)
+  netAuthority() {
+    const n = this.net;
+    for (let i = 0; i < this.pls.length; i++) if (i === n.me || n.gone[i] === undefined) return i;
+    return 0;
+  },
+
+  // écart détecté (chez moi ou chez un autre) : plutôt que d'arrêter la partie, on recopie l'état du référent
+  netDesync(f) {
+    const n = this.net;
+    if (!n || this.over) return;
+    if (n.resyncs >= 12) {
+      // ça ne se rattrape pas : on arrête comme avant
+      if (!n.desync) {
+        n.desync = true;
+        n.send({ t: 'desync', f, fatal: true });
+        if (this.onDesync) this.onDesync(f);
+      }
+      return;
+    }
+    if (this.netAuthority() !== n.me) {
+      if (!n.waitSync || this.frame - n.waitSync > 150) {
+        n.waitSync = this.frame;
+        n.send({ t: 'desync', p: n.me, f, e: n.epoch });
+      }
+      return;
+    }
+    if (this.frame - n.lastSyncSent < 45) return; // une resynchro vient de partir
+    let V = n.verified + 1;
+    if (!n.snaps[V]) V = n.verified;
+    if (!n.snaps[V]) return;
+    n.lastSyncSent = this.frame;
+    n.resyncs++;
+    n.epoch++;
+    n.syncFrom = V;
+    n.hashes = { mine: {}, theirs: {} };
+    n.lastHashF = V - 1;
+    n.send({ t: 'sync', p: n.me, f: V, e: n.epoch, s: n.snaps[V] });
+    this.netSyncFx();
+  },
+
+  // l'état du référent arrive : on le pose à son image et on rejoue jusqu'à maintenant
+  netApplySync(r, msg) {
+    const n = this.net;
+    if (!n || r !== this.netAuthority() || !(msg.e > n.epoch) || typeof msg.s !== 'string') return;
+    const V = msg.f;
+    if (V <= this.frame - NET_KEEP + 2) {
+      // trop vieux (coupure) : impossible de rejouer jusqu'ici ; on redemande
+      n.waitSync = 0;
+      n.epoch = msg.e;
+      this.netDesync(V);
+      return;
+    }
+    n.epoch = msg.e;
+    n.resyncs++;
+    n.syncFrom = V;
+    n.hashes = { mine: {}, theirs: {} };
+    n.lastHashF = V - 1;
+    n.waitSync = 0;
+    n.forced = { f: V, s: msg.s };
+    if (this.frame > V) {
+      if (!n.snaps[V]) n.snaps[V] = msg.s;
+      this.netRollback(V, this.frame);
+      n.verified = Math.min(n.verified, V - 1);
+    }
+    this.netSyncFx();
+  },
+
+  netSyncFx() {
+    if (this.resim || !this.add || !this.add.text) return;
+    if (this.syncTxt && this.syncTxt.active) this.syncTxt.destroy();
+    const t = (this.syncTxt = this.add.text(this.W / 2, 64, 'RESYNCHRO', { fontFamily: FONT, fontSize: '14px', color: '#9be7ff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(60));
+    this.tweens.add({ targets: t, alpha: 0, delay: 700, duration: 300, onComplete: () => t.destroy() });
   },
 
   netCheckHash(f) {
@@ -9358,9 +9469,8 @@ Object.assign(GameScene.prototype, {
     if (a === undefined || !th) return;
     for (const r in th) {
       if (th[r] !== a && !n.desync) {
-        n.desync = true;
-        n.send({ t: 'desync', f });
-        if (this.onDesync) this.onDesync(f);
+        this.netDesync(f);
+        break;
       }
     }
     // tout le monde a répondu : on oublie cette image
@@ -9403,6 +9513,11 @@ Object.assign(GameScene.prototype, {
       }
       this.acc -= STEP_MS;
       this.netStep();
+      // fin de partie confirmée (toutes les commandes jusqu'à l'image du KO sont connues) : on termine pour de bon
+      if (this.endF !== null && this.endF !== undefined && n.verified >= this.endF - 1 && !this.over) {
+        this.netFinal = true;
+        this.finish(this.endW >= 0 ? this.pls[this.endW] : null);
+      }
     }
     this.updateHud();
   },
@@ -9442,11 +9557,11 @@ Object.assign(GameScene.prototype, {
     // 3. empreinte de l'état (images confirmées) pour détecter une désynchronisation
     if (n.verified >= 30 && (n.verified % 30 === 0 || n.lastHashF === undefined)) {
       const F = n.verified - (n.verified % 30);
-      if (F > (n.lastHashF || 0) && n.snaps[F]) {
+      if (F > (n.lastHashF || 0) && F >= n.syncFrom && n.snaps[F]) {
         n.lastHashF = F;
         const h = hashStr(this.stateKey(n.snaps[F]));
         n.hashes.mine[F] = h;
-        n.send({ t: 'hash', p: n.me, f: F, h });
+        n.send({ t: 'hash', p: n.me, f: F, h, e: n.epoch });
         this.netCheckHash(F);
       }
     }
@@ -9466,6 +9581,7 @@ Object.assign(GameScene.prototype, {
     this.netPlay(f);
     // ménage
     const old = f - NET_KEEP;
+    if (n.forced && n.forced.f < old) n.forced = null;
     if (old >= 0) {
       delete n.snaps[old];
       delete n.used[old];
@@ -9476,6 +9592,8 @@ Object.assign(GameScene.prototype, {
   netPlay(f) {
     const n = this.net;
     const me = n.me;
+    // état imposé par le référent (resynchro) pour cette image
+    if (n.forced && n.forced.f === f) this.restore(n.forced.s);
     n.snaps[f] = this.snapshot();
     const used = this.pls.map((_, r) => {
       if (r === me) return n.inputs[me][f] !== undefined ? n.inputs[me][f] : NEUTRAL_IN;
@@ -9493,7 +9611,7 @@ Object.assign(GameScene.prototype, {
     const n = this.net;
     n.rollbacks++;
     n.maxRoll = Math.max(n.maxRoll, to - from);
-    this.restore(n.snaps[from]);
+    if (n.snaps[from]) this.restore(n.snaps[from]);
     this.beginResim();
     // la dernière entrée adverse connue AVANT l'image rejouée sert de base de prédiction
     for (let k = from; k < to; k++) this.netPlay(k);
@@ -10139,8 +10257,9 @@ Object.assign(GameScene.prototype, {
       return;
     }
     if (m.t === 'start') return this.onlineStart(m);
-    if (m.t === 'in' || m.t === 'hash') return n && this.netReceive(m);
-    if (m.t === 'desync') return this.onDesync(m.f);
+    if (m.t === 'in' || m.t === 'hash' || m.t === 'sync') return n && this.netReceive(m);
+    // écart : on resynchronise (seul un écart « fatal », ou un vieux client, arrête la partie)
+    if (m.t === 'desync') return n && !m.fatal && m.e !== undefined ? this.netReceive(m) : this.onDesync(m.f);
     if (m.t === 'left') {
       if (this.dropTxt) this.dropTxt.destroy();
       this.dropTxt = null;
@@ -10407,7 +10526,7 @@ const BOT_MOVES = {
   deadlulu: [
     ['nL', [0, 120], [-60, 50], 4], ['sL', [60, 190], [-50, 50], 2.5], ['uL', [0, 110], [-170, -20], 2], ['dL', [0, 140], [-20, 60], 2],
     ['sA', [30, 170], [-60, 60], 3], ['uA', [0, 110], [-160, 10], 2], ['dA', [0, 70], [30, 160], 1.5],
-    ['nS', [110, 420], [-60, 60], 3, { any: true }], ['sS', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
+    ['sS', [110, 420], [-60, 60], 3, { any: true }], ['dS', [180, 320], [-40, 60], 1.5, { tgtGround: true }],
     ['uS', [0, 90], [-200, -10], 0.8], ['dAS', [0, 60], [60, 260], 1],
   ],
   denodoom: [
@@ -10553,11 +10672,11 @@ Object.assign(GameScene.prototype, {
       const reach = (m.ox || 0) + (m.w || 0) / 2 + 40;
       const coming = now < ta.hitAt + (m.active || 0) && (m.type === 'melee' || m.type === 'grab') && adx < reach + 30 && Math.abs(dy) < 140;
       // contre (OBJECTION !, CONTRÔLE) : en bas + SPÉCIAL
-      const ctr = bot.def.moves.dS;
-      if (coming && ctr && (ctr.type === 'counter' || ctr.type === 'catch') && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: 'dS' }, grounded, now) && Math.random() < lv.dodge * 0.35) {
+      const ck = ['dS', 'nS'].find((k) => bot.def.moves[k] && (bot.def.moves[k].type === 'counter' || bot.def.moves[k].type === 'catch'));
+      if (coming && ck && !bot.atk && now > bot.cdUntil && this.botReady(bot, { k: ck }, grounded, now) && Math.random() < lv.dodge * 0.35) {
         i.special = true;
-        i.sy = 1;
-        i.sx = dir * 0.3;
+        i.sy = ck === 'dS' ? 1 : 0;
+        i.sx = ck === 'dS' ? dir * 0.3 : 0;
         return i;
       }
       if (coming && Math.random() < lv.dodge && now >= bot.dodgeCd && !bot.atk) {

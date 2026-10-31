@@ -7,6 +7,7 @@ import { DurableObject } from 'cloudflare:workers';
 export const CHARS = ['toro', 'astra', 'grom', 'deadlulu', 'denodoom', 'nini', 'adieulescure', 'bigzinzin', 'ln4', 'natanax', 'kylian'];
 export const STAGES = ['night', 'dune', 'gala'];
 const MAX_MSG = 4000;
+const MAX_SYNC = 400000;
 
 const send = (sock, o) => {
   try {
@@ -75,7 +76,8 @@ export class RoomCore {
   }
 
   async onMessage(sock, raw) {
-    if (typeof raw !== 'string' || raw.length > MAX_MSG) return;
+    // seul l'état complet d'une resynchro peut être gros
+    if (typeof raw !== 'string' || (raw.length > MAX_MSG && !(raw.length < MAX_SYNC && raw.startsWith('{"t":"sync"')))) return;
     let m;
     try {
       m = JSON.parse(raw);
@@ -100,8 +102,15 @@ export class RoomCore {
         if (this.started) this.others(i, raw);
         break;
       case 'desync':
-        this.desync = true;
-        this.others(i, { t: 'desync', f: m.f });
+        // demande de resynchro (e) : simple relais ; sans e ou « fatal » : la partie s'arrête, non classée
+        if (m.fatal || m.e === undefined) {
+          this.desync = true;
+          this.others(i, { t: 'desync', f: m.f, fatal: true });
+        } else if (this.started) this.others(i, raw);
+        break;
+      case 'sync':
+        // l'état complet du référent, pour les autres joueurs (resynchro)
+        if (this.started && typeof m.s === 'string') this.others(i, raw);
         break;
       case 'pick':
         if (this.started || !CHARS.includes(m.char)) return;
